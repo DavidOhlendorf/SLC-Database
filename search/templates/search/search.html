@@ -1,8 +1,21 @@
 
 {% extends "main.html" %}
 
-<h1>Startseite</h1>
-
 {% block content %}
-    <p>Suche</p>
+  <h1>Alle Fragen und ihre Wellen</h1>
+
+  <ul>
+    {% for q in questions %}
+      <li>
+        <strong>{{ q.questiontext }}</strong>
+        <ul>
+          {% for w in q.waves.all %}
+            <li>{{ w.name }}</li>
+          {% empty %}
+            <li><em>Keine Welle verknüpft</em></li>
+          {% endfor %}
+        </ul>
+      </li>
+    {% endfor %}
+  </ul>
 {% endblock %}

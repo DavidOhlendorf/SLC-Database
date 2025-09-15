@@ -38,7 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'variables.apps.VariablesConfig',
+    'django_extensions',
     'search.apps.PortalConfig',
+    'waves.apps.WavesConfig',
+    'questions.apps.QuestionsConfig',
     ]
 
 MIDDLEWARE = [
