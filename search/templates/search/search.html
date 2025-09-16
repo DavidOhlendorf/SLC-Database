@@ -1,21 +1,24 @@
-
 {% extends "main.html" %}
 
 {% block content %}
-  <h1>Alle Fragen und ihre Wellen</h1>
+  <h1>Suchergebnisse</h1>
 
-  <ul>
+    <ul>
     {% for q in questions %}
-      <li>
-        <strong>{{ q.questiontext }}</strong>
-        <ul>
-          {% for w in q.waves.all %}
-            <li>{{ w.name }}</li>
-          {% empty %}
-            <li><em>Keine Welle verknüpft</em></li>
-          {% endfor %}
-        </ul>
-      </li>
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{{ q.questiontext }}</h5>
+            <p class="card-text">
+              {% for w in q.waves.all %}
+                <span class="badge bg-secondary">{{ w.name }}</span>
+              {% empty %}
+                <em>Keine Welle verknüpft</em>
+              {% endfor %}
+            </p>
+          <a href="#" class="btn btn-primary">Go somewhere</a>
+        </div>
+      </div>
     {% endfor %}
-  </ul>
+    </ul>
+
 {% endblock %}
