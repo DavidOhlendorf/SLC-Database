@@ -2,6 +2,7 @@ from django.db import models
 from waves.models import Wave
 
 class Question(models.Model):
+    legacy_id = models.IntegerField(unique=True, null=True, blank=True)
     questiontext = models.TextField()
     waves = models.ManyToManyField(Wave, through='WaveQuestion', related_name='questions')
 

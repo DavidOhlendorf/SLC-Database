@@ -1,6 +1,7 @@
 from django.db import models
 
 class Wave(models.Model):
+    legacy_id = models.IntegerField(unique=True, null=True, blank=True)
     name = models.CharField(max_length=200, unique=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)

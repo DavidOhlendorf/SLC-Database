@@ -8,6 +8,8 @@ django = "*"
 django-extensions = "*"
 pydot = "*"
 psycopg = {extras = ["binary"], version = "*"}
+django-import-export = "*"
+tablib = {extras = ["xlsx", "xls"], version = "*"}
 
 [dev-packages]
 
