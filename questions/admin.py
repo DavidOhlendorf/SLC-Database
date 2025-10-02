@@ -1,7 +1,7 @@
 from django.contrib import admin 
 from import_export.admin import ImportExportModelAdmin
-from .models import Question
-from .resources import QuestionResource
+from .models import Question, Keyword
+from .resources import QuestionResource, KeywordResource
 from waves.models import WaveQuestion
 
 class WaveQuestionInline(admin.TabularInline):
@@ -14,3 +14,10 @@ class QuestionAdmin(ImportExportModelAdmin):
     list_display = ('questiontext',)
     search_fields = ('questiontext',)
     inlines = [WaveQuestionInline]
+
+
+@admin.register(Keyword)
+class KeywordAdmin(ImportExportModelAdmin):
+    resource_class = KeywordResource
+    list_display = ("id", "legacy_id", "name")
+    search_fields = ("name",)
