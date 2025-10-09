@@ -1,6 +1,25 @@
 from import_export import resources, fields
-from import_export.widgets import ManyToManyWidget
-from .models import Question, Keyword
+from import_export.widgets import ManyToManyWidget, ForeignKeyWidget
+from .models import Question, Keyword, ConstructPaper, Construct
+
+class ConstructPaperResource(resources.ModelResource):
+    class Meta:
+        model = ConstructPaper
+        fields = ("id", "legacy_id", "title", "filepath",)
+        import_id_fields = ("legacy_id",)
+
+
+class ConstructResource(resources.ModelResource):
+    constructpaper = fields.Field(
+        column_name="constructpaper_legacy_id",
+        attribute="constructpaper",
+        widget=ForeignKeyWidget(ConstructPaper, "legacy_id"),
+    )
+
+    class Meta:
+        model = Construct
+        fields = ("id","legacy_id","level_1","level_2","constructpaper",)
+        import_id_fields = ("legacy_id",)
 
 class KeywordResource(resources.ModelResource):
     class Meta:
@@ -10,6 +29,13 @@ class KeywordResource(resources.ModelResource):
 
 
 class QuestionResource(resources.ModelResource):
+
+    construct = fields.Field(
+        column_name="construct_legacy_id",
+        attribute="construct",
+        widget=ForeignKeyWidget(Construct, "legacy_id"),
+    )
+
     keywords = fields.Field(
         column_name="keywords",
         attribute="keywords",
@@ -18,5 +44,5 @@ class QuestionResource(resources.ModelResource):
 
     class Meta:
         model = Question
-        fields = ("id", "legacy_id", "questiontext", "keywords",)
+        fields = ("id", "legacy_id", "questiontext","construct", "keywords",)
         import_id_fields = ("legacy_id",)
