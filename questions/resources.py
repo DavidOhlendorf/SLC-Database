@@ -1,6 +1,6 @@
 from import_export import resources, fields
 from import_export.widgets import ManyToManyWidget, ForeignKeyWidget
-from .models import Question, Keyword, ConstructPaper, Construct
+from .models import Question, Keyword, ConstructPaper, Construct, QuestionScreenshot
 
 class ConstructPaperResource(resources.ModelResource):
     class Meta:
@@ -46,3 +46,14 @@ class QuestionResource(resources.ModelResource):
         model = Question
         fields = ("id", "legacy_id", "questiontext","construct", "keywords",)
         import_id_fields = ("legacy_id",)
+
+
+class QuestionScreenshotResource(resources.ModelResource):
+    legacy_id = fields.Field(column_name='screenshotID', attribute='legacy_id')
+    image = fields.Field(column_name='filepath', attribute='image')
+    caption = fields.Field(column_name='caption', attribute='caption')
+
+    class Meta:
+        model = QuestionScreenshot
+        fields = ('id', 'legacy_id', 'image', 'caption', 'created_at')
+        import_id_fields = ['legacy_id']

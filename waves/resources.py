@@ -1,20 +1,14 @@
 from import_export import resources, fields
-from .models import Wave, WaveQuestion
-from questions.models import Question
 from import_export.widgets import ForeignKeyWidget
+from waves.models import Wave, WaveQuestion
+from questions.models import Question
 
 
 class WaveResource(resources.ModelResource):
     class Meta:
         model = Wave
-        fields = (
-            'id',
-            'legacy_id',
-            'name',
-            'start_date',
-            'end_date',
-            'is_locked',
-        )
+        fields = ('id','legacy_id','surveyyear','cycle','instrument','start_date','end_date','is_locked',)
+
 
 class WaveQuestionResource(resources.ModelResource):
     wave = fields.Field(
@@ -27,7 +21,14 @@ class WaveQuestionResource(resources.ModelResource):
         attribute='question',
         widget=ForeignKeyWidget(Question, 'legacy_id')
     )
+    legacy_screenshot_id = fields.Field(
+        column_name='screenshotID',
+        attribute='legacy_screenshot_id'
+    )
 
     class Meta:
         model = WaveQuestion
-        fields = ('id', 'wave', 'question',)
+        fields = ('id', 'wave', 'question', 'legacy_screenshot_id',)
+
+
+

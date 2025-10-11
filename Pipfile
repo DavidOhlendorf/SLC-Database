@@ -10,6 +10,7 @@ pydot = "*"
 psycopg = {extras = ["binary"], version = "*"}
 django-import-export = "*"
 tablib = {extras = ["xlsx", "xls"], version = "*"}
+pillow = "*"
 
 [dev-packages]
 

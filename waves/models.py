@@ -1,24 +1,24 @@
 from django.db import models
-from questions.models import Question
+from questions.models import Question, QuestionScreenshot
 
 class Wave(models.Model):
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
-    name = models.CharField(max_length=200, unique=True)
+    surveyyear = models.CharField(max_length=10, blank=True, null=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+    cycle = models.CharField(max_length=200)
+    instrument = models.CharField(max_length=50, blank=True, null=True)
     is_locked = models.BooleanField(default=False) 
 
     def __str__(self):
-        return self.name
+        return f"{self.surveyyear} - {self.cycle} - {self.instrument}"
 
 class WaveQuestion(models.Model):
     wave = models.ForeignKey(Wave, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['wave', 'question'], name='unique_wave_question')
-        ]
-
+    legacy_screenshot_id = models.IntegerField(null=True, blank=True)
+    
     def __str__(self):
         return f"{self.wave} ⟷ {self.question}"
+    
