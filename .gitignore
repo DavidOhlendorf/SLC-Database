@@ -7,6 +7,9 @@ db.sqlite3
 /staticfiles/
 /media/
 
+#Scripts
+/scripts/link_screenshots.py
+
 # Environments
 .venv/
 env/
