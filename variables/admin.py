@@ -2,9 +2,29 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from import_export.admin import ImportExportModelAdmin
-from .resources import ValLabResource
+from .resources import ValLabResource, VariableResource
 
-from .models import ValLab
+from .models import ValLab, Variable
+
+@admin.register(Variable)
+class VariableAdmin(ImportExportModelAdmin):
+    resource_class = VariableResource
+
+    list_display = (
+        "varname",
+        "varlab",
+        "question",
+        "vallab",
+        "ver",
+        "gen",
+        "plausi",
+        "flag",
+    )
+
+    search_fields = ("varname", "varlab", "comment")
+    ordering = ("varname",)
+
+    filter_horizontal = ("waves",)
 
 
 @admin.register(ValLab)

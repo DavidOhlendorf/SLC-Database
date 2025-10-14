@@ -53,3 +53,34 @@ class ValLab(models.Model):
     def value_map(self):
         """{value: text} für schnelle Nachschlagezwecke."""
         return {item["value"]: item["text"] for item in self.values}
+
+
+class Variable(models.Model):
+    legacy_id = models.PositiveIntegerField(null=True, blank=True, unique=True,)
+    varname = models.CharField(max_length=50, unique=True)
+    varlab = models.CharField("Variablenblabel", max_length=255,)
+    vallab = models.ForeignKey(ValLab,on_delete=models.SET_NULL,null=True,blank=True,related_name="variables",)
+    question = models.ForeignKey("questions.Question",on_delete=models.CASCADE,related_name="variables",)
+    waves = models.ManyToManyField("waves.Wave",related_name="variables",)
+
+    ver = models.BooleanField("versioniert", default=False)
+    gen = models.BooleanField("generiert", default=False)
+    plausi = models.BooleanField("plausibilisiert", default=False)
+    flag = models.BooleanField("flag", default=False)
+    reason_ver = models.TextField("Grund (versioniert)", blank=True, null=True)
+    reason_gen = models.TextField("Grund (generiert)", blank=True, null=True)
+    reason_plausi = models.TextField("Grund (plausibilisiert)", blank=True, null=True)
+    reason_flag = models.TextField("Grund (flag)", blank=True, null=True)
+
+    comment = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["varname"]
+        verbose_name = "Variable"
+        verbose_name_plural = "Variablen"
+
+    def __str__(self):
+        return f"{self.varname} ({self.varlab})"
