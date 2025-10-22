@@ -1,5 +1,5 @@
 from django.db import models
-from questions.models import Question, QuestionScreenshot
+from questions.models import Question
 
 class Wave(models.Model):
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)

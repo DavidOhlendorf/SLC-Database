@@ -10,7 +10,7 @@
           <h5 class="card-title">{{ q.questiontext }}</h5>
             <p class="card-text">
               {% for w in q.waves.all %}
-                <span class="badge bg-secondary">{{ w.name }}</span>
+                <span class="badge bg-secondary">{{ w }}</span>
               {% empty %}
                 <em>Keine Welle verknüpft</em>
               {% endfor %}

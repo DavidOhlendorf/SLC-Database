@@ -1,0 +1,21 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block content %}
+<div class="d-flex flex-column align-items-center justify-content-center" style="min-height:70vh;">
+  <div class="text-center" style="max-width:600px; width:100%;">
+
+    <img src="{% static 'icons/slcDatabase.png' %}" alt="SLC Datenbank Logo"
+         class="mb-4" style="max-height:100px;">
+
+    <form method="get" action="{% url 'search' %}">
+        <div class="input-group input-group-lg">
+            <input type="search" class="form-control rounded-start-pill" name="q"
+                placeholder="Suchbegriff eingeben …" aria-label="Suche" autofocus>
+            <button class="btn btn-dark rounded-end-pill px-4 ms-1" type="submit">Suchen</button>
+        </div>
+    </form>
+    <p class="text-muted mt-3">Suche zum Beispiel nach Fragen, Variablen, Themen...</p>
+  </div>
+</div>
+{% endblock %}
