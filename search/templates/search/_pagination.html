@@ -1,0 +1,91 @@
+{% comment %}
+  Erwartet im Aufruf:
+    - page_obj : das Paginator-Objekt (z. B. questions_page)
+    - q : der Suchbegriff
+    - type : der aktuelle Suchtyp (questions / variables / constructs)
+{% endcomment %}
+
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+  <nav aria-label="Seitennavigation" class="mt-3">
+    <ul class="pagination justify-content-center">
+
+      {# ← Zurück #}
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link"
+             href="?q={{ q|urlencode }}&type={{ type }}&page={{ page_obj.previous_page_number }}"
+             aria-label="Vorherige Seite">&laquo;</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+
+      {# Erste Seite immer anzeigen #}
+      {% if page_obj.number == 1 %}
+        <li class="page-item active" aria-current="page">
+          <span class="page-link">1</span>
+        </li>
+      {% else %}
+        <li class="page-item">
+          <a class="page-link" href="?q={{ q|urlencode }}&type={{ type }}&page=1">1</a>
+        </li>
+      {% endif %}
+
+      {# Lücke vor Mittelblock #}
+      {% if page_obj.number > 4 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+
+      {# Mittelblock #}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num > 1 and num < page_obj.paginator.num_pages %}
+          {% if num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+            {% if num == page_obj.number %}
+              <li class="page-item active" aria-current="page">
+                <span class="page-link">{{ num }}</span>
+              </li>
+            {% else %}
+              <li class="page-item">
+                <a class="page-link"
+                   href="?q={{ q|urlencode }}&type={{ type }}&page={{ num }}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {# Lücke nach Mittelblock #}
+      {% if page_obj.number < page_obj.paginator.num_pages|add:"-3" %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+
+      {# Letzte Seite #}
+      {% if page_obj.paginator.num_pages > 1 %}
+        {% if page_obj.number == page_obj.paginator.num_pages %}
+          <li class="page-item active" aria-current="page">
+            <span class="page-link">{{ page_obj.paginator.num_pages }}</span>
+          </li>
+        {% else %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?q={{ q|urlencode }}&type={{ type }}&page={{ page_obj.paginator.num_pages }}">
+              {{ page_obj.paginator.num_pages }}
+            </a>
+          </li>
+        {% endif %}
+      {% endif %}
+
+      {# → Weiter #}
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link"
+             href="?q={{ q|urlencode }}&type={{ type }}&page={{ page_obj.next_page_number }}"
+             aria-label="Nächste Seite">&raquo;</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+      {% endif %}
+
+    </ul>
+  </nav>
+{% endif %}

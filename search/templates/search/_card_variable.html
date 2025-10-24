@@ -1,5 +1,9 @@
 
 <div class="card" style="border:1px solid #eee;border-radius:.75rem;padding:.9rem 1rem;margin:.5rem 0;">
   <div><strong>{{ item.varname }}</strong> — {{ item.varlab }}</div>
-  <div class="muted">Frage: {{ item.question.questiontext|default:"—" }}</div>
+    {% if item.waves.all %}
+    <div style="margin-top:.25rem;">
+      {% for w in item.waves.all %}<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:.1rem .45rem;margin-right:.3rem;font-size:.85rem;">{{ w }}</span>{% endfor %}
+    </div>
+    {% endif %} 
 </div>
