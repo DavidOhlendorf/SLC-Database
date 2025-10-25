@@ -58,6 +58,15 @@ def search(request):
             ctx["questions_page"] = page_obj
             ctx["questions"] = page_obj.object_list 
 
+
+
+        if search_type == "all":
+            ctx["questions"] = qs_questions[:ctx["TOP_N"]]
+        else:
+            page_obj = paginate_queryset(qs_questions, request)
+            ctx["questions_page"] = page_obj
+            ctx["questions"] = page_obj.object_list 
+
     # Variables
     if search_type in {"all", "variables"}:
         qs_variables = (
