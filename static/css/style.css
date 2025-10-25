@@ -1,0 +1,14 @@
+/* ==========================================
+   Global Styles
+   ========================================== */
+
+/* Dreh-Animation für Aufklapp-Buttons (Collapse) */
+button.collapse-toggle[aria-expanded="true"] i {
+  transform: rotate(180deg);
+  transition: transform 0.3s ease;
+}
+button.collapse-toggle[aria-expanded="false"] i {
+  transform: rotate(0deg);
+  transition: transform 0.3s ease;
+}
+

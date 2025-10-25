@@ -1,10 +1,47 @@
+<div class="card mb-2 shadow-sm">
+  <div class="card-body">
 
-<div class="card" style="border:1px solid #eee;border-radius:.75rem;padding:.9rem 1rem;margin:.5rem 0;">
-  <div><strong>{{ item.questiontext }}</strong></div>
+    <h6 class="card-title mb-2">
+      {{ item.questiontext|truncatechars:200 }}
+    </h6>
 
-  {% if item.waves.all %}
-    <div style="margin-top:.25rem;">
-      {% for w in item.waves.all %}<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:.1rem .45rem;margin-right:.3rem;font-size:.85rem;">{{ w }}</span>{% endfor %}
+    {# Wellen-Badges #}
+    {% if item.waves.all %}
+      <div class="mb-2">
+        {% for wave in item.waves.all %}
+          <span class="badge bg-light text-dark border">
+            {{ wave }}
+          </span>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# Button zum Auf-/Zuklappen #}
+    <button
+      class="btn btn-sm btn-outline-secondary collapse-toggle"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#details{{ item.id }}"
+      aria-expanded="false"
+      aria-controls="details{{ item.id }}"
+    >
+      <i class="fa-solid fa-angles-down" aria-hidden="true"></i>
+    </button>
+
+    {# Aufklappbarer Bereich #}
+    <div class="collapse mt-3" id="details{{ item.id }}">
+      
+      <p class="text-muted mb-2">
+        Hier kommen später noch weitere Inhalte hin.
+      </p>
+
+      <a href="#"
+         class="btn btn-sm btn-dark">
+        Zur Detailansicht
+      </a>
     </div>
-  {% endif %}
+
+  </div>
 </div>
+
+

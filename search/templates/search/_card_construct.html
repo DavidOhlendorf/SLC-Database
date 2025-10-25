@@ -1,4 +1,37 @@
 
-<div class="card" style="border:1px solid #eee;border-radius:.75rem;padding:.9rem 1rem;margin:.5rem 0;">
-  <div><strong>{{ item }}</strong></div>
+<div class="card mb-2 shadow-sm">
+  <div class="card-body">
+
+    <h6 class="card-title mb-2">{{ item }}</h6>
+
+    {# Button zum Auf-/Zuklappen #}
+    <button
+      class="btn btn-sm btn-outline-secondary collapse-toggle"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#details{{ item.id }}"
+      aria-expanded="false"
+      aria-controls="details{{ item.id }}"
+    >
+      <i class="fa-solid fa-angles-down" aria-hidden="true"></i>
+    </button>
+
+    {# Aufklappbarer Bereich #}
+    <div class="collapse mt-3" id="details{{ item.id }}">
+      
+      <p class="text-muted mb-2">
+        Hier kommen später noch weitere Inhalte hin.
+      </p>
+
+      <a href="#"
+         class="btn btn-sm btn-dark">
+        Zur Detailansicht
+      </a>
+    </div>
+
+  </div>
 </div>
+
+
+
+
