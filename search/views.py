@@ -1,18 +1,33 @@
 from django.shortcuts import render, redirect
-from django.db.models import Q
+from django.db.models import Q, F
 from django.core.paginator import Paginator
-from questions.models import Question, Construct
+from django.contrib.postgres.search import TrigramSimilarity
+from questions.models import Question, Construct, Keyword
 from variables.models import Variable
-
+from itertools import chain
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
-
 RESULTS_PER_PAGE = 20
 
 def search_landing(request):
     return render(request, "search/landing.html")
 
+
+def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
+    """
+    Paginierung für bereits materialisierte Python-Listen.
+    Das brauchen wir für die Fragen, weil wir sie nach Merge sortieren.
+    """
+    paginator = Paginator(items, per_page)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return page_obj
+
+
 def paginate_queryset(qs, request, per_page=RESULTS_PER_PAGE):
+    """
+    Alte Variante: klassische Paginierung für QuerySets.
+    Nutzen wir weiterhin für Variables und Constructs.
+    """
     paginator = Paginator(qs, per_page)
     page_obj = paginator.get_page(request.GET.get("page"))
     return page_obj
@@ -32,7 +47,7 @@ def search(request):
         "type": search_type,
         "has_query": True,
         "TOP_N": 5,
-        "tabs": [ 
+        "tabs": [
             ("all", "Alle"),
             ("questions", "Fragen"),
             ("variables", "Variablen"),
@@ -40,40 +55,122 @@ def search(request):
         ],
     }
 
-    # Questions
+    # =========================
+    # QUESTIONS 
+    # =========================
     if search_type in {"all", "questions"}:
-        qs_questions = (
-            Question.objects.filter(
-                Q(questiontext__icontains=q) |
-                Q(keywords__name__icontains=q)
+
+        # --- 1. Kandidaten über Fragetext
+        text_candidates_qs = (
+            Question.objects
+            .annotate(
+                sim_text=TrigramSimilarity("questiontext", q),
             )
+            .filter(
+                Q(questiontext__icontains=q) |
+                Q(sim_text__gt=0.2)
+            )
+            .values("id", "sim_text")
+            .order_by("-sim_text")[:200]
+        )
+        text_candidates = list(text_candidates_qs)
+
+        # Map: questionID -> score aus Fragetext
+        text_score_map = {}
+        for row in text_candidates:
+            qid = row["id"]
+            score = row["sim_text"] or 0
+            text_score_map[qid] = score
+
+
+        # --- 2. Kandidaten über Keywords (ohne sofort alle Fragen zu joinen)
+        # Schritt 2a: relevante Keywords finden
+        kw_candidates_qs = (
+            Keyword.objects
+            .annotate(
+                sim_kw=TrigramSimilarity("name", q),
+            )
+            .filter(
+                Q(name__icontains=q) |
+                Q(sim_kw__gt=0.2)
+            )
+            .values("id", "sim_kw")
+            .order_by("-sim_kw")[:200]
+        )
+        kw_candidates = list(kw_candidates_qs)
+
+        kw_id_to_score = {}
+
+        for row in kw_candidates:
+            kwid = row["id"]
+            score = row["sim_kw"] or 0
+            kw_id_to_score[kwid] = score
+
+        kw_ids = list(kw_id_to_score.keys())
+
+        # Schritt 2b: Welche Fragen hängen an diesen Keyword-IDs?
+        question_kw_links = (
+            Question.objects
+            .filter(keywords__in=kw_ids)
+            .values("id", "keywords__id")
+            .distinct()
+        )
+
+        kw_score_map_for_question = {}
+        for row in question_kw_links:
+            qid = row["id"]
+            kwid = row["keywords__id"]
+            score = kw_id_to_score.get(kwid, 0)
+            if qid not in kw_score_map_for_question or score > kw_score_map_for_question[qid]:
+                kw_score_map_for_question[qid] = score
+
+        # --- 3. Scores mergen:
+        # für jede Frage: nimm den besten Score aus Text-Similarity oder Keyword-Similarity
+        final_score_map = {}
+
+        for qid, score in text_score_map.items():
+            final_score_map[qid] = score
+
+        for qid, score in kw_score_map_for_question.items():
+            if qid not in final_score_map or score > final_score_map[qid]:
+                final_score_map[qid] = score
+
+
+        # --- 4. Tatsächliche Question-Objekte holen und in sortierter Reihenfolge anordnen
+        questions_found = list(
+            Question.objects
+            .filter(id__in=final_score_map.keys())
             .prefetch_related("waves")
             .distinct()
         )
 
+        # Sortiere Ergebnis nach Relevanz
+        questions_sorted = sorted(
+            questions_found,
+            key=lambda obj: final_score_map[obj.id],
+            reverse=True
+)
+
+        # Score zum Debuggen mit anhängen (optional im Template anzeigen)
+        for obj in questions_sorted:
+            obj.relevance = final_score_map.get(obj.id, 0)
+
         if search_type == "all":
-            ctx["questions"] = qs_questions[:ctx["TOP_N"]]
+            ctx["questions"] = questions_sorted[:ctx["TOP_N"]]
         else:
-            page_obj = paginate_queryset(qs_questions, request)
+            page_obj = paginate_list(questions_sorted, request)
             ctx["questions_page"] = page_obj
-            ctx["questions"] = page_obj.object_list 
+            ctx["questions"] = page_obj.object_list
 
-
-
-        if search_type == "all":
-            ctx["questions"] = qs_questions[:ctx["TOP_N"]]
-        else:
-            page_obj = paginate_queryset(qs_questions, request)
-            ctx["questions_page"] = page_obj
-            ctx["questions"] = page_obj.object_list 
-
-    # Variables
+    # =========================
+    # VARIABLES
+    # =========================
     if search_type in {"all", "variables"}:
         qs_variables = (
             Variable.objects.filter(
                 Q(varname__icontains=q) | Q(varlab__icontains=q)
             )
-            .select_related("question")     
+            .select_related("question")
             .prefetch_related("waves")
             .distinct()
         )
@@ -85,7 +182,9 @@ def search(request):
             ctx["variables_page"] = page_obj
             ctx["variables"] = page_obj.object_list
 
-    # Constructs
+    # =========================
+    # CONSTRUCTS
+    # =========================
     if search_type in {"all", "constructs"}:
         qs_constructs = (
             Construct.objects.filter(
