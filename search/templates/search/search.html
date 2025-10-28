@@ -28,52 +28,63 @@
 
 
   {% if type == "all" %}
-    <section>
-      <h2>Fragen</h2>
+    {% if questions or variables or constructs %}
       {% if questions %}
-        {% for item in questions %}
-          {% include "search/_card_question.html" with item=item %}
-        {% endfor %}
-        <p>
-          <a href="{% url 'search' %}?q={{ q|urlencode }}&type=questions">Mehr anzeigen</a>
-        </p>
-      {% else %}
-        <p class="muted">Keine Fragen gefunden.</p>
+        <section>
+          <h2>Fragen ({{ questions_count }} Treffer)</h2>
+          {% if questions %}
+            {% for item in questions %}
+              {% include "search/_card_question.html" with item=item %}
+            {% endfor %}
+            <p>
+              <a href="{% url 'search' %}?q={{ q|urlencode }}&type=questions">Mehr anzeigen</a>
+            </p>
+          {% else %}
+            <p class="muted">Keine Fragen gefunden.</p>
+          {% endif %}
+        </section>
       {% endif %}
-    </section>
 
-    <section>
-      <h2>Variablen</h2>
       {% if variables %}
-        {% for item in variables %}
-          {% include "search/_card_variable.html" with item=item %}
-        {% endfor %}
-        <p>
-          <a href="{% url 'search' %}?q={{ q|urlencode }}&type=variables">Mehr anzeigen</a>
-        </p>
-      {% else %}
-        <p class="muted">Keine Variablen gefunden.</p>
+        <section>
+          <h2>Variablen ({{ variables_count }} Treffer)</h2>
+          {% if variables %}
+            {% for item in variables %}
+              {% include "search/_card_variable.html" with item=item %}
+            {% endfor %}
+            <p>
+              <a href="{% url 'search' %}?q={{ q|urlencode }}&type=variables">Mehr anzeigen</a>
+            </p>
+          {% else %}
+            <p class="muted">Keine Variablen gefunden.</p>
+          {% endif %}
+        </section>
       {% endif %}
-    </section>
 
-    <section>
-      <h2>Konstrukte</h2>
       {% if constructs %}
-        {% for item in constructs %}
-          {% include "search/_card_construct.html" with item=item %}
-        {% endfor %}
-        <p>
-          <a href="{% url 'search' %}?q={{ q|urlencode }}&type=constructs">Mehr anzeigen</a>
-        </p>
-      {% else %}
-        <p class="muted">Keine Konstrukte gefunden.</p>
+        <section>
+          <h2>Konstrukte ({{ constructs_count }} Treffer)</h2>
+          {% if constructs %}
+            {% for item in constructs %}
+              {% include "search/_card_construct.html" with item=item %}
+            {% endfor %}
+            <p>
+              <a href="{% url 'search' %}?q={{ q|urlencode }}&type=constructs">Mehr anzeigen</a>
+            </p>
+          {% else %}
+            <p class="muted">Keine Konstrukte gefunden.</p>
+          {% endif %}
+        </section>
       {% endif %}
-    </section>
+
+    {% else %}
+    <p class="muted">Keine Treffer gefunden.</p>
+    {% endif %}
   {% endif %}
 
 
   {% if type == "questions" %}
-    <h2>Fragen</h2>
+    <h2>Fragen ({{ questions_count }} Treffer)</h2>
 
     {% if questions %}
 
@@ -92,7 +103,7 @@
   {% endif %}
 
   {% if type == "variables" %}
-  <h2>Variablen</h2>
+  <h2>Variablen ({{ variables_count }} Treffer)</h2>
 
     {% if variables %}
       {% for item in variables %}
@@ -110,7 +121,7 @@
   {% endif %}
 
   {% if type == "constructs" %}
-    <h2>Konstrukte</h2>
+    <h2>Konstrukte ({{ constructs_count }} Treffer)</h2>
 
     {% if constructs %}
       {% for item in constructs %}

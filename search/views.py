@@ -150,7 +150,7 @@ def search(request):
             reverse=True
 )
 
-        # Score zum Debuggen mit anhängen (optional im Template anzeigen)
+        # Score zum Debuggen mit anhängen
         for obj in questions_sorted:
             obj.relevance = final_score_map.get(obj.id, 0)
 
@@ -161,6 +161,9 @@ def search(request):
             ctx["questions_page"] = page_obj
             ctx["questions"] = page_obj.object_list
 
+        # Count für Anzeige in Tabs / Überschriften
+        ctx["questions_count"] = len(questions_sorted)
+        ctx.setdefault("questions_count", 0)
 
     # =========================
     # VARIABLES
@@ -289,7 +292,9 @@ def search(request):
             ctx["variables_page"] = page_obj
             ctx["variables"] = page_obj.object_list
        
-
+        # Count für Anzeige in Tabs / Überschriften
+        ctx["variables_count"] = len(variables_sorted)
+        ctx.setdefault("variables_count", 0)
   
     # =========================
     # CONSTRUCTS
@@ -310,4 +315,10 @@ def search(request):
             ctx["constructs_page"] = page_obj
             ctx["constructs"] = page_obj.object_list
 
+        # Count für Anzeige
+        ctx["constructs_count"] = qs_constructs.count()
+        ctx.setdefault("constructs_count", 0)
+
+
+    # Rendern
     return render(request, "search/search.html", ctx)
