@@ -5,6 +5,9 @@
     - type : der aktuelle Suchtyp (questions / variables / constructs)
 {% endcomment %}
 
+
+{% load querystring %}
+
 {% if page_obj and page_obj.paginator.num_pages > 1 %}
   <nav aria-label="Seitennavigation" class="mt-3">
     <ul class="pagination justify-content-center">
@@ -13,7 +16,8 @@
       {% if page_obj.has_previous %}
         <li class="page-item">
           <a class="page-link"
-             href="?q={{ q|urlencode }}&type={{ type }}&page={{ page_obj.previous_page_number }}"
+             href="{% url 'search' %}{% url_with page=page_obj.previous_page_number %}"
+             rel="prev"
              aria-label="Vorherige Seite">&laquo;</a>
         </li>
       {% else %}
@@ -27,7 +31,8 @@
         </li>
       {% else %}
         <li class="page-item">
-          <a class="page-link" href="?q={{ q|urlencode }}&type={{ type }}&page=1">1</a>
+          <a class="page-link"
+             href="{% url 'search' %}{% url_with page=None %}">1</a> {# entfernt page -> Startseite der Liste #}
         </li>
       {% endif %}
 
@@ -47,7 +52,7 @@
             {% else %}
               <li class="page-item">
                 <a class="page-link"
-                   href="?q={{ q|urlencode }}&type={{ type }}&page={{ num }}">{{ num }}</a>
+                   href="{% url 'search' %}{% url_with page=num %}">{{ num }}</a>
               </li>
             {% endif %}
           {% endif %}
@@ -68,7 +73,7 @@
         {% else %}
           <li class="page-item">
             <a class="page-link"
-               href="?q={{ q|urlencode }}&type={{ type }}&page={{ page_obj.paginator.num_pages }}">
+               href="{% url 'search' %}{% url_with page=page_obj.paginator.num_pages %}">
               {{ page_obj.paginator.num_pages }}
             </a>
           </li>
@@ -79,7 +84,8 @@
       {% if page_obj.has_next %}
         <li class="page-item">
           <a class="page-link"
-             href="?q={{ q|urlencode }}&type={{ type }}&page={{ page_obj.next_page_number }}"
+             href="{% url 'search' %}{% url_with page=page_obj.next_page_number %}"
+             rel="next"
              aria-label="Nächste Seite">&raquo;</a>
         </li>
       {% else %}

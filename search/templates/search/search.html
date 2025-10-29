@@ -1,4 +1,5 @@
 {% extends 'main.html' %}
+{% load querystring %}
 
 {% block content %}
   <form action="{% url 'search' %}" method="get" class="mb-3">
@@ -18,13 +19,24 @@
       <li class="nav-item" role="presentation">
         <a
           class="nav-link {% if type == t %}active{% endif %}"
-          href="{% url 'search' %}?q={{ q|urlencode }}&type={{ t }}"
+          href="{% url 'search' %}{% url_with type=t page=None %}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
           {{ label }}
         </a>
       </li>
     {% endfor %}
   </ul>
+
+  <div class="dropdown mb-3">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      Sortierung: {% if sort == "alpha" %}Alphabetisch{% else %}Relevanz{% endif %}
+    </button>
+    <ul class="dropdown-menu">
+      <li><a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}" href="{% url 'search' %}{% url_with sort='relevance' page=None %}">Relevanz</a></li>
+      <li><a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}" href="{% url 'search' %}{% url_with sort='alpha' page=None %}">Alphabetisch (A–Z)</a></li>
+    </ul>
+  </div>
+
 
 
   {% if type == "all" %}
@@ -37,7 +49,7 @@
               {% include "search/_card_question.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}?q={{ q|urlencode }}&type=questions">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='questions' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Fragen gefunden.</p>
@@ -53,7 +65,7 @@
               {% include "search/_card_variable.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}?q={{ q|urlencode }}&type=variables">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='variables' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Variablen gefunden.</p>
@@ -69,7 +81,7 @@
               {% include "search/_card_construct.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}?q={{ q|urlencode }}&type=constructs">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='constructs' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Konstrukte gefunden.</p>
@@ -129,7 +141,7 @@
       {% endfor %}
 
       {% if constructs_page and constructs_page.paginator.num_pages > 1 %}
-        {% include "search/_pagination.html" with page_obj=construct_page type="constructs" %}
+        {% include "search/_pagination.html" with page_obj=constructs_page type="constructs" %}
       {% endif %}
 
     {% else %}

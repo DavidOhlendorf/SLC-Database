@@ -1,11 +1,13 @@
 from django.shortcuts import render, redirect
-from django.db.models import Q
+from django.db.models import Q, F
+from django.db.models.functions import Lower
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity
 from questions.models import Question, Construct, Keyword
 from variables.models import Variable
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
+ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
 
 def search_landing(request):
@@ -15,7 +17,6 @@ def search_landing(request):
 def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
     """
     Paginierung für bereits materialisierte Python-Listen.
-    Das brauchen wir für die Fragen, weil wir sie nach Merge sortieren.
     """
     paginator = Paginator(items, per_page)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -24,8 +25,7 @@ def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
 
 def paginate_queryset(qs, request, per_page=RESULTS_PER_PAGE):
     """
-    Alte Variante: klassische Paginierung für QuerySets.
-    Nutzen wir weiterhin für Variables und Constructs.
+    klassische Paginierung für QuerySets in den Constructs.
     """
     paginator = Paginator(qs, per_page)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -41,9 +41,14 @@ def search(request):
     if search_type not in ALLOWED_TYPES:
         search_type = "all"
 
+    sort = (request.GET.get("sort") or "relevance").lower()
+    if sort not in ALLOWED_SORTS:
+        sort = "relevance"
+
     ctx = {
         "q": q,
         "type": search_type,
+        "sort": sort,
         "has_query": True,
         "TOP_N": 5,
         "tabs": [
@@ -66,8 +71,7 @@ def search(request):
                 sim_text=TrigramSimilarity("questiontext", q),
             )
             .filter(
-                Q(questiontext__icontains=q) |
-                Q(sim_text__gt=0.2)
+                Q(questiontext__icontains=q) | Q(sim_text__gt=0.2)
             )
             .values("id", "sim_text")
             .order_by("-sim_text")[:200]
@@ -82,17 +86,12 @@ def search(request):
             text_score_map[qid] = score
 
 
-        # --- 2. Kandidaten über Keywords (ohne sofort alle Fragen zu joinen)
+        # --- 2. Kandidaten über Keywords
         # Schritt 2a: relevante Keywords finden
         kw_candidates_qs = (
             Keyword.objects
-            .annotate(
-                sim_kw=TrigramSimilarity("name", q),
-            )
-            .filter(
-                Q(name__icontains=q) |
-                Q(sim_kw__gt=0.2)
-            )
+            .annotate(sim_kw=TrigramSimilarity("name", q))
+            .filter(Q(name__icontains=q) | Q(sim_kw__gt=0.25))
             .values("id", "sim_kw")
             .order_by("-sim_kw")[:200]
         )
@@ -124,7 +123,6 @@ def search(request):
                 kw_score_map_for_question[qid] = score
 
         # --- 3. Scores mergen:
-        # für jede Frage: nimm den besten Score aus Text-Similarity oder Keyword-Similarity
         final_score_map = {}
 
         for qid, score in text_score_map.items():
@@ -143,11 +141,18 @@ def search(request):
             .distinct()
         )
 
-        # Sortiere Ergebnis nach Relevanz
-        questions_sorted = sorted(
-            questions_found,
-            key=lambda obj: final_score_map[obj.id],
-            reverse=True
+        # Sortierung
+        if sort == "alpha":
+            questions_sorted = sorted(
+                questions_found,
+                key=lambda obj: (obj.questiontext or "").lower()
+            )
+
+        else:  # relevance (default)
+            questions_sorted = sorted(
+                questions_found,
+                key=lambda obj: final_score_map[obj.id],
+                reverse=True
 )
 
         # Score zum Debuggen mit anhängen
@@ -171,8 +176,8 @@ def search(request):
     if search_type in {"all", "variables"}:
 
         # --- 1. Kandidaten über varname / varlab -----------------
-        # Wir holen (a) fuzzy-Score auf varlab
-        # und (b) merken uns, ob varname hart getroffen hat.
+        # (a) fuzzy-Score auf varlab
+        # (b) harter Treffer auf varname
         var_candidates_qs = (
             Variable.objects
             .annotate(
@@ -183,11 +188,7 @@ def search(request):
                 Q(varlab__icontains=q) |                      # normaler Text-Suchtreffer im Label
                 Q(sim_varlab__gt=0.2)                         # fuzzy im Label
             )
-            .values(
-                "id",
-                "varname",
-                "sim_varlab",
-            )[:200]
+            .values("id", "varname", "sim_varlab",)[:200]
         )
         var_candidates = list(var_candidates_qs)
 
@@ -200,8 +201,7 @@ def search(request):
             # Basisscore: fuzzy varlab
             score = sim_label
 
-            # Bonus falls der Suchstring im Variablennamen steckt
-            # (das macht Treffer wie "dem123" extrem dominant)
+            # Hochgewichten falls der Suchstring im Variablennamen steckt
             if row["varname"] and q.lower() in row["varname"].lower():
                 score = max(score, 1.0)
 
@@ -212,13 +212,8 @@ def search(request):
         # 2a. Relevante Keywords finden
         kw_candidates_qs_vars = (
             Keyword.objects
-            .annotate(
-                sim_kw=TrigramSimilarity("name", q),
-            )
-            .filter(
-                Q(name__icontains=q) |
-                Q(sim_kw__gt=0.2)
-            )
+            .annotate(sim_kw=TrigramSimilarity("name", q))
+            .filter(Q(name__icontains=q) | Q(sim_kw__gt=0.25))
             .values("id", "sim_kw")
             .order_by("-sim_kw")[:200]
         )
@@ -274,14 +269,21 @@ def search(request):
             .distinct()
         )
 
-        # 4. Nach Relevanz sortieren (höchster Score zuerst)
-        variables_sorted = sorted(
-            variables_found,
-            key=lambda obj: final_var_score_map.get(obj.id, 0),
-            reverse=True
-        )
+        # 4. Sortierung
+        if sort == "alpha":
+            variables_sorted = sorted(
+                variables_found,
+                key=lambda obj: ((obj.varname or obj.varlab or "")).lower()
+            )
 
-        # Debug-Score anhängen (kannst du im Template ausgeben, wenn du willst)
+        else:  # relevance (default)
+            variables_sorted = sorted(
+                variables_found,
+                key=lambda obj: final_var_score_map.get(obj.id, 0),
+                reverse=True
+            )
+
+        # Debug-Score anhängen
         for obj in variables_sorted:
             obj.relevance = final_var_score_map.get(obj.id, 0)
 
@@ -301,12 +303,25 @@ def search(request):
     # =========================
     if search_type in {"all", "constructs"}:
         qs_constructs = (
-            Construct.objects.filter(
-                Q(level_1__icontains=q) |
-                Q(level_2__icontains=q)
-            )
-            .distinct()
+            Construct.objects.filter(Q(level_1__icontains=q) |  Q(level_2__icontains=q))
+          .distinct()
         )
+
+        # Sortierung
+
+        if sort == "alpha":
+            qs_constructs = qs_constructs.order_by(Lower("level_1").asc(), Lower("level_2").asc(), "id")
+
+        else:  # relevance
+            qs_constructs = (
+                qs_constructs
+                .annotate(
+                    sim_l1=TrigramSimilarity("level_1", q),
+                    sim_l2=TrigramSimilarity("level_2", q),
+                    sim=F("sim_l1") * 0.6 + F("sim_l2") * 0.4,
+                )
+                .order_by(F("sim").desc(nulls_last=True), "id")
+            )
 
         if search_type == "all":
             ctx["constructs"] = qs_constructs[:ctx["TOP_N"]]
