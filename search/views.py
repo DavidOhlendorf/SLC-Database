@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.db.models import Q, F
+from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity
@@ -10,10 +10,11 @@ ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
 
+# Landing-Page für die Suche
 def search_landing(request):
     return render(request, "search/landing.html")
 
-
+# Paginierungs-Hilfsfunktionen
 def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
     """
     Paginierung für bereits materialisierte Python-Listen.
@@ -22,7 +23,7 @@ def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
     page_obj = paginator.get_page(request.GET.get("page"))
     return page_obj
 
-
+# Paginierung für QuerySets
 def paginate_queryset(qs, request, per_page=RESULTS_PER_PAGE):
     """
     klassische Paginierung für QuerySets in den Constructs.
@@ -63,24 +64,21 @@ def search(request):
     # QUESTIONS 
     # =========================
     if search_type in {"all", "questions"}:
+        q_lower = q.lower()
 
         # --- 1. Kandidaten über Fragetext
         text_candidates_qs = (
             Question.objects
-            .annotate(
-                sim_text=TrigramSimilarity("questiontext", q),
-            )
-            .filter(
-                Q(questiontext__icontains=q) | Q(sim_text__gt=0.2)
-            )
+            .annotate(qt=Lower("questiontext"))
+            .annotate(sim_text=TrigramSimilarity(Lower("questiontext"), q_lower))
+            .filter(Q(qt__contains=q_lower) | Q(sim_text__gt=0.2))
             .values("id", "sim_text")
             .order_by("-sim_text")[:200]
         )
-        text_candidates = list(text_candidates_qs)
 
         # Map: questionID -> score aus Fragetext
         text_score_map = {}
-        for row in text_candidates:
+        for row in text_candidates_qs:
             qid = row["id"]
             score = row["sim_text"] or 0
             text_score_map[qid] = score
@@ -90,16 +88,16 @@ def search(request):
         # Schritt 2a: relevante Keywords finden
         kw_candidates_qs = (
             Keyword.objects
-            .annotate(sim_kw=TrigramSimilarity("name", q))
-            .filter(Q(name__icontains=q) | Q(sim_kw__gt=0.25))
+            .annotate(nl=Lower("name"))
+            .annotate(sim_kw=TrigramSimilarity(Lower("name"), q_lower))
+            .filter(Q(nl__contains=q_lower) | Q(sim_kw__gt=0.25))
             .values("id", "sim_kw")
             .order_by("-sim_kw")[:200]
         )
-        kw_candidates = list(kw_candidates_qs)
 
         kw_id_to_score = {}
 
-        for row in kw_candidates:
+        for row in kw_candidates_qs:
             kwid = row["id"]
             score = row["sim_kw"] or 0
             kw_id_to_score[kwid] = score
@@ -133,11 +131,12 @@ def search(request):
                 final_score_map[qid] = score
 
 
-        # --- 4. Tatsächliche Question-Objekte holen und in sortierter Reihenfolge anordnen
+        # --- 4. Materialisieren und Sortieren
         questions_found = list(
             Question.objects
             .filter(id__in=final_score_map.keys())
-            .prefetch_related("waves")
+            .only("id", "questiontext")
+            .prefetch_related(Prefetch("waves"))
             .distinct()
         )
 
@@ -174,50 +173,39 @@ def search(request):
     # VARIABLES
     # =========================
     if search_type in {"all", "variables"}:
+        q_lower = q.lower()
 
-        # --- 1. Kandidaten über varname / varlab -----------------
-        # (a) fuzzy-Score auf varlab
-        # (b) harter Treffer auf varname
+        # --- 1. Kandidaten über varname/varlab ---       
         var_candidates_qs = (
             Variable.objects
-            .annotate(
-                sim_varlab=TrigramSimilarity("varlab", q),
-            )
+            .annotate(vn=Lower("varname"), vl=Lower("varlab"))
+            .annotate(sim_varlab=TrigramSimilarity(Lower("varlab"), q_lower))
             .filter(
-                Q(varname__icontains=q) |                     # exakter/teilweiser Stringmatch im technischen Namen
-                Q(varlab__icontains=q) |                      # normaler Text-Suchtreffer im Label
-                Q(sim_varlab__gt=0.2)                         # fuzzy im Label
-            )
-            .values("id", "varname", "sim_varlab",)[:200]
+                Q(vn__startswith=q_lower) | Q(vl__contains=q_lower) | Q(sim_varlab__gt=0.2))
+            .values("id", "varname", "sim_varlab")[:200]
         )
-        var_candidates = list(var_candidates_qs)
+
 
         # Map: varID -> Score aus varlab/varname
         var_text_score_map = {}
-        for row in var_candidates:
+        for row in var_candidates_qs:
             vid = row["id"]
-            sim_label = row["sim_varlab"] or 0
-
-            # Basisscore: fuzzy varlab
-            score = sim_label
-
-            # Hochgewichten falls der Suchstring im Variablennamen steckt
-            if row["varname"] and q.lower() in row["varname"].lower():
-                score = max(score, 1.0)
-
+            score = float(row["sim_varlab"] or 0.0)  
+            if (row["varname"] or "").lower().startswith(q_lower):
+                score = max(score, 1.0)               
             var_text_score_map[vid] = score
 
 
         # --- 2. Kandidaten über Keywords (indirekt via Question) ---
         # 2a. Relevante Keywords finden
-        kw_candidates_qs_vars = (
+        kw_candidates_vars = (
             Keyword.objects
-            .annotate(sim_kw=TrigramSimilarity("name", q))
-            .filter(Q(name__icontains=q) | Q(sim_kw__gt=0.25))
+            .annotate(nl=Lower("name"))
+            .annotate(sim_kw=TrigramSimilarity(Lower("name"), q_lower))
+            .filter(Q(nl__contains=q_lower) | Q(sim_kw__gt=0.25))
             .values("id", "sim_kw")
             .order_by("-sim_kw")[:200]
         )
-        kw_candidates_vars = list(kw_candidates_qs_vars)
 
         kw_id_to_score_vars = {}
         for row in kw_candidates_vars:
@@ -264,10 +252,12 @@ def search(request):
         variables_found = list(
             Variable.objects
             .filter(id__in=found_var_ids)
-            .select_related("question")   # FK -> Question
-            .prefetch_related("waves")    # M2M/ManyToMany zu waves
+            .only("id", "varname", "varlab", "question_id")
+            .select_related("question")
+            .prefetch_related(Prefetch("waves"))
             .distinct()
         )
+
 
         # 4. Sortierung
         if sort == "alpha":
@@ -302,9 +292,13 @@ def search(request):
     # CONSTRUCTS
     # =========================
     if search_type in {"all", "constructs"}:
+        q_lower = q.lower()
+
         qs_constructs = (
-            Construct.objects.filter(Q(level_1__icontains=q) |  Q(level_2__icontains=q))
-          .distinct()
+            Construct.objects
+            .annotate(l1=Lower("level_1"), l2=Lower("level_2"))
+            .filter(Q(l1__contains=q_lower) | Q(l2__contains=q_lower))
+            .distinct()
         )
 
         # Sortierung
