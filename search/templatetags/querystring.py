@@ -12,8 +12,10 @@ def url_with(context, **updates):
     params = request.GET.copy() if request else {}
     for k, v in updates.items():
         if v is None:
-            params.pop(k, None)     # Parameter entfernen (z. B. page)
+            params.pop(k, None)
+        elif isinstance(v, (list, tuple)):
+            params.setlist(k, [str(x) for x in v])
         else:
-            params[k] = v           # Parameter setzen/überschreiben
+            params[k] = v
     qs = params.urlencode()
     return ("?" + qs) if qs else ""

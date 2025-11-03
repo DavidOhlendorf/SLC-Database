@@ -13,13 +13,12 @@
     </div>
   </form>
 
-
   <ul class="nav nav-tabs my-3" role="tablist">
     {% for t,label in tabs %}
       <li class="nav-item" role="presentation">
         <a
           class="nav-link {% if type == t %}active{% endif %}"
-          href="{% url 'search' %}{% url_with type=t page=None %}"
+          href="{% url 'search' %}{% url_with type=t page=None waves=selected_wave_ids%}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
           {{ label }}
         </a>
@@ -27,17 +26,95 @@
     {% endfor %}
   </ul>
 
-  <div class="dropdown mb-3">
-    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-      Sortierung: {% if sort == "alpha" %}Alphabetisch{% else %}Relevanz{% endif %}
-    </button>
-    <ul class="dropdown-menu">
-      <li><a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}" href="{% url 'search' %}{% url_with sort='relevance' page=None %}">Relevanz</a></li>
-      <li><a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}" href="{% url 'search' %}{% url_with sort='alpha' page=None %}">Alphabetisch (A–Z)</a></li>
-    </ul>
-  </div>
+  
+  <form method="get" id="filter-form" class="mb-3">
+    {# bestehende Suchparameter #}
+    <input type="hidden" name="q" value="{{ q }}">
+    <input type="hidden" name="type" value="{{ type }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Sortierung: {% if sort == "alpha" %}Alphabetisch{% else %}Relevanz{% endif %}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}"
+              href="{% url 'search' %}{% url_with sort='relevance' page=None waves=selected_wave_ids %}">
+              Relevanz
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}"
+              href="{% url 'search' %}{% url_with sort='alpha' page=None waves=selected_wave_ids %}">
+              Alphabetisch (A–Z)
+            </a>
+          </li>
+        </ul>
+      </div>
+      <button type="button" id="btn-open-wave-panel" class="btn btn-outline-secondary">
+        Filter
+      </button>
+    </div>
 
 
+    <div class="d-flex flex-wrap gap-2">
+        {% if selected_waves %}
+          {% for w in selected_waves %}
+            <span class="badge rounded-pill text-bg-primary d-inline-flex align-items-center">
+              {{ w }}
+              <button type="button"
+                      class="btn btn-sm btn-link ms-1 text-white text-decoration-none remove-chip"
+                      data-wave-id="{{ w.id }}"
+                      aria-label="Filter {{ w }} entfernen">×</button>
+            </span>
+          {% endfor %}
+        {% endif %}
+
+    </div>
+
+    {# versteckte Checkboxen tragen die waves[]= IDs #}
+    <div class="visually-hidden">
+      {% for w in all_waves %}
+        <input type="checkbox"
+              name="waves"
+              value="{{ w.id }}"
+              id="wave-{{ w.id }}"
+              {% if w.id in selected_wave_ids %}checked{% endif %}>
+      {% endfor %}
+    </div>
+
+    {# Panel zum Auswählen #}
+    <div id="wave-panel" class="card mt-2" style="display:none; max-width: 680px;">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>Wellen filtern</strong>
+          <button type="button" class="btn-close" id="btn-close-wave-panel" aria-label="Schließen"></button>
+        </div>
+
+        <input type="text" class="form-control mb-2" id="wave-search" placeholder="Wellen suchen…">
+
+        <div id="wave-list" style="max-height: 260px; overflow:auto;">
+          {% for w in all_waves %}
+            <label class="d-flex align-items-center gap-2 py-1 wave-item" data-label="{{ w|lower }}">
+              <input type="checkbox"
+                    class="wave-check"
+                    value="{{ w.id }}"
+                    {% if w.id in selected_wave_ids %}checked{% endif %}>
+              <span>{{ w }}</span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" id="btn-clear-waves" class="btn btn-outline-secondary">Zurücksetzen</button>
+          <button type="submit" class="btn btn-primary">Übernehmen</button>
+        </div>
+      </div>
+    </div>
+  </form>
+ 
 
   {% if type == "all" %}
     {% if questions or variables or constructs %}
@@ -49,7 +126,7 @@
               {% include "search/_card_question.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='questions' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='questions' page=None waves=selected_wave_ids%}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Fragen gefunden.</p>
@@ -65,7 +142,7 @@
               {% include "search/_card_variable.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='variables' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='variables' page=None  waves=selected_wave_ids%}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Variablen gefunden.</p>
@@ -81,7 +158,7 @@
               {% include "search/_card_construct.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='constructs' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='constructs' page=None  waves=selected_wave_ids%}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Konstrukte gefunden.</p>
@@ -149,5 +226,56 @@
     {% endif %}
   {% endif %}
 
+<script>
+  (function() {
+    const form = document.getElementById('filter-form');
+    const panel = document.getElementById('wave-panel');
+    const openBtn = document.getElementById('btn-open-wave-panel');
+    const closeBtn = document.getElementById('btn-close-wave-panel');
+    const searchInput = document.getElementById('wave-search');
+    const waveItems = Array.from(document.querySelectorAll('#wave-list .wave-item'));
+    const waveChecksInPanel = Array.from(document.querySelectorAll('#wave-list .wave-check'));
+
+    // Panel öffnen/schließen
+    openBtn.addEventListener('click', () => { panel.style.display = 'block'; searchInput.focus(); });
+    closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
+
+    // Live-Suche
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      waveItems.forEach(li => {
+        const match = li.dataset.label.includes(q);
+        li.style.display = match ? '' : 'none';
+      });
+    });
+
+    // Panel-Checks -> versteckte echte Inputs spiegeln
+    waveChecksInPanel.forEach(chk => {
+      chk.addEventListener('change', () => {
+        const hidden = document.getElementById('wave-' + chk.value);
+        if (hidden) hidden.checked = chk.checked;
+      });
+    });
+
+    // Zurücksetzen
+    document.getElementById('btn-clear-waves').addEventListener('click', () => {
+      waveChecksInPanel.forEach(c => c.checked = false);
+      document.querySelectorAll('input[type="checkbox"][name="waves"]').forEach(h => h.checked = false);
+    });
+
+    // Chip entfernen -> passende Checkbox abwählen + submit
+    document.querySelectorAll('.remove-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.waveId;
+        const hidden = document.getElementById('wave-' + id);
+        const panelChk = document.querySelector('#wave-list .wave-check[value="' + id + '"]');
+        if (hidden) hidden.checked = false;
+        if (panelChk) panelChk.checked = false;
+        form.submit();
+      });
+    });
+  })();
+</script>
 
 {% endblock %}
+

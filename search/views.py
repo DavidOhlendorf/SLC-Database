@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity
 from questions.models import Question, Construct, Keyword
 from variables.models import Variable
+from waves.models import Wave
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
@@ -46,6 +47,17 @@ def search(request):
     if sort not in ALLOWED_SORTS:
         sort = "relevance"
 
+    # Wellen-Filter (optional)
+    wave_ids = []
+    try:
+        wave_ids = [int(x) for x in request.GET.getlist("waves") if x.strip().isdigit()]
+    except Exception:
+        wave_ids = []
+
+    # Für das Auswahlpanel + Chips
+    all_waves = Wave.objects.order_by(F("surveyyear").desc(nulls_last=True))
+    selected_waves = list(all_waves.filter(id__in=wave_ids)) if wave_ids else []
+
     ctx = {
         "q": q,
         "type": search_type,
@@ -58,6 +70,9 @@ def search(request):
             ("variables", "Variablen"),
             ("constructs", "Konstrukte"),
         ],
+        "all_waves": all_waves,
+        "selected_waves": selected_waves,
+        "selected_wave_ids": [w.id for w in selected_waves],
     }
 
     # =========================
@@ -70,7 +85,7 @@ def search(request):
         text_candidates_qs = (
             Question.objects
             .annotate(qt=Lower("questiontext"))
-            .annotate(sim_text=TrigramSimilarity(Lower("questiontext"), q_lower))
+            .annotate(sim_text=TrigramSimilarity(F("qt"), q_lower))
             .filter(Q(qt__contains=q_lower) | Q(sim_text__gt=0.2))
             .values("id", "sim_text")
             .order_by("-sim_text")[:200]
@@ -131,9 +146,13 @@ def search(request):
                 final_score_map[qid] = score
 
 
-        # --- 4. Materialisieren und Sortieren
+        # --- 4. Materialisieren, Sortieren und Filtern ---
+        base_qs_q = Question.objects.all()
+        if wave_ids:
+            base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
+
         questions_found = list(
-            Question.objects
+            base_qs_q
             .filter(id__in=final_score_map.keys())
             .only("id", "questiontext")
             .prefetch_related(Prefetch("waves"))
@@ -152,7 +171,8 @@ def search(request):
                 questions_found,
                 key=lambda obj: final_score_map[obj.id],
                 reverse=True
-)
+            )
+
 
         # Score zum Debuggen mit anhängen
         for obj in questions_sorted:
@@ -179,7 +199,7 @@ def search(request):
         var_candidates_qs = (
             Variable.objects
             .annotate(vn=Lower("varname"), vl=Lower("varlab"))
-            .annotate(sim_varlab=TrigramSimilarity(Lower("varlab"), q_lower))
+            .annotate(sim_varlab=TrigramSimilarity(F("vn"), q_lower))
             .filter(
                 Q(vn__startswith=q_lower) | Q(vl__contains=q_lower) | Q(sim_varlab__gt=0.2))
             .values("id", "varname", "sim_varlab")[:200]
@@ -249,8 +269,12 @@ def search(request):
         # Falls gar nichts gefunden wurde (kann passieren), leeres Handling
         found_var_ids = list(final_var_score_map.keys())
 
+        base_qs_v = Variable.objects.all()
+        if wave_ids:
+            base_qs_v = base_qs_v.filter(waves__id__in=wave_ids)
+
         variables_found = list(
-            Variable.objects
+            base_qs_v
             .filter(id__in=found_var_ids)
             .only("id", "varname", "varlab", "question_id")
             .select_related("question")
@@ -272,6 +296,7 @@ def search(request):
                 key=lambda obj: final_var_score_map.get(obj.id, 0),
                 reverse=True
             )
+
 
         # Debug-Score anhängen
         for obj in variables_sorted:
