@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'variables.apps.VariablesConfig',
     'django_extensions',
     'import_export',
+    'debug_toolbar',
     'search.apps.PortalConfig',
     'waves.apps.WavesConfig',
     'questions.apps.QuestionsConfig',
@@ -66,7 +67,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
+
+INTERNAL_IPS = ["127.0.0.1"]
 
 ROOT_URLCONF = 'SLC.urls'
 

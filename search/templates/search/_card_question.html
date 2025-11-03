@@ -3,6 +3,8 @@
 
     <h6 class="card-title mb-2">
       {{ item.questiontext|truncatechars:200 }}
+      <p class="text-muted mb-0 small">
+        Relevanz: {{ item.relevance }}
     </h6>
 
     {# Wellen-Badges #}
