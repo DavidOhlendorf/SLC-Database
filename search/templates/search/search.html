@@ -1,5 +1,8 @@
 {% extends 'main.html' %}
 {% load querystring %}
+{% load static %}
+
+
 
 {% block content %}
   <form action="{% url 'search' %}" method="get" class="mb-3">
@@ -96,7 +99,7 @@
     <div id="wave-panel" class="card mt-2" style="display:none; max-width: 680px;">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong>SLC Cycle</strong>
+          <strong>Cycle</strong>
           <button type="button" class="btn-close" id="btn-close-wave-panel" aria-label="Schließen"></button>
         </div>
 
@@ -123,7 +126,7 @@
               {% endfor %}
             </ul>
           {% else %}
-            <p class="muted mb-0">Keine Cycle auswählbar.</p>
+            <p class="muted mb-0">Keine Treffer.</p>
           {% endif %}
         
           <ul id="all-list" class="list-unstyled mb-0" style="display:none;">
@@ -268,75 +271,7 @@
     {% endif %}
   {% endif %}
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  (function () {
-    const form     = document.getElementById('filter-form');
-    const panel    = document.getElementById('wave-panel');
-    const openBtn  = document.getElementById('btn-open-wave-panel');
-    const closeBtn = document.getElementById('btn-close-wave-panel');
-
-    const facetList = document.getElementById('facet-list');
-    const allList   = document.getElementById('all-list');
-
-    // --- Helper: sichtbare Checkboxen mit versteckten Inputs synchronisieren ---
-    function wirePanelChecks() {
-      const checks = Array.from(document.querySelectorAll('#wave-list .wave-check'));
-      checks.forEach(chk => {
-        chk.onchange = () => {
-          const hidden = document.getElementById('wave-' + chk.value);
-          if (hidden) hidden.checked = chk.checked;
-        };
-      });
-    }
-    wirePanelChecks();
-
-    // --- Panel öffnen / schließen ---
-    if (openBtn)  openBtn.addEventListener('click', () => { panel.style.display = 'block'; });
-    if (closeBtn) closeBtn.addEventListener('click', () => { panel.style.display = 'none';  });
-
-    // --- Zurücksetzen ---
-    const resetBtn = document.getElementById('btn-clear-waves');
-    if (resetBtn) resetBtn.addEventListener('click', () => {
-      document.querySelectorAll('#wave-list .wave-check').forEach(c => c.checked = false);
-      document.querySelectorAll('input[type="checkbox"][name="waves"]').forEach(h => h.checked = false);
-      form.submit();
-    });
-
-    // --- Chips (×) entfernen ---
-    document.querySelectorAll('.remove-chip').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.waveId;
-        const hidden = document.getElementById('wave-' + id);
-        if (hidden) hidden.checked = false;
-        document.querySelectorAll('#wave-list .wave-check[value="' + id + '"]').forEach(c => c.checked = false);
-        form.submit();
-      });
-    });
-
-    // --- Umschalten zwischen Treffer / Alle ---
-    const btnToggle = document.getElementById('btn-show-all-waves');
-    if (btnToggle) btnToggle.addEventListener('click', () => {
-      const showingAll = allList && allList.style.display !== 'none';
-
-      if (showingAll) {
-        // zurück zu Treffer
-        if (allList)   allList.style.display   = 'none';
-        if (facetList) facetList.style.display = '';
-        btnToggle.textContent = 'Alle anzeigen';
-      } else {
-        // zu Alle umschalten
-        if (facetList) facetList.style.display = 'none';
-        if (allList)   allList.style.display   = '';
-        btnToggle.textContent = 'Nur Treffer anzeigen';
-      }
-      wirePanelChecks();
-    });
-  })();
-});
-</script>
-
-
+  <script src="{% static 'js/searchfilter.js' %}" defer></script>
 
 {% endblock %}
 
