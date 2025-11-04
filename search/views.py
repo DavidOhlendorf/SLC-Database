@@ -3,6 +3,7 @@ from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity
+from collections import defaultdict
 from questions.models import Question, Construct, Keyword
 from variables.models import Variable
 from waves.models import Wave
@@ -47,14 +48,14 @@ def search(request):
     if sort not in ALLOWED_SORTS:
         sort = "relevance"
 
-    # Wellen-Filter (optional)
+    # Wellen-Filter
     wave_ids = []
     try:
         wave_ids = [int(x) for x in request.GET.getlist("waves") if x.strip().isdigit()]
     except Exception:
         wave_ids = []
 
-    # Für das Auswahlpanel + Chips
+    # Für Auswahl + Chips
     all_waves = Wave.objects.order_by(F("surveyyear").desc(nulls_last=True))
     selected_waves = list(all_waves.filter(id__in=wave_ids)) if wave_ids else []
 
@@ -74,6 +75,12 @@ def search(request):
         "selected_waves": selected_waves,
         "selected_wave_ids": [w.id for w in selected_waves],
     }
+
+    # Für Facetten: Zähler und Set
+    facet_counter = defaultdict(int)
+    facet_waves_set = set()
+
+
 
     # =========================
     # QUESTIONS 
@@ -172,6 +179,11 @@ def search(request):
                 key=lambda obj: final_score_map[obj.id],
                 reverse=True
             )
+        # Wellen einsammeln, die in den Ergebnissen vorkommen
+        for obj in questions_found:
+            for w in obj.waves.all():
+                facet_counter[w.id] += 1
+                facet_waves_set.add(w)
 
 
         # Score zum Debuggen mit anhängen
@@ -297,6 +309,12 @@ def search(request):
                 reverse=True
             )
 
+        # Wellen einsammeln, die in den Ergebnissen vorkommen
+        for obj in variables_found:
+            for w in obj.waves.all():
+                facet_counter[w.id] += 1
+                facet_waves_set.add(w)
+
 
         # Debug-Score anhängen
         for obj in variables_sorted:
@@ -352,6 +370,35 @@ def search(request):
         # Count für Anzeige
         ctx["constructs_count"] = qs_constructs.count()
         ctx.setdefault("constructs_count", 0)
+
+
+    # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr
+    facet_waves_sorted = sorted(
+        facet_waves_set,
+        key=lambda w: ((w.surveyyear is not None), w.surveyyear or 0),
+        reverse=True
+    )
+
+    ctx["facet_waves"] = [
+        {
+            "wave": w,
+            "count": int(facet_counter.get(w.id, 0)),
+            "selected": (w.id in ctx["selected_wave_ids"]),
+        }
+        for w in facet_waves_sorted
+    ]
+
+    ctx["all_waves_facets"] = [
+        {
+            "wave": w,
+            "count": int(facet_counter.get(w.id, 0)),
+            "selected": (w.id in ctx["selected_wave_ids"]),
+        }
+        for w in all_waves
+    ]
+
+
+    ctx["facet_counts"] = {w.id: int(facet_counter.get(w.id, 0)) for w in facet_waves_set}
 
 
     # Rendern

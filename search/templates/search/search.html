@@ -11,6 +11,13 @@
         </div>
       </div>
     </div>
+
+    <input type="hidden" name="type" value="{{ type }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    {% for id in selected_wave_ids %}
+      <input type="hidden" name="waves" value="{{ id }}">
+    {% endfor %}
+
   </form>
 
   <ul class="nav nav-tabs my-3" role="tablist">
@@ -89,25 +96,60 @@
     <div id="wave-panel" class="card mt-2" style="display:none; max-width: 680px;">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong>Wellen filtern</strong>
+          <strong>SLC Cycle</strong>
           <button type="button" class="btn-close" id="btn-close-wave-panel" aria-label="Schließen"></button>
         </div>
 
-        <input type="text" class="form-control mb-2" id="wave-search" placeholder="Wellen suchen…">
-
         <div id="wave-list" style="max-height: 260px; overflow:auto;">
-          {% for w in all_waves %}
-            <label class="d-flex align-items-center gap-2 py-1 wave-item" data-label="{{ w|lower }}">
-              <input type="checkbox"
-                    class="wave-check"
-                    value="{{ w.id }}"
-                    {% if w.id in selected_wave_ids %}checked{% endif %}>
-              <span>{{ w }}</span>
-            </label>
-          {% endfor %}
-        </div>
+          {% if facet_waves %}
+            <ul id="facet-list" class="list-unstyled mb-0">
+              {% for item in facet_waves %}
+                <li class="wave-item" data-label="{{ item.wave|stringformat:'s'|lower }}">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input wave-check"
+                      type="checkbox"
+                      name="waves"
+                      id="wave-panel-{{ item.wave.id }}"
+                      value="{{ item.wave.id }}"
+                      {% if item.selected %}checked{% endif %}
+                    >
+                    <label class="form-check-label d-flex justify-content-between align-items-center" for="wave-panel-{{ item.wave.id }}">
+                      <span>{{ item.wave }}</span>
+                      <span class="badge text-bg-light">{{ item.count }}</span>
+                    </label>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="muted mb-0">Keine Cycle auswählbar.</p>
+          {% endif %}
+        
+          <ul id="all-list" class="list-unstyled mb-0" style="display:none;">
+            {% for item in all_waves_facets %}
+              <li class="wave-item">
+                <div class="form-check d-flex justify-content-between align-items-center">
+                  <div>
+                    <input class="form-check-input wave-check"
+                          type="checkbox"
+                          name="waves"
+                          id="wave-panel-all-{{ item.wave.id }}"
+                          value="{{ item.wave.id }}"
+                          {% if item.selected %}checked{% endif %}>
+                    <label class="form-check-label" for="wave-panel-all-{{ item.wave.id }}">
+                      {{ item.wave }}
+                    </label>
+                  </div>
+                  <span class="badge text-bg-light">{{ item.count }}</span>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div> 
 
         <div class="d-flex justify-content-end gap-2 mt-3">
+           <button type="button" id="btn-show-all-waves" class="btn btn-outline-secondary">Alle anzeigen</button>
           <button type="button" id="btn-clear-waves" class="btn btn-outline-secondary">Zurücksetzen</button>
           <button type="submit" class="btn btn-primary">Übernehmen</button>
         </div>
@@ -227,55 +269,74 @@
   {% endif %}
 
 <script>
-  (function() {
-    const form = document.getElementById('filter-form');
-    const panel = document.getElementById('wave-panel');
-    const openBtn = document.getElementById('btn-open-wave-panel');
+document.addEventListener('DOMContentLoaded', function () {
+  (function () {
+    const form     = document.getElementById('filter-form');
+    const panel    = document.getElementById('wave-panel');
+    const openBtn  = document.getElementById('btn-open-wave-panel');
     const closeBtn = document.getElementById('btn-close-wave-panel');
-    const searchInput = document.getElementById('wave-search');
-    const waveItems = Array.from(document.querySelectorAll('#wave-list .wave-item'));
-    const waveChecksInPanel = Array.from(document.querySelectorAll('#wave-list .wave-check'));
 
-    // Panel öffnen/schließen
-    openBtn.addEventListener('click', () => { panel.style.display = 'block'; searchInput.focus(); });
-    closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
+    const facetList = document.getElementById('facet-list');
+    const allList   = document.getElementById('all-list');
 
-    // Live-Suche
-    searchInput.addEventListener('input', (e) => {
-      const q = e.target.value.trim().toLowerCase();
-      waveItems.forEach(li => {
-        const match = li.dataset.label.includes(q);
-        li.style.display = match ? '' : 'none';
+    // --- Helper: sichtbare Checkboxen mit versteckten Inputs synchronisieren ---
+    function wirePanelChecks() {
+      const checks = Array.from(document.querySelectorAll('#wave-list .wave-check'));
+      checks.forEach(chk => {
+        chk.onchange = () => {
+          const hidden = document.getElementById('wave-' + chk.value);
+          if (hidden) hidden.checked = chk.checked;
+        };
       });
-    });
+    }
+    wirePanelChecks();
 
-    // Panel-Checks -> versteckte echte Inputs spiegeln
-    waveChecksInPanel.forEach(chk => {
-      chk.addEventListener('change', () => {
-        const hidden = document.getElementById('wave-' + chk.value);
-        if (hidden) hidden.checked = chk.checked;
-      });
-    });
+    // --- Panel öffnen / schließen ---
+    if (openBtn)  openBtn.addEventListener('click', () => { panel.style.display = 'block'; });
+    if (closeBtn) closeBtn.addEventListener('click', () => { panel.style.display = 'none';  });
 
-    // Zurücksetzen
-    document.getElementById('btn-clear-waves').addEventListener('click', () => {
-      waveChecksInPanel.forEach(c => c.checked = false);
+    // --- Zurücksetzen ---
+    const resetBtn = document.getElementById('btn-clear-waves');
+    if (resetBtn) resetBtn.addEventListener('click', () => {
+      document.querySelectorAll('#wave-list .wave-check').forEach(c => c.checked = false);
       document.querySelectorAll('input[type="checkbox"][name="waves"]').forEach(h => h.checked = false);
+      form.submit();
     });
 
-    // Chip entfernen -> passende Checkbox abwählen + submit
+    // --- Chips (×) entfernen ---
     document.querySelectorAll('.remove-chip').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.waveId;
         const hidden = document.getElementById('wave-' + id);
-        const panelChk = document.querySelector('#wave-list .wave-check[value="' + id + '"]');
         if (hidden) hidden.checked = false;
-        if (panelChk) panelChk.checked = false;
+        document.querySelectorAll('#wave-list .wave-check[value="' + id + '"]').forEach(c => c.checked = false);
         form.submit();
       });
     });
+
+    // --- Umschalten zwischen Treffer / Alle ---
+    const btnToggle = document.getElementById('btn-show-all-waves');
+    if (btnToggle) btnToggle.addEventListener('click', () => {
+      const showingAll = allList && allList.style.display !== 'none';
+
+      if (showingAll) {
+        // zurück zu Treffer
+        if (allList)   allList.style.display   = 'none';
+        if (facetList) facetList.style.display = '';
+        btnToggle.textContent = 'Alle anzeigen';
+      } else {
+        // zu Alle umschalten
+        if (facetList) facetList.style.display = 'none';
+        if (allList)   allList.style.display   = '';
+        btnToggle.textContent = 'Nur Treffer anzeigen';
+      }
+      wirePanelChecks();
+    });
   })();
+});
 </script>
+
+
 
 {% endblock %}
 
