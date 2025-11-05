@@ -3,8 +3,10 @@ from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity
+from collections import defaultdict
 from questions.models import Question, Construct, Keyword
 from variables.models import Variable
+from waves.models import Wave
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
@@ -46,6 +48,17 @@ def search(request):
     if sort not in ALLOWED_SORTS:
         sort = "relevance"
 
+    # Wellen-Filter
+    wave_ids = []
+    try:
+        wave_ids = [int(x) for x in request.GET.getlist("waves") if x.strip().isdigit()]
+    except Exception:
+        wave_ids = []
+
+    # Für Auswahl + Chips
+    all_waves = Wave.objects.order_by(F("surveyyear").desc(nulls_last=True))
+    selected_waves = list(all_waves.filter(id__in=wave_ids)) if wave_ids else []
+
     ctx = {
         "q": q,
         "type": search_type,
@@ -58,7 +71,16 @@ def search(request):
             ("variables", "Variablen"),
             ("constructs", "Konstrukte"),
         ],
+        "all_waves": all_waves,
+        "selected_waves": selected_waves,
+        "selected_wave_ids": [w.id for w in selected_waves],
     }
+
+    # Für Facetten: Zähler und Set
+    facet_counter = defaultdict(int)
+    facet_waves_set = set()
+
+
 
     # =========================
     # QUESTIONS 
@@ -70,7 +92,7 @@ def search(request):
         text_candidates_qs = (
             Question.objects
             .annotate(qt=Lower("questiontext"))
-            .annotate(sim_text=TrigramSimilarity(Lower("questiontext"), q_lower))
+            .annotate(sim_text=TrigramSimilarity(F("qt"), q_lower))
             .filter(Q(qt__contains=q_lower) | Q(sim_text__gt=0.2))
             .values("id", "sim_text")
             .order_by("-sim_text")[:200]
@@ -131,9 +153,13 @@ def search(request):
                 final_score_map[qid] = score
 
 
-        # --- 4. Materialisieren und Sortieren
+        # --- 4. Materialisieren, Sortieren und Filtern ---
+        base_qs_q = Question.objects.all()
+        if wave_ids:
+            base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
+
         questions_found = list(
-            Question.objects
+            base_qs_q
             .filter(id__in=final_score_map.keys())
             .only("id", "questiontext")
             .prefetch_related(Prefetch("waves"))
@@ -152,7 +178,13 @@ def search(request):
                 questions_found,
                 key=lambda obj: final_score_map[obj.id],
                 reverse=True
-)
+            )
+        # Wellen einsammeln, die in den Ergebnissen vorkommen
+        for obj in questions_found:
+            for w in obj.waves.all():
+                facet_counter[w.id] += 1
+                facet_waves_set.add(w)
+
 
         # Score zum Debuggen mit anhängen
         for obj in questions_sorted:
@@ -179,7 +211,7 @@ def search(request):
         var_candidates_qs = (
             Variable.objects
             .annotate(vn=Lower("varname"), vl=Lower("varlab"))
-            .annotate(sim_varlab=TrigramSimilarity(Lower("varlab"), q_lower))
+            .annotate(sim_varlab=TrigramSimilarity(F("vn"), q_lower))
             .filter(
                 Q(vn__startswith=q_lower) | Q(vl__contains=q_lower) | Q(sim_varlab__gt=0.2))
             .values("id", "varname", "sim_varlab")[:200]
@@ -249,8 +281,12 @@ def search(request):
         # Falls gar nichts gefunden wurde (kann passieren), leeres Handling
         found_var_ids = list(final_var_score_map.keys())
 
+        base_qs_v = Variable.objects.all()
+        if wave_ids:
+            base_qs_v = base_qs_v.filter(waves__id__in=wave_ids)
+
         variables_found = list(
-            Variable.objects
+            base_qs_v
             .filter(id__in=found_var_ids)
             .only("id", "varname", "varlab", "question_id")
             .select_related("question")
@@ -272,6 +308,13 @@ def search(request):
                 key=lambda obj: final_var_score_map.get(obj.id, 0),
                 reverse=True
             )
+
+        # Wellen einsammeln, die in den Ergebnissen vorkommen
+        for obj in variables_found:
+            for w in obj.waves.all():
+                facet_counter[w.id] += 1
+                facet_waves_set.add(w)
+
 
         # Debug-Score anhängen
         for obj in variables_sorted:
@@ -327,6 +370,35 @@ def search(request):
         # Count für Anzeige
         ctx["constructs_count"] = qs_constructs.count()
         ctx.setdefault("constructs_count", 0)
+
+
+    # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr
+    facet_waves_sorted = sorted(
+        facet_waves_set,
+        key=lambda w: ((w.surveyyear is not None), w.surveyyear or 0),
+        reverse=True
+    )
+
+    ctx["facet_waves"] = [
+        {
+            "wave": w,
+            "count": int(facet_counter.get(w.id, 0)),
+            "selected": (w.id in ctx["selected_wave_ids"]),
+        }
+        for w in facet_waves_sorted
+    ]
+
+    ctx["all_waves_facets"] = [
+        {
+            "wave": w,
+            "count": int(facet_counter.get(w.id, 0)),
+            "selected": (w.id in ctx["selected_wave_ids"]),
+        }
+        for w in all_waves
+    ]
+
+
+    ctx["facet_counts"] = {w.id: int(facet_counter.get(w.id, 0)) for w in facet_waves_set}
 
 
     # Rendern

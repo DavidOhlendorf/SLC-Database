@@ -1,5 +1,8 @@
 {% extends 'main.html' %}
 {% load querystring %}
+{% load static %}
+
+
 
 {% block content %}
   <form action="{% url 'search' %}" method="get" class="mb-3">
@@ -11,15 +14,21 @@
         </div>
       </div>
     </div>
-  </form>
 
+    <input type="hidden" name="type" value="{{ type }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    {% for id in selected_wave_ids %}
+      <input type="hidden" name="waves" value="{{ id }}">
+    {% endfor %}
+
+  </form>
 
   <ul class="nav nav-tabs my-3" role="tablist">
     {% for t,label in tabs %}
       <li class="nav-item" role="presentation">
         <a
           class="nav-link {% if type == t %}active{% endif %}"
-          href="{% url 'search' %}{% url_with type=t page=None %}"
+          href="{% url 'search' %}{% url_with type=t page=None waves=selected_wave_ids%}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
           {{ label }}
         </a>
@@ -27,17 +36,130 @@
     {% endfor %}
   </ul>
 
-  <div class="dropdown mb-3">
-    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-      Sortierung: {% if sort == "alpha" %}Alphabetisch{% else %}Relevanz{% endif %}
-    </button>
-    <ul class="dropdown-menu">
-      <li><a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}" href="{% url 'search' %}{% url_with sort='relevance' page=None %}">Relevanz</a></li>
-      <li><a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}" href="{% url 'search' %}{% url_with sort='alpha' page=None %}">Alphabetisch (A–Z)</a></li>
-    </ul>
-  </div>
+  
+  <form method="get" id="filter-form" class="mb-3">
+    {# bestehende Suchparameter #}
+    <input type="hidden" name="q" value="{{ q }}">
+    <input type="hidden" name="type" value="{{ type }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Sortierung: {% if sort == "alpha" %}Alphabetisch{% else %}Relevanz{% endif %}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}"
+              href="{% url 'search' %}{% url_with sort='relevance' page=None waves=selected_wave_ids %}">
+              Relevanz
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}"
+              href="{% url 'search' %}{% url_with sort='alpha' page=None waves=selected_wave_ids %}">
+              Alphabetisch (A–Z)
+            </a>
+          </li>
+        </ul>
+      </div>
+      <button type="button" id="btn-open-wave-panel" class="btn btn-outline-secondary">
+        Filter
+      </button>
+    </div>
 
 
+    <div class="d-flex flex-wrap gap-2">
+        {% if selected_waves %}
+          {% for w in selected_waves %}
+            <span class="badge rounded-pill text-bg-primary d-inline-flex align-items-center">
+              {{ w }}
+              <button type="button"
+                      class="btn btn-sm btn-link ms-1 text-white text-decoration-none remove-chip"
+                      data-wave-id="{{ w.id }}"
+                      aria-label="Filter {{ w }} entfernen">×</button>
+            </span>
+          {% endfor %}
+        {% endif %}
+
+    </div>
+
+    {# versteckte Checkboxen tragen die waves[]= IDs #}
+    <div class="visually-hidden">
+      {% for w in all_waves %}
+        <input type="checkbox"
+              name="waves"
+              value="{{ w.id }}"
+              id="wave-{{ w.id }}"
+              {% if w.id in selected_wave_ids %}checked{% endif %}>
+      {% endfor %}
+    </div>
+
+    {# Panel zum Auswählen #}
+    <div id="wave-panel" class="card mt-2" style="display:none; max-width: 680px;">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>Cycle</strong>
+          <button type="button" class="btn-close" id="btn-close-wave-panel" aria-label="Schließen"></button>
+        </div>
+
+        <div id="wave-list" style="max-height: 260px; overflow:auto;">
+          {% if facet_waves %}
+            <ul id="facet-list" class="list-unstyled mb-0">
+              {% for item in facet_waves %}
+                <li class="wave-item" data-label="{{ item.wave|stringformat:'s'|lower }}">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input wave-check"
+                      type="checkbox"
+                      name="waves"
+                      id="wave-panel-{{ item.wave.id }}"
+                      value="{{ item.wave.id }}"
+                      {% if item.selected %}checked{% endif %}
+                    >
+                    <label class="form-check-label d-flex justify-content-between align-items-center" for="wave-panel-{{ item.wave.id }}">
+                      <span>{{ item.wave }}</span>
+                      <span class="badge text-bg-light">{{ item.count }}</span>
+                    </label>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="muted mb-0">Keine Treffer.</p>
+          {% endif %}
+        
+          <ul id="all-list" class="list-unstyled mb-0" style="display:none;">
+            {% for item in all_waves_facets %}
+              <li class="wave-item">
+                <div class="form-check d-flex justify-content-between align-items-center">
+                  <div>
+                    <input class="form-check-input wave-check"
+                          type="checkbox"
+                          name="waves"
+                          id="wave-panel-all-{{ item.wave.id }}"
+                          value="{{ item.wave.id }}"
+                          {% if item.selected %}checked{% endif %}>
+                    <label class="form-check-label" for="wave-panel-all-{{ item.wave.id }}">
+                      {{ item.wave }}
+                    </label>
+                  </div>
+                  <span class="badge text-bg-light">{{ item.count }}</span>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div> 
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+           <button type="button" id="btn-show-all-waves" class="btn btn-outline-secondary">Alle anzeigen</button>
+          <button type="button" id="btn-clear-waves" class="btn btn-outline-secondary">Zurücksetzen</button>
+          <button type="submit" class="btn btn-primary">Übernehmen</button>
+        </div>
+      </div>
+    </div>
+  </form>
+ 
 
   {% if type == "all" %}
     {% if questions or variables or constructs %}
@@ -49,7 +171,7 @@
               {% include "search/_card_question.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='questions' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='questions' page=None waves=selected_wave_ids%}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Fragen gefunden.</p>
@@ -65,7 +187,7 @@
               {% include "search/_card_variable.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='variables' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='variables' page=None  waves=selected_wave_ids%}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Variablen gefunden.</p>
@@ -81,7 +203,7 @@
               {% include "search/_card_construct.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='constructs' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='constructs' page=None  waves=selected_wave_ids%}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Konstrukte gefunden.</p>
@@ -149,5 +271,7 @@
     {% endif %}
   {% endif %}
 
+  <script src="{% static 'js/searchfilter.js' %}" defer></script>
 
 {% endblock %}
+
