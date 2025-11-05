@@ -1,8 +1,9 @@
+import re
 from django.shortcuts import render, redirect
 from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
 from django.core.paginator import Paginator
-from django.contrib.postgres.search import TrigramSimilarity
+from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector
 from collections import defaultdict
 from questions.models import Question, Construct, Keyword
 from variables.models import Variable
@@ -88,118 +89,130 @@ def search(request):
     if search_type in {"all", "questions"}:
         q_lower = q.lower()
 
-        # --- 1. Kandidaten über Fragetext
-        text_candidates_qs = (
-            Question.objects
-            .annotate(qt=Lower("questiontext"))
-            .annotate(sim_text=TrigramSimilarity(F("qt"), q_lower))
-            .filter(Q(qt__contains=q_lower) | Q(sim_text__gt=0.2))
-            .values("id", "sim_text")
-            .order_by("-sim_text")[:200]
+
+    # Basis-QuerySet nur mit Wellen-Filter
+    base_qs_q = Question.objects.all()
+    if wave_ids:
+        base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
+
+
+    # ---- 1) Volltext (tsvector) mit deutschem Analyzer
+    ts_query = SearchQuery(q, config="german", search_type="websearch")
+
+    ts_rows = (
+        base_qs_q
+        .annotate(sv=SearchVector("questiontext", weight="A", config="german"))
+        .filter(sv=ts_query)
+        .annotate(ts_rank=SearchRank(F("sv"), ts_query, normalization=32))
+        .values("id", "ts_rank")
+    )
+    ts_map = {r["id"]: float(r["ts_rank"] or 0.0) for r in ts_rows}
+
+
+    # ---- 2) Trigram (Fuzzy-Fallback) für Tippfehler/Teilstrings
+    tg_rows = (
+        base_qs_q
+        .annotate(qt=Lower("questiontext"))
+        .annotate(sim=TrigramSimilarity(F("qt"), q_lower))
+        .filter(sim__gt=0.25) 
+        .values("id", "sim")
+    )
+    tg_map = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows}
+
+
+    # ---- 3) Wortgrenzen-Boost: wenn der Suchbegriff als eigenes Wort im Text steht
+    word_boundary = rf"\m{re.escape(q_lower)}\M"
+    wb_ids = set(
+        base_qs_q
+        .annotate(qt=Lower("questiontext"))
+        .filter(qt__iregex=word_boundary)
+        .values_list("id", flat=True)
+    )
+
+    # ---- 4) Keyword-Score: bestes passendes Keyword (contains oder trgm)
+    kw_rows = (
+        Keyword.objects
+        .annotate(nl=Lower("name"))
+        .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
+        .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.25))
+        .values("id", "sim")[:200]
+    )
+    kw_id_to_score = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows}
+
+    kw_links = (
+        base_qs_q
+        .filter(keywords__in=list(kw_id_to_score.keys()))
+        .values("id", "keywords__id")
+        .distinct()
+    )
+    kw_map = {}
+    for r in kw_links:
+        qid = r["id"]; kwid = r["keywords__id"]
+        kw_map[qid] = max(kw_map.get(qid, 0.0), kw_id_to_score.get(kwid, 0.0))
+
+    # ---- 5) Finaler Score pro Frage
+    #   text_score = max(ts_rank, trigram*0.6, worttreffer?0.95:0)
+    #   kw_score   = bestes Keyword * 0.8
+    #   kombi-bonus: wenn beides matched -> +0.15 (auf 1.2 gedeckelt)
+
+    candidate_ids = set(ts_map) | set(tg_map) | wb_ids | set(kw_map)
+    final_score_map = {}
+    for qid in candidate_ids:
+        ts = ts_map.get(qid, 0.0)
+        tg = tg_map.get(qid, 0.0) * 0.6
+        wb = 0.95 if qid in wb_ids else 0.0
+        text_score = max(ts, tg, wb)
+
+        kw_score = kw_map.get(qid, 0.0) * 0.8
+        both = (text_score > 0.0 and kw_score > 0.0)
+
+        relevance = max(text_score, kw_score)
+        if both:
+            relevance = min(1.2, relevance + 0.15)
+
+        final_score_map[qid] = relevance
+
+    # ---- 6) Materialisieren, Facetten zählen, sortieren, paginieren
+    questions_found = list(
+        base_qs_q
+        .filter(id__in=final_score_map.keys())
+        .only("id", "questiontext")
+        .prefetch_related(Prefetch("waves"))
+        .distinct()
+    )
+
+    if sort == "alpha":
+        questions_sorted = sorted(
+            questions_found,
+            key=lambda obj: (obj.questiontext or "").lower()
+        )
+    else:
+        questions_sorted = sorted(
+            questions_found,
+            key=lambda obj: final_score_map.get(obj.id, 0.0),
+            reverse=True
         )
 
-        # Map: questionID -> score aus Fragetext
-        text_score_map = {}
-        for row in text_candidates_qs:
-            qid = row["id"]
-            score = row["sim_text"] or 0
-            text_score_map[qid] = score
+    # Facetten-Zähler
+    for obj in questions_found:
+        for w in obj.waves.all():
+            facet_counter[w.id] += 1
+            facet_waves_set.add(w)
 
+    # Debug/Anzeige
+    for obj in questions_sorted:
+        obj.relevance = final_score_map.get(obj.id, 0.0)
 
-        # --- 2. Kandidaten über Keywords
-        # Schritt 2a: relevante Keywords finden
-        kw_candidates_qs = (
-            Keyword.objects
-            .annotate(nl=Lower("name"))
-            .annotate(sim_kw=TrigramSimilarity(Lower("name"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim_kw__gt=0.25))
-            .values("id", "sim_kw")
-            .order_by("-sim_kw")[:200]
-        )
+    if search_type == "all":
+        ctx["questions"] = questions_sorted[:ctx["TOP_N"]]
+    else:
+        page_obj = paginate_list(questions_sorted, request)
+        ctx["questions_page"] = page_obj
+        ctx["questions"] = page_obj.object_list
 
-        kw_id_to_score = {}
+    ctx["questions_count"] = len(questions_sorted)
+    ctx.setdefault("questions_count", 0)
 
-        for row in kw_candidates_qs:
-            kwid = row["id"]
-            score = row["sim_kw"] or 0
-            kw_id_to_score[kwid] = score
-
-        kw_ids = list(kw_id_to_score.keys())
-
-        # Schritt 2b: Welche Fragen hängen an diesen Keyword-IDs?
-        question_kw_links = (
-            Question.objects
-            .filter(keywords__in=kw_ids)
-            .values("id", "keywords__id")
-            .distinct()
-        )
-
-        kw_score_map_for_question = {}
-        for row in question_kw_links:
-            qid = row["id"]
-            kwid = row["keywords__id"]
-            score = kw_id_to_score.get(kwid, 0)
-            if qid not in kw_score_map_for_question or score > kw_score_map_for_question[qid]:
-                kw_score_map_for_question[qid] = score
-
-        # --- 3. Scores mergen:
-        final_score_map = {}
-
-        for qid, score in text_score_map.items():
-            final_score_map[qid] = score
-
-        for qid, score in kw_score_map_for_question.items():
-            if qid not in final_score_map or score > final_score_map[qid]:
-                final_score_map[qid] = score
-
-
-        # --- 4. Materialisieren, Sortieren und Filtern ---
-        base_qs_q = Question.objects.all()
-        if wave_ids:
-            base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
-
-        questions_found = list(
-            base_qs_q
-            .filter(id__in=final_score_map.keys())
-            .only("id", "questiontext")
-            .prefetch_related(Prefetch("waves"))
-            .distinct()
-        )
-
-        # Sortierung
-        if sort == "alpha":
-            questions_sorted = sorted(
-                questions_found,
-                key=lambda obj: (obj.questiontext or "").lower()
-            )
-
-        else:  # relevance (default)
-            questions_sorted = sorted(
-                questions_found,
-                key=lambda obj: final_score_map[obj.id],
-                reverse=True
-            )
-        # Wellen einsammeln, die in den Ergebnissen vorkommen
-        for obj in questions_found:
-            for w in obj.waves.all():
-                facet_counter[w.id] += 1
-                facet_waves_set.add(w)
-
-
-        # Score zum Debuggen mit anhängen
-        for obj in questions_sorted:
-            obj.relevance = final_score_map.get(obj.id, 0)
-
-        if search_type == "all":
-            ctx["questions"] = questions_sorted[:ctx["TOP_N"]]
-        else:
-            page_obj = paginate_list(questions_sorted, request)
-            ctx["questions_page"] = page_obj
-            ctx["questions"] = page_obj.object_list
-
-        # Count für Anzeige in Tabs / Überschriften
-        ctx["questions_count"] = len(questions_sorted)
-        ctx.setdefault("questions_count", 0)
 
     # =========================
     # VARIABLES
