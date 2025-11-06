@@ -51,13 +51,13 @@
         <ul class="dropdown-menu dropdown-menu-end">
           <li>
             <a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}"
-              href="{% url 'search' %}{% url_with sort='relevance' page=None waves=selected_wave_ids %}">
+              href="{% url 'search' %}{% url_with sort='relevance' page=None %}">
               Relevanz
             </a>
           </li>
           <li>
             <a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}"
-              href="{% url 'search' %}{% url_with sort='alpha' page=None waves=selected_wave_ids %}">
+              href="{% url 'search' %}{% url_with sort='alpha' page=None  %}">
               Alphabetisch (A–Z)
             </a>
           </li>
@@ -112,7 +112,6 @@
                     <input
                       class="form-check-input wave-check"
                       type="checkbox"
-                      name="waves"
                       id="wave-panel-{{ item.wave.id }}"
                       value="{{ item.wave.id }}"
                       {% if item.selected %}checked{% endif %}
@@ -136,7 +135,6 @@
                   <div>
                     <input class="form-check-input wave-check"
                           type="checkbox"
-                          name="waves"
                           id="wave-panel-all-{{ item.wave.id }}"
                           value="{{ item.wave.id }}"
                           {% if item.selected %}checked{% endif %}>
