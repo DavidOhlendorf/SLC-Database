@@ -28,7 +28,7 @@
       <li class="nav-item" role="presentation">
         <a
           class="nav-link {% if type == t %}active{% endif %}"
-          href="{% url 'search' %}{% url_with type=t page=None waves=selected_wave_ids%}"
+          href="{% url 'search' %}{% url_with type=t page=None %}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
           {{ label }}
         </a>
@@ -171,7 +171,7 @@
               {% include "search/_card_question.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='questions' page=None waves=selected_wave_ids%}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='questions' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Fragen gefunden.</p>
@@ -187,7 +187,7 @@
               {% include "search/_card_variable.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='variables' page=None  waves=selected_wave_ids%}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='variables' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Variablen gefunden.</p>
@@ -203,7 +203,7 @@
               {% include "search/_card_construct.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='constructs' page=None  waves=selected_wave_ids%}">Mehr anzeigen</a>
+              <a href="{% url 'search' %}{% url_with type='constructs' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Konstrukte gefunden.</p>

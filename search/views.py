@@ -54,7 +54,7 @@ def search(request):
         wave_ids = [int(x) for x in request.GET.getlist("waves") if x.strip().isdigit()]
     except Exception:
         wave_ids = []
-
+    
     # Für Auswahl + Chips
     all_waves = Wave.objects.order_by(F("surveyyear").desc(nulls_last=True))
     selected_waves = list(all_waves.filter(id__in=wave_ids)) if wave_ids else []
