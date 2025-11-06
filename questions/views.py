@@ -1,3 +1,6 @@
-from django.shortcuts import render
+from django.views.generic import DetailView
+from .models import Question
 
-# Create your views here.
+class QuestionDetail(DetailView):
+    model = Question
+    template_name = "questions/detail.html"

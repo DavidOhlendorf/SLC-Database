@@ -1,6 +1,7 @@
 # variables/models.py
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 
 def validate_vallab_values(value):
@@ -84,3 +85,6 @@ class Variable(models.Model):
 
     def __str__(self):
         return f"{self.varname} ({self.varlab})"
+    
+    def get_absolute_url(self):
+        return reverse("variable_detail", args=[self.pk])

@@ -1,0 +1,10 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <h1>Variable: {{ object.varname }}</h1>
+  {% if object.varlab %}
+    <p>{{ object.varlab }}</p>
+  {% else %}
+    <p class="muted">Kein Label hinterlegt.</p>
+  {% endif %}
+{% endblock %}

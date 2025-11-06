@@ -1,0 +1,6 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <h1>Frage #{{ object.id }}</h1>
+  <p>{{ object.questiontext|linebreaksbr }}</p>
+{% endblock %}

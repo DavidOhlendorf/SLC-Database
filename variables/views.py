@@ -1,3 +1,8 @@
-from django.shortcuts import render
+from django.views.generic import DetailView
+from .models import Variable
 
-# Create your views here.
+class VariableDetail(DetailView):
+    model = Variable
+    template_name = "variables/detail.html"
+
+
