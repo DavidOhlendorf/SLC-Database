@@ -44,6 +44,10 @@ class ValLab(models.Model):
 
     def __str__(self):
         return self.vallabname
+    
+    @property
+    def values_sorted(self):
+        return sorted(self.values, key=lambda x: x.get("order", 0)) if isinstance(self.values, list) else []
 
     # Hilfsfunktionen
     def as_choices(self):
