@@ -1,6 +1,61 @@
 {% extends "main.html" %}
+{% load static %}
 
 {% block content %}
-  <h1>Frage #{{ object.id }}</h1>
-  <p>{{ object.questiontext|linebreaksbr }}</p>
+  <div class="container my-4">
+
+    <!-- Fragetext -->
+    <header class="mb-3">
+      <h1 class="h4">{{ question.questiontext }}</h1>
+    </header>
+
+    <!-- Wellen-Pills -->
+    {% if waves %}
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+        {% for w in waves %}
+          <li class="nav-item">
+            {% if active_wave and w.id == active_wave.id %}
+              <a href="{% url 'question_detail' question.id %}?wave={{ w.id }}"
+                class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
+                aria-current="page">
+                {{ w }}
+              </a>
+            {% else %}
+              <a href="{% url 'question_detail' question.id %}?wave={{ w.id }}"
+                class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border">
+                {{ w }}
+              </a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+
+    {% endif %}
+
+    <!-- Variablenliste -->
+    <section>
+      <h2 class="h5 mb-3">
+        Variablen{% if active_wave %} in {{ active_wave.name|default:active_wave }}{% endif %}
+      </h2>
+
+      {% if variables %}
+        <div class="list-group">
+          {% for v in variables %}
+            <a
+              class="list-group-item list-group-item-action"
+              href="{% url 'variable_detail' v.id %}" 
+            >
+              <div class="fw-semibold">{{ v.varname }}</div>
+              {% if v.varlab %}
+                <div class="text-muted text-truncate">{{ v.varlab }}</div>
+              {% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">In dieser Welle sind keine Variablen verknüpft.</p>
+      {% endif %}
+    </section>
+
+  </div>
 {% endblock %}
