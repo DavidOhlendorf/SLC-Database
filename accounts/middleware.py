@@ -23,7 +23,11 @@ class LoginRequiredMiddleware:
 
         # View-Namen, die ohne Login erreichbar sein dürfen
         self.whitelisted_view_names = {
-            "login", 
+            "login",                    # Login-Seite
+            "password_reset",           # Formular "Passwort vergessen?"
+            "password_reset_done",      # "Mail wurde verschickt"
+            "password_reset_confirm",   # Link aus der Mail (Token-Seite)
+            "password_reset_complete",  # "Passwort geändert"
             # hier können weitere View-Namen ergänzt werden
         }
 

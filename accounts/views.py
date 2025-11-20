@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.conf import settings
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.urls import reverse
 
 
 def loginpage(request):
@@ -16,6 +17,12 @@ def loginpage(request):
 
     # next-Parameter aus Querystring oder POST übernehmen
     next_url = request.GET.get("next") or request.POST.get("next") or ""
+
+    # Falls next auf die Logout-URL zeigt wird auf die Startseite umgeleitet
+    logout_url = reverse("logout")
+    if next_url.startswith(logout_url):
+        next_url = ""
+
 
     if request.method == "POST":
         username = request.POST.get("user")
@@ -41,3 +48,8 @@ def loginpage(request):
 
     return render(request, "accounts/login.html", {"next": next_url})
     
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, "Du wurdest erfolgreich abgemeldet.")
+    return redirect("login")
