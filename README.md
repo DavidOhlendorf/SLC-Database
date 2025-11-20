@@ -6,7 +6,7 @@ The project replaces a former MS Access system and migrates all structures into 
 ## 🔍 Key Features
 
 - **Hybrid search engine**
-  - Fuzzy search using `pg_trgm` (GIN index)  
+  - Fuzzy search using `pg_trgm`  
   - Vector-based semantic search using `tsvector`  
   - Combined ranking logic for robust and relevant results
 
