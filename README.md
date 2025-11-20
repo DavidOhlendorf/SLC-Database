@@ -47,3 +47,7 @@ The system is designed to:
 - **Database:** PostgreSQL 16
 - **Frontend:** Bootstrap, HTML, JavaScript  
 
+## 📚 License
+The source code is publicly visible for transparency.
+Usage, modification, deployment, or redistribution is not permitted.
+See the LICENSE file for details.
