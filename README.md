@@ -24,8 +24,7 @@ The project replaces a former MS Access system and migrates all structures into 
 
 ## 🗄️ Data Model
 
-A full ER diagram is included in the repository  
-(e.g., `ERModell_02.09.2025.png`).
+A full ER diagram will follow.
 
 Core entities include:
 - `Question`, `Keyword`, `Construct`, `QuestionScreenshot`
