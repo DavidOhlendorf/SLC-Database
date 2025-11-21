@@ -5,23 +5,30 @@ from questions.models import Question
 
 
 class WavePage(models.Model):
-
-    wave = models.ForeignKey(
-        Wave,
-        on_delete=models.CASCADE,
-        related_name="pages",
+    
+    import_page_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Eindeutige ID aus der Import-Tabelle.",
     )
+
     pagename = models.CharField(
         max_length=200,
         help_text="Interner Seitenname, z.B. 'dem123'.",
     )
 
+    waves = models.ManyToManyField(
+        Wave,
+        related_name="pages",
+        blank=True,
+        help_text="Wellen, in denen diese Seite verwendet wird.",
+    )
+
     class Meta:
-        unique_together = ("wave", "pagename")
-        ordering = ["wave", "pagename"]
+        ordering = ["pagename"]
 
     def __str__(self) -> str:
-        return f"{self.wave} – {self.pagename}"
+        return self.pagename
 
 
 class WavePageQuestion(models.Model):
@@ -36,7 +43,6 @@ class WavePageQuestion(models.Model):
         on_delete=models.CASCADE,
         related_name="page_links",
     )
-
 
     class Meta:
         unique_together = ("wave_page", "question")
