@@ -6,12 +6,6 @@ from questions.models import Question
 
 class WavePage(models.Model):
     
-    import_page_id = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="Eindeutige ID aus der Import-Tabelle.",
-    )
-
     pagename = models.CharField(
         max_length=200,
         help_text="Interner Seitenname, z.B. 'dem123'.",
@@ -26,6 +20,8 @@ class WavePage(models.Model):
 
     class Meta:
         ordering = ["pagename"]
+        verbose_name = "page"
+        verbose_name_plural = "pages"
 
     def __str__(self) -> str:
         return self.pagename
@@ -47,6 +43,8 @@ class WavePageQuestion(models.Model):
     class Meta:
         unique_together = ("wave_page", "question")
         ordering = ["wave_page", "question"]
+        verbose_name = "questions on page"
+        verbose_name_plural = "questions on page"
 
     def __str__(self) -> str:
         return f"{self.wave_page} – {self.question}"
@@ -79,6 +77,8 @@ class WavePageScreenshot(models.Model):
 
     class Meta:
         ordering = ["wave_page", "language", "device"]
+        verbose_name = "Screenshot (page)"
+        verbose_name_plural = "Screenshots (page)"
 
     def __str__(self) -> str:
         return f"{self.wave_page} – {self.language}/{self.device}"
