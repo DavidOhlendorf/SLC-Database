@@ -57,5 +57,32 @@
       {% endif %}
     </section>
 
+    <!-- Seitename für Frage + aktive Welle -->
+    {% if page %}
+      <p class="text-muted small mb-3">
+        Seite im Instrument:
+        <span class="fw-semibold">{{ page.pagename }}</span>
+      </p>
+    {% endif %}
+
+    {% if screenshots %}
+      <div class="my-3">
+        <h2 class="h6 mb-2">Screenshots</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+          {% for s in screenshots %}
+            <div class="col">
+              <div class="card shadow-sm">
+                <img src="/{{ s.image_path }}" class="card-img-top" alt="Screenshot">
+                <div class="card-body small">
+                  <div><strong>Sprache:</strong> {{ s.language }}</div>
+                  <div><strong>Gerät:</strong> {{ s.device }}</div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
   </div>
 {% endblock %}

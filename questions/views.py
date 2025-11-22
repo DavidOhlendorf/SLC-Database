@@ -1,9 +1,12 @@
 # questions/views.py
 from django.views.generic import DetailView
 from django.db.models import Prefetch
+
 from .models import Question
 from variables.models import Variable
 from waves.models import Wave
+from pages.models import WavePage 
+
 
 class QuestionDetail(DetailView):
     model = Question
@@ -36,18 +39,38 @@ class QuestionDetail(DetailView):
                 active_wave = waves[0]
 
         if active_wave:
+            # Variablen in aktiver Welle
             variables = (
                 Variable.objects
                 .filter(question=question, waves=active_wave)
                 .only("id", "varname", "varlab")
                 .order_by("varname")
             )
+
+            # Seite der aktiven Welle
+            page = (
+                WavePage.objects
+                .filter(
+                    page_questions__question=question,  # Link Question <-> WavePage
+                    waves=active_wave,                    # Link WavePage <-> Wave
+                )
+                .only("id", "pagename")
+                .first()
+            )
         else:
             variables = Variable.objects.none()
+            page = None
+
+        if page:
+            screenshots = list(page.screenshots.all())
+        else:
+            screenshots = []    
 
         ctx.update({
             "waves": waves,
             "active_wave": active_wave,
             "variables": variables,
+            "page": page, 
+            "screenshots": screenshots,
         })
         return ctx
