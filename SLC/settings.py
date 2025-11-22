@@ -49,14 +49,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'variables.apps.VariablesConfig',
     'django_extensions',
     'import_export',
     'debug_toolbar',
     'search.apps.PortalConfig',
+    'accounts.apps.AccountsConfig',
+    'variables.apps.VariablesConfig',
     'waves.apps.WavesConfig',
     'questions.apps.QuestionsConfig',
-    'accounts.apps.AccountsConfig',
+    'pages.apps.PagesConfig',
+    
     ]
 
 MIDDLEWARE = [
@@ -65,6 +67,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    'accounts.middleware.LoginRequiredMiddleware',
+
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",
@@ -126,6 +131,43 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# Login/Logout Redirect Settings
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "search"
+LOGOUT_REDIRECT_URL = "login"
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 60 * 60    # automatic logout after 1 hour of inactivity
+SESSION_SAVE_EVERY_REQUEST = True
+
+
+# E-Mail-Konfiguration
+EMAIL_BACKEND_MODE = os.getenv("EMAIL_BACKEND_MODE", "console").lower()
+
+if EMAIL_BACKEND_MODE == "console":
+    # Entwicklung: E-Mails nur in der Konsole anzeigen
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = "SLC Datenbank (Entwicklung) <noreply@example.local>"
+
+elif EMAIL_BACKEND_MODE == "smtp":
+    # Echter Versand über Mailserver
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = os.getenv("EMAIL_HOST")
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+    EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
+    EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
+    DEFAULT_FROM_EMAIL = os.getenv(
+        "DEFAULT_FROM_EMAIL",
+        EMAIL_HOST_USER or "noreply@example.com",
+    )
+else:
+    # Fallback: zur Sicherheit lieber kein Versand als irgendwas Komisches
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = "SLC Datenbank (Entwicklung) <noreply@example.local>"
+
 
 
 # Internationalization

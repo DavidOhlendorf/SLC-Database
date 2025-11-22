@@ -1,20 +1,47 @@
-{% extends 'main.html' %}
+{% extends "main.html" %}
+{% load static %}
 
 {% block content %}
-<div>
-    <h2>Login</h2>
-    <form method="POST" action="">
-        {% csrf_token %}
-            <div class="mb-3">
-              <label for="exampleInputEmail1" class="form-label">Benutzername</label>
-              <input type="text" name="user" class="form-control" id="exampleInputEmail1">
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm mt-5">
+      <div class="card-body p-4">
+        <div class="text-center mb-3">
+          <img src="{% static 'icons/slcDatabase.png' %}" alt="SLC Datenbank" style="height:60px;">
+        </div>
+        <h1 class="h5 text-center mb-3">SLC Fragen- und Variablendatenbank</h1>
+
+        {# Fehlermeldungen (Django messages) anzeigen #}
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert {{ message.tags }} mb-3">
+              {{ message }}
             </div>
-            <div class="mb-3">
-              <label for="exampleInputPassword1" class="form-label">Passwort</label>
-              <input type="password" name="password" class="form-control" id="exampleInputPassword1">
-            </div>
-            <button type="submit" class="btn btn-secondary">Login</button>
-            <hr>
-    </form>
+          {% endfor %}
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+
+          <div class="mb-3">
+            <label for="id_user" class="form-label">Benutzername</label>
+            <input type="text" class="form-control" id="id_user" name="user" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="id_password" class="form-label">Passwort</label>
+            <input type="password" class="form-control" id="id_password" name="password" required>
+          </div>
+
+          <button class="btn btn-dark w-100">Anmelden</button>
+        </form>
+        <p class="text-center mt-3">
+          <a href="{% url 'password_reset' %}">Passwort vergessen?</a>
+        </p>
+      </div>
+    </div>
+
+  </div>
 </div>
-{% endblock content %}
+{% endblock %}

@@ -1,0 +1,84 @@
+from django.db import models
+
+from waves.models import Wave
+from questions.models import Question
+
+
+class WavePage(models.Model):
+    
+    pagename = models.CharField(
+        max_length=200,
+        help_text="Interner Seitenname, z.B. 'dem123'.",
+    )
+
+    waves = models.ManyToManyField(
+        Wave,
+        related_name="pages",
+        blank=True,
+        help_text="Wellen, in denen diese Seite verwendet wird.",
+    )
+
+    class Meta:
+        ordering = ["pagename"]
+        verbose_name = "page"
+        verbose_name_plural = "pages"
+
+    def __str__(self) -> str:
+        return self.pagename
+
+
+class WavePageQuestion(models.Model):
+
+    wave_page = models.ForeignKey(
+        WavePage,
+        on_delete=models.CASCADE,
+        related_name="page_questions",
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="page_links",
+    )
+
+    class Meta:
+        unique_together = ("wave_page", "question")
+        ordering = ["wave_page", "question"]
+        verbose_name = "questions on page"
+        verbose_name_plural = "questions on page"
+
+    def __str__(self) -> str:
+        return f"{self.wave_page} – {self.question}"
+
+
+class WavePageScreenshot(models.Model):
+
+    wave_page = models.ForeignKey(
+        WavePage,
+        on_delete=models.CASCADE,
+        related_name="screenshots",
+    )
+
+    image_path = models.CharField(
+        max_length=500,
+        help_text="Pfad/Dateiname zum Screenshot (z.B. im media-Ordner).",
+    )
+
+    language = models.CharField(
+        max_length=5,
+        default="de",
+        help_text="Sprache, z.B. 'de' oder 'en'.",
+    )
+
+    device = models.CharField(
+        max_length=20,
+        default="desktop",
+        help_text="z.B. 'desktop' oder 'mobile'.",
+    )
+
+    class Meta:
+        ordering = ["wave_page", "language", "device"]
+        verbose_name = "Screenshot (page)"
+        verbose_name_plural = "Screenshots (page)"
+
+    def __str__(self) -> str:
+        return f"{self.wave_page} – {self.language}/{self.device}"
