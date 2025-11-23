@@ -1,5 +1,4 @@
 {% extends "main.html" %}
-{% load static %}
 
 {% block content %}
   <div class="container my-4">
@@ -57,7 +56,7 @@
       {% endif %}
     </section>
 
-    <!-- Seitename für Frage + aktive Welle -->
+    <!-- pagenamme in selected wavew -->
     {% if page %}
       <p class="text-muted small mb-3">
         Seite im Instrument:
@@ -65,6 +64,7 @@
       </p>
     {% endif %}
 
+    <!-- Screenshot-Gallery -->
     {% if screenshots %}
       <div class="my-3">
         <h2 class="h6 mb-2">Screenshots</h2>
@@ -72,7 +72,18 @@
           {% for s in screenshots %}
             <div class="col">
               <div class="card shadow-sm">
-                <img src="/{{ s.image_path }}" class="card-img-top" alt="Screenshot">
+
+                {# Klickbare Lightbox #}
+                <a href="/{{ s.image_path }}"
+                  class="glightbox"
+                  data-gallery="question-{{ question.id }}"
+                  data-title="Sprache: {{ s.language }} | Gerät: {{ s.device }}{% if page %} | Seite: {{ page.pagename }}{% endif %}">
+                  <img src="/{{ s.image_path }}"
+                      class="card-img-top"
+                      alt="Screenshot {{ forloop.counter }}"
+                      style="cursor: zoom-in;">
+                </a>
+
                 <div class="card-body small">
                   <div><strong>Sprache:</strong> {{ s.language }}</div>
                   <div><strong>Gerät:</strong> {{ s.device }}</div>
@@ -84,5 +95,7 @@
       </div>
     {% endif %}
 
+
   </div>
 {% endblock %}
+
