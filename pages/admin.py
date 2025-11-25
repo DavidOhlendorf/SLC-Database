@@ -104,21 +104,6 @@ class WavePageAdmin(admin.ModelAdmin):
     get_waves.short_description = "Befragungen"
 
 
-@admin.register(WavePageQuestion)
-class WavePageQuestionAdmin(admin.ModelAdmin):
-    list_display = ("wave_page", "question")
-    search_fields = ("wave_page__pagename", "question__questiontext")
-    list_select_related = ("wave_page", "question")
-    readonly_fields = ("wave_page", "question")
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(WavePageScreenshot)
