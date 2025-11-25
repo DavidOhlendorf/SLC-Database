@@ -1,4 +1,5 @@
 import re
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
@@ -75,6 +76,7 @@ def search(request):
         "all_waves": all_waves,
         "selected_waves": selected_waves,
         "selected_wave_ids": [w.id for w in selected_waves],
+        "show_relevance": settings.DEBUG, # Debug: show Relevance-Scores
     }
 
     # Für Facetten: Zähler und Set

@@ -3,9 +3,11 @@
   <div class="card-body">
 
     <h6 class="card-title mb-2">{{ item.varname }} - {{ item.varlab }} </h6>
-    <p class="text-muted mb-0 small">
-      Relevanz: {{ item.relevance }}
-    </p>
+    {% if show_relevance %}
+      <p class="text-muted mb-0 small">
+          Relevanz: {{ item.relevance }}
+      </p>
+    {% endif %}
     
 
     {# Wellen-Badges #}

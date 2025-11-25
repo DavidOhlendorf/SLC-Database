@@ -4,9 +4,11 @@
     <h6 class="card-title mb-2">
       {{ item.questiontext|truncatechars:200 }}
     </h6>
+    {% if show_relevance %}
       <p class="text-muted mb-0 small">
-        Relevanz: {{ item.relevance }}
+          Relevanz: {{ item.relevance }}
       </p>
+    {% endif %}
 
     {# Wellen-Badges #}
     {% if item.waves.all %}
