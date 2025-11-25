@@ -16,6 +16,7 @@ class QuestionDetail(DetailView):
     def get_queryset(self):
         return (
             Question.objects
+            .select_related("construct")  
             .prefetch_related(
                 Prefetch(
                     "waves",
