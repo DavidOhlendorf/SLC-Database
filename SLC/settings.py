@@ -12,26 +12,36 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from django.contrib.messages import constants as messages
-from dotenv import load_dotenv
+import environ
 import os
-
-load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env(
+    DEBUG=(bool, False)
+)
+
+# .env Datei laden
+env.read_env(os.path.join(BASE_DIR, ".env"))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = env("DEBUG")
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=["http://localhost:8000"]
+)
 
 MESSAGE_TAGS = {
     messages.INFO: 'alert-info',
@@ -49,9 +59,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'django_extensions',
     'import_export',
     'debug_toolbar',
+
     'search.apps.PortalConfig',
     'accounts.apps.AccountsConfig',
     'variables.apps.VariablesConfig',
@@ -101,16 +113,23 @@ WSGI_APPLICATION = 'SLC.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 
+# --- Database ---
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
-    }
+    'default': env.db()
 }
+
+# Optional: Falls DATABASE_URL fehlt
+DATABASES['default'].setdefault('ENGINE', 'django.db.backends.postgresql')
+
+
+# --- Auth Settings ---
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "search"
+LOGOUT_REDIRECT_URL = "login"
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 60 * 60    # automatic logout after 1 hour of inactivity
+SESSION_SAVE_EVERY_REQUEST = True
 
 
 
@@ -132,39 +151,26 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Login/Logout Redirect Settings
-LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "search"
-LOGOUT_REDIRECT_URL = "login"
-
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_AGE = 60 * 60    # automatic logout after 1 hour of inactivity
-SESSION_SAVE_EVERY_REQUEST = True
 
 
-# E-Mail-Konfiguration
-EMAIL_BACKEND_MODE = os.getenv("EMAIL_BACKEND_MODE", "console").lower()
+# --- Email ---
+EMAIL_BACKEND_MODE = env("EMAIL_BACKEND_MODE", default="console").lower()
 
 if EMAIL_BACKEND_MODE == "console":
-    # Entwicklung: E-Mails nur in der Konsole anzeigen
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = "SLC Datenbank (Entwicklung) <noreply@example.local>"
 
 elif EMAIL_BACKEND_MODE == "smtp":
-    # Echter Versand über Mailserver
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-    EMAIL_HOST = os.getenv("EMAIL_HOST")
-    EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-    EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
-    EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
-    DEFAULT_FROM_EMAIL = os.getenv(
-        "DEFAULT_FROM_EMAIL",
-        EMAIL_HOST_USER or "noreply@example.com",
-    )
+    EMAIL_HOST = env("EMAIL_HOST")
+    EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+    EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+    EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+    EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+    EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+    DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
+
 else:
-    # Fallback: zur Sicherheit lieber kein Versand als irgendwas Komisches
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = "SLC Datenbank (Entwicklung) <noreply@example.local>"
 
@@ -190,6 +196,8 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
