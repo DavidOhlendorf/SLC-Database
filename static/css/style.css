@@ -12,3 +12,14 @@ button.collapse-toggle[aria-expanded="false"] i {
   transition: transform 0.3s ease;
 }
 
+/* Hover-Effekt für klickbare Karten */
+.clickable-card {
+  transition: transform .1s ease-in-out, box-shadow .1s;
+  cursor: pointer;
+}
+
+.clickable-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 .25rem .5rem rgba(0,0,0,.08);
+}
+

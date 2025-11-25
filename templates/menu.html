@@ -1,10 +1,14 @@
-
 {% load static %}
 
 {% if request.user.is_authenticated %}
   <nav class="navbar shadow mb-4 navbar-expand-lg bg-body-tertiary">
     <div class="container-fluid">
-      <a class="navbar-brand" href="{% url 'search_landing' %}"><img src="{% static 'icons/slcDatabase.png' %}" style="height:40px;" alt=""></a>
+
+      <!-- Logo -->
+      <a class="navbar-brand" href="{% url 'search_landing' %}">
+        <img src="{% static 'icons/slcDatabase.png' %}" style="height:40px;" alt="">
+      </a>
+
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
               data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown"
               aria-expanded="false" aria-label="Toggle navigation">
@@ -12,50 +16,30 @@
       </button>
 
       <div class="collapse navbar-collapse" id="navbarNavDropdown">
-        
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item">
-            <a class="nav-link active" href="#">Befragungen</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#">Go somewhere</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#">Go elsewhere</a>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Dropdown link
-            </a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="#">Action</a></li>
-              <li><a class="dropdown-item" href="#">Another action</a></li>
-              <li><a class="dropdown-item" href="#">Something else here</a></li>
-            </ul>
-          </li>
 
-        </ul>
+        <!-- Linke Seite (erstmal leer, später ergänzen) -->
+        <ul class="navbar-nav me-auto"></ul>
 
+        <!-- Rechte Seite (User + Logout) -->
         <ul class="navbar-nav">
-          {% if request.user.is_authenticated %}
-            <li class="nav-item d-flex align-items-center me-2">
-              <span class="badge rounded-pill text-bg-secondary">
-                <i class="fa-regular fa-user me-1"></i>{{ request.user.get_username }}
-              </span>
-            </li>
 
-            <li class="nav-item">
-              <form action="{% url 'logout' %}" method="post" class="d-inline">
-                {% csrf_token %}
-                <button class="btn btn-outline-secondary nav-link px-3" style="border:none;">
-                  Logout
-                </button>
-              </form>
-            </li>
-          {% endif %}
+          <li class="nav-item d-flex align-items-center me-2">
+            <span class="badge rounded-pill text-bg-secondary">
+              <i class="fa-regular fa-user me-1"></i>{{ request.user.get_username }}
+            </span>
+          </li>
+
+          <li class="nav-item">
+            <form action="{% url 'logout' %}" method="post" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-outline-secondary nav-link px-3" style="border:none;">
+                Logout
+              </button>
+            </form>
+          </li>
+
         </ul>
       </div>
     </div>
   </nav>
-
-{% endif %}  
+{% endif %}

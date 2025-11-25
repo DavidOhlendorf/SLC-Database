@@ -25,6 +25,8 @@ urlpatterns = [
     path('', include('search.urls')),
     path("login/", loginpage, name="login"),
     path('accounts/', include('accounts.urls')),
+    path('questions/', include('questions.urls')),
+    path('variables/', include('variables.urls')),
 ]
 
 

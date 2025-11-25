@@ -1,0 +1,141 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <div class="container my-4">
+
+    <!-- Fragetext -->
+    <header class="mb-3">
+      <h1 class="h4">{{ question.questiontext }}</h1>
+    </header>
+
+    <!-- Wellen-Pills -->
+    {% if waves %}
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+        {% for w in waves %}
+          <li class="nav-item">
+            {% if active_wave and w.id == active_wave.id %}
+              <a href="{% url 'question_detail' question.id %}?wave={{ w.id }}"
+                class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
+                aria-current="page">
+                {{ w }}
+              </a>
+            {% else %}
+              <a href="{% url 'question_detail' question.id %}?wave={{ w.id }}"
+                class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border">
+                {{ w }}
+              </a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+
+    {% endif %}
+
+    <!-- Variablenliste -->
+    <div class="accordion mb-3" id="variablenAccordion-{{ question.id }}">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingVariablen-{{ question.id }}">
+          <button class="accordion-button" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseVariablen-{{ question.id }}"
+                  aria-expanded="true"
+                  aria-controls="collapseVariablen-{{ question.id }}">
+            Variablen {% if active_wave %}in {{ active_wave.name|default:active_wave }}{% endif %}
+          </button>
+        </h2>
+
+        <div id="collapseVariablen-{{ question.id }}"
+            class="accordion-collapse collapse show"
+            aria-labelledby="headingVariablen-{{ question.id }}"
+            data-bs-parent="#variablenAccordion-{{ question.id }}">
+          <div class="accordion-body p-0">
+
+            {% if variables %}
+              <div class="list-group list-group-flush">
+                {% for v in variables %}
+                  <a class="list-group-item list-group-item-action"
+                    href="{% url 'variable_detail' v.id %}">
+                    <div class="fw-semibold">{{ v.varname }}</div>
+                    {% if v.varlab %}
+                      <div class="text-muted small text-truncate">{{ v.varlab }}</div>
+                    {% endif %}
+                  </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted px-3 py-2 mb-0">In dieser Welle sind keine Variablen verknüpft.</p>
+            {% endif %}
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if page %}
+      <div class="accordion mb-3" id="pageAccordion-{{ question.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingPage-{{ question.id }}">
+            <button class="accordion-button" type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapsePage-{{ question.id }}"
+                    aria-expanded="true"
+                    aria-controls="collapsePage-{{ question.id }}">
+              Seite in {{ active_wave.name|default:active_wave }}
+            </button>
+          </h2>
+
+          <div id="collapsePage-{{ question.id }}"
+              class="accordion-collapse collapse show"
+              aria-labelledby="headingPage-{{ question.id }}"
+              data-bs-parent="#pageAccordion-{{ question.id }}">
+            <div class="accordion-body">
+
+              <p class="mb-0">
+                <strong>Seitentitel:</strong> {{ page.pagename }}
+              </p>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    
+    {% if screenshots %}
+      <h2 class="h6 mb-2 fw-semibold">Screenshots</h2>
+
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+        {% for s in screenshots %}
+          <div class="col">
+            <div class="card shadow-sm">
+
+              <a href="/{{ s.image_path }}"
+                class="glightbox"
+                data-gallery="question-{{ question.id }}"
+                data-title="Sprache: {{ s.language }} | Gerät: {{ s.device }}{% if page %} | Seite: {{ page.pagename }}{% endif %}">
+
+                <img
+                  src="/{{ s.image_path }}"
+                  class="card-img-top"
+                  alt="Screenshot {{ forloop.counter }}"
+                  style="cursor: zoom-in;"
+                  onerror='
+                    this.onerror = null;
+                    this.outerHTML = "<div class=\"d-flex align-items-center justify-content-center bg-light text-muted border\" style=\"height:200px; font-size:0.9rem;\">Screenshot konnte nicht geladen werden</div>";'
+                >
+              </a>
+
+              <div class="card-body small">
+                <div><strong>Sprache:</strong> {{ s.language }}</div>
+                <div><strong>Gerät:</strong> {{ s.device }}</div>
+              </div>
+
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+
+  </div>
+{% endblock %}
+
