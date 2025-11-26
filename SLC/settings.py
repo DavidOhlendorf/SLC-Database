@@ -37,11 +37,8 @@ DEBUG = env("DEBUG")
 
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
-CSRF_TRUSTED_ORIGINS = env.list(
-    "CSRF_TRUSTED_ORIGINS",
-    default=["http://localhost:8000"]
-)
 
 MESSAGE_TAGS = {
     messages.INFO: 'alert-info',
