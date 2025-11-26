@@ -16,3 +16,6 @@ env/
 
 # Secrets
 .env
+
+# Logging
+logs/
