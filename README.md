@@ -63,7 +63,6 @@ The system is designed to:
 - **Web Server:** Nginx
 - **WSGI Server:** Gunicorn
 - **Operating System (prod):** Ubuntu 24.04 LTS
-- **HTTPS:** Let’s Encrypt (Certbot)  
 
 Deployment documentation: see [DEPLOYMENT.md](DEPLOYMENT.md)
 
