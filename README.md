@@ -7,6 +7,13 @@ This project is part of the SLC infrastructure and centralizes question/variable
 
 ---
 
+## Live Instance
+
+Production system: https://slcdb.de  
+(Access restricted to internal users)
+
+---
+
 ## Key Features
 
 - **Hybrid search engine**
