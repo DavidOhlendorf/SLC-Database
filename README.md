@@ -75,7 +75,7 @@ Deployment documentation: see [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 
-## 📚 License
+## License
 The source code is publicly visible for transparency.
 Usage, modification, deployment, or redistribution is not permitted.
 See the LICENSE file for details.
