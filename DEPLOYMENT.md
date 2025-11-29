@@ -24,6 +24,7 @@ This document describes the current production deployment of the SLC Database ho
 - Repository: `https://github.com/DavidOhlendorf/SLC-Database`
 - The deployed code is a shallow clone in `/var/www/SLC`
 - Updates are applied via `git pull origin main`
+- or running deployment script: `/var/www/SLC/deploy.sh`
 
 ---
 
