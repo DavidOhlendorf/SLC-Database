@@ -6,7 +6,7 @@ from django.db.models.functions import Lower
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector
 from collections import defaultdict
-from questions.models import Question, Construct, Keyword
+from questions.models import Question, Keyword
 from variables.models import Variable
 from waves.models import Wave
 
@@ -71,7 +71,6 @@ def search(request):
             ("all", "Alle"),
             ("questions", "Fragen"),
             ("variables", "Variablen"),
-            ("constructs", "Konstrukte"),
         ],
         "all_waves": all_waves,
         "selected_waves": selected_waves,
@@ -387,42 +386,42 @@ def search(request):
     # =========================
     # CONSTRUCTS
     # =========================
-    if search_type in {"all", "constructs"}:
-        q_lower = q.lower()
+    #f search_type in {"all", "constructs"}:
+    #   q_lower = q.lower()
 
-        qs_constructs = (
-            Construct.objects
-            .annotate(l1=Lower("level_1"), l2=Lower("level_2"))
-            .filter(Q(l1__contains=q_lower) | Q(l2__contains=q_lower))
-            .distinct()
-        )
+    #   qs_constructs = (
+    #       Construct.objects
+    #       .annotate(l1=Lower("level_1"), l2=Lower("level_2"))
+    #       .filter(Q(l1__contains=q_lower) | Q(l2__contains=q_lower))
+    #       .distinct()
+    #   )
 
-        # Sortierung
+    #   # Sortierung
 
-        if sort == "alpha":
-            qs_constructs = qs_constructs.order_by(Lower("level_1").asc(), Lower("level_2").asc(), "id")
+    #   if sort == "alpha":
+    #       qs_constructs = qs_constructs.order_by(Lower("level_1").asc(), Lower("level_2").asc(), "id")
 
-        else:  # relevance
-            qs_constructs = (
-                qs_constructs
-                .annotate(
-                    sim_l1=TrigramSimilarity("level_1", q),
-                    sim_l2=TrigramSimilarity("level_2", q),
-                    sim=F("sim_l1") * 0.6 + F("sim_l2") * 0.4,
-                )
-                .order_by(F("sim").desc(nulls_last=True), "id")
-            )
+    #   else:  # relevance
+    #       qs_constructs = (
+    #           qs_constructs
+    #           .annotate(
+    #               sim_l1=TrigramSimilarity("level_1", q),
+    #               sim_l2=TrigramSimilarity("level_2", q),
+    #               sim=F("sim_l1") * 0.6 + F("sim_l2") * 0.4,
+    #           )
+    #           .order_by(F("sim").desc(nulls_last=True), "id")
+    #       )
 
-        if search_type == "all":
-            ctx["constructs"] = qs_constructs[:ctx["TOP_N"]]
-        else:
-            page_obj = paginate_queryset(qs_constructs, request)
-            ctx["constructs_page"] = page_obj
-            ctx["constructs"] = page_obj.object_list
+    #   if search_type == "all":
+    #       ctx["constructs"] = qs_constructs[:ctx["TOP_N"]]
+    #   else:
+    #       page_obj = paginate_queryset(qs_constructs, request)
+    #       ctx["constructs_page"] = page_obj
+    #       ctx["constructs"] = page_obj.object_list
 
-        # Count für Anzeige
-        ctx["constructs_count"] = qs_constructs.count()
-        ctx.setdefault("constructs_count", 0)
+    #   # Count für Anzeige
+    #   ctx["constructs_count"] = qs_constructs.count()
+    #   ctx.setdefault("constructs_count", 0)
 
 
     # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr

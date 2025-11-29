@@ -159,7 +159,7 @@
  
 
   {% if type == "all" %}
-    {% if questions or variables or constructs %}
+    {% if questions or variables %}
       {% if questions %}
         <section>
           <h2>Fragen ({{ questions_count }} Treffer)</h2>
@@ -188,22 +188,6 @@
             </p>
           {% else %}
             <p class="muted">Keine Variablen gefunden.</p>
-          {% endif %}
-        </section>
-      {% endif %}
-
-      {% if constructs %}
-        <section>
-          <h2>Konstrukte ({{ constructs_count }} Treffer)</h2>
-          {% if constructs %}
-            {% for item in constructs %}
-              {% include "search/_card_construct.html" with item=item %}
-            {% endfor %}
-            <p>
-              <a href="{% url 'search' %}{% url_with type='constructs' page=None %}">Mehr anzeigen</a>
-            </p>
-          {% else %}
-            <p class="muted">Keine Konstrukte gefunden.</p>
           {% endif %}
         </section>
       {% endif %}
@@ -251,22 +235,6 @@
 
   {% endif %}
 
-  {% if type == "constructs" %}
-    <h2>Konstrukte ({{ constructs_count }} Treffer)</h2>
-
-    {% if constructs %}
-      {% for item in constructs %}
-        {% include "search/_card_construct.html" with item=item %}
-      {% endfor %}
-
-      {% if constructs_page and constructs_page.paginator.num_pages > 1 %}
-        {% include "search/_pagination.html" with page_obj=constructs_page type="constructs" %}
-      {% endif %}
-
-    {% else %}
-      <p class="muted">Keine Konstrukte gefunden.</p>
-    {% endif %}
-  {% endif %}
 
   <script src="{% static 'js/searchfilter.js' %}" defer></script>
 
