@@ -43,9 +43,9 @@ class Question(models.Model):
         blank=True
     )
 
-    # Fragetext (qt)
+    # Fragetext (q)
     questiontext = models.TextField(
-        help_text="Fragetext (qt).",
+        help_text="Fragetext (q).",
     )
 
     class QuestionType(models.TextChoices):
