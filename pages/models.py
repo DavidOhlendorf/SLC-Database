@@ -20,7 +20,7 @@ class WavePage(models.Model):
     )
 
     # Überschrift auf der Seite (hl)
-    page_heading = models.TexzField(
+    page_heading = models.TextField(
         max_length=255,
         blank=True,
         help_text="Überschrift der Seite (hl).",
