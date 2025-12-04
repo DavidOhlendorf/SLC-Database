@@ -79,6 +79,14 @@ class Question(models.Model):
         help_text="Itemstamm, z. B. 'Ich bin jemand, der…' (st).",
     )
 
+    answer_options = models.JSONField(
+    default=list,
+    blank=True,
+    help_text="Antwortoptionen der Frage als Liste von Objekten, z.B. [{'uid': 'ao1', 'value': '1', 'label': 'sehr gut'}].",
+    
+    )
+
+
     # Zugeordnete Wellen
     waves = models.ManyToManyField(
         "waves.Wave", 
