@@ -35,10 +35,64 @@ class Construct(models.Model):
 
 
 class Question(models.Model):
-    legacy_id = models.IntegerField(unique=True, null=True, blank=True)
-    questiontext = models.TextField()
-    waves = models.ManyToManyField("waves.Wave", through="waves.WaveQuestion", related_name="questions")
-    keywords = models.ManyToManyField(Keyword, related_name="questions")
+
+    # Ehemalige ID Access-Datenbank
+    legacy_id = models.IntegerField(
+        unique=True,
+        null=True,
+        blank=True
+    )
+
+    # Fragetext (qt)
+    questiontext = models.TextField(
+        help_text="Fragetext (qt).",
+    )
+
+    class QuestionType(models.TextChoices):
+        OPEN = "open", "Offene Frage"
+        SINGLE_VERTICAL = "single_vertical", "Einfachauswahl vertikal"
+        SINGLE_HORIZONTAL = "single_horizontal", "Einfachauswahl horizontal"
+        MULTI_VERTICAL = "multi_vertical", "Mehrfachauswahl vertikal"
+        MULTI_HORIZONTAL = "multi_horizontal", "Mehrfachauswahl horizontal"
+        MATRIX_SINGLE = "matrix_single", "Einfachauswahl-Matrix"
+        MATRIX_MULTI = "matrix_multi", "Mehrfachauswahl-Matrix"
+        SEMANTIC_DIFF = "semantic_diff", "Semantisches Differenzial"
+        OTHER = "other", "Sonstiger Fragetyp"
+
+    # Fragetyp (qt)
+    question_type = models.CharField(
+        max_length=50,
+        choices=QuestionType.choices,
+        blank=True,
+        help_text="Fragetyp (qt).",
+    )
+
+    # Instruktionstext (is)
+    instruction = models.TextField(
+        blank=True,
+        help_text="Instruktionstext (is).",
+    )
+
+    # Itemstamm (st), v. a. für Matrizen
+    item_stem = models.TextField(
+        blank=True,
+        help_text="Itemstamm, z. B. 'Ich bin jemand, der…' (st).",
+    )
+
+    # Zugeordnete Wellen
+    waves = models.ManyToManyField(
+        "waves.Wave", 
+        through="waves.WaveQuestion",
+        related_name="questions"
+    )
+    
+    #  Zugeordnete Schlagwörter
+    keywords = models.ManyToManyField(
+        Keyword,
+        related_name="questions"
+    )
+
+    # Zugeordnetes Konstrukt
     construct = models.ForeignKey(
         Construct,
         on_delete=models.SET_NULL,
