@@ -6,17 +6,51 @@ from questions.models import Question
 
 class WavePage(models.Model):
     
-    pagename = models.CharField(
-        max_length=200,
-        help_text="Interner Seitenname, z.B. 'dem123'.",
-    )
-
     waves = models.ManyToManyField(
         Wave,
         related_name="pages",
         blank=True,
         help_text="Wellen, in denen diese Seite verwendet wird.",
     )
+
+    # Interner Seitenname (pn)
+    pagename = models.CharField(
+        max_length=200,
+        help_text="Interner Seitenname, z.B. 'dem123' (pn).",
+    )
+
+    # Überschrift auf der Seite (hl)
+    page_heading = models.TexzField(
+        max_length=255,
+        blank=True,
+        help_text="Überschrift der Seite (hl).",
+    )
+
+    # Einleitungstext auf der Seite (in)
+    introduction = models.TextField(
+        blank=True,
+        help_text="Einleitungstext auf Seitenebene (in).",
+    )
+
+    # Transitionskontrolle (tc)
+    transition_control = models.TextField(
+        blank=True,
+        help_text="Transitionskontrolle in Textform (tc).",
+    )
+
+    # Seitenübergänge (tr)
+    transitions = models.TextField(
+        blank=True,
+        help_text="Filter (tr).",
+    )
+
+    # Programmierhinweise zur Seite (hi)
+    page_programming_notes = models.TextField(
+        blank=True,
+        help_text="Zusätzliche Hinweise zur Programmierung (hi).",
+    )
+
+
 
     class Meta:
         ordering = ["pagename"]
