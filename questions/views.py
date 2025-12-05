@@ -7,7 +7,6 @@ from variables.models import Variable
 from waves.models import Wave
 from pages.models import WavePage 
 
-
 class QuestionDetail(DetailView):
     model = Question
     template_name = "questions/detail.html"
