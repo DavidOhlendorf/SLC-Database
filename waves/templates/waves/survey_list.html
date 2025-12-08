@@ -13,6 +13,7 @@
           <div class="card h-100">
             <div class="card-body">
               <h5 class="card-title">
+                <a href="{% url 'waves:survey_detail' wave.pk %}" class="stretched-link text-decoration-none"></a>
                 {{ wave }}
               </h5>
                 <p class="small text-muted mb-1">
@@ -26,11 +27,11 @@
                     <span class="ms-1">- ?</span>
                 {% endif %}
                 </p>
+
             </div>
             <div class="card-footer bg-transparent border-0">
-              {# Detail-View kommt in Schritt 2, Link erstmal nur als Platzhalter #}
-              <a href="#" class="btn btn-sm btn-primary disabled">
-                Fragebogen anzeigen (folgt)
+                <a href="{% url 'waves:survey_detail' wave.pk %}" class="btn btn-sm btn-dark">
+                Details
               </a>
             </div>
           </div>

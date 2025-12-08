@@ -1,0 +1,41 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <h1>Befragung: {{ wave }}</h1>
+  
+  {% with pages|length as page_count %}
+    <p class="text-muted">
+      Alle Seiten dieser Welle
+      {% if page_count %}
+        ({{ page_count }}{% if page_count == 1 %} Seite{% else %} Seiten{% endif %}).
+      {% else %}
+        (noch keine Seiten angelegt).
+      {% endif %}
+    </p>
+  {% endwith %}
+
+  {% if pages %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for page in pages %}
+        <div class="col">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">
+                {{ page.pagename }}
+              </h5>
+            </div>
+            {# Footer kann später Buttons für "Seite bearbeiten / duplizieren" bekommen #}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">
+      Für diese Welle sind noch keine Seiten angelegt.
+    </p>
+  {% endif %}
+
+  <a href="{% url 'waves:survey_list' %}" class="btn btn-secondary mt-3">
+    Zurück zur Übersicht
+  </a>
+{% endblock %}
