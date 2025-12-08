@@ -17,8 +17,14 @@
 
       <div class="collapse navbar-collapse" id="navbarNavDropdown">
 
-        <!-- Linke Seite (erstmal leer, später ergänzen) -->
-        <ul class="navbar-nav me-auto"></ul>
+        <!-- Linke Seite (Befragungsübersicht) -->
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'pages:questionnaire_list' %}">
+            Befragungen
+            </a>
+          </li>
+        </ul>
 
         <!-- Rechte Seite (User + Logout) -->
         <ul class="navbar-nav">

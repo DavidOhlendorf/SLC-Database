@@ -1,0 +1,43 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <h1>Befragungen</h1>
+  <p class="text-muted">
+    Wähle eine Befragung aus, alle zugehörigen Fragebogenseiten anzusehen.
+  </p>
+
+  {% if waves %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for wave in waves %}
+        <div class="col">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">
+                {{ wave }}
+              </h5>
+                <p class="small text-muted mb-1">
+                {% if wave.start_date %}
+                    <span>Feldphase: {{ wave.start_date }}</span>
+                {% endif %}
+                {% if wave.end_date %}
+                    <span class="ms-1">- {{ wave.end_date }}</span>
+
+                {% else %}
+                    <span class="ms-1">- ?</span>
+                {% endif %}
+                </p>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+              {# Detail-View kommt in Schritt 2, Link erstmal nur als Platzhalter #}
+              <a href="#" class="btn btn-sm btn-primary disabled">
+                Fragebogen anzeigen (folgt)
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">Es sind noch keine Wellen vorhanden.</p>
+  {% endif %}
+{% endblock %}
