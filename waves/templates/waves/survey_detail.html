@@ -21,7 +21,7 @@
           <div class="card h-100">
             <div class="card-body">
               <h5 class="card-title">
-                {{ page.pagename }}
+                  <a href="{% url 'pages:page-detail' page.pk %}"> {{ page.pagename }}</a>
               </h5>
             </div>
             {# Footer kann später Buttons für "Seite bearbeiten / duplizieren" bekommen #}

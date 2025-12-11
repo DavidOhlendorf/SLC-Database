@@ -1,0 +1,9 @@
+from django.urls import path
+
+from .views import WavePageDetailView 
+
+app_name = "pages"
+
+urlpatterns = [
+    path("<int:pk>/", WavePageDetailView.as_view(), name="page-detail"),
+]
