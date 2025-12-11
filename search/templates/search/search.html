@@ -5,7 +5,7 @@
 
 
 {% block content %}
-  <form action="{% url 'search' %}" method="get" class="mb-3">
+  <form action="{% url 'search:search' %}" method="get" class="mb-3">
     <div class="row">
       <div class="col-md-6 col-lg-4">
         <div class="input-group">
@@ -28,7 +28,7 @@
       <li class="nav-item" role="presentation">
         <a
           class="nav-link {% if type == t %}active{% endif %}"
-          href="{% url 'search' %}{% url_with type=t page=None %}"
+          href="{% url 'search:search' %}{% url_with type=t page=None %}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
           {{ label }}
         </a>
@@ -51,13 +51,13 @@
         <ul class="dropdown-menu dropdown-menu-end">
           <li>
             <a class="dropdown-item {% if sort == 'relevance' %}active{% endif %}"
-              href="{% url 'search' %}{% url_with sort='relevance' page=None %}">
+              href="{% url 'search:search' %}{% url_with sort='relevance' page=None %}">
               Relevanz
             </a>
           </li>
           <li>
             <a class="dropdown-item {% if sort == 'alpha' %}active{% endif %}"
-              href="{% url 'search' %}{% url_with sort='alpha' page=None  %}">
+              href="{% url 'search:search' %}{% url_with sort='alpha' page=None  %}">
               Alphabetisch (A–Z)
             </a>
           </li>
@@ -168,7 +168,7 @@
               {% include "search/_card_question.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='questions' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search:search' %}{% url_with type='questions' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Fragen gefunden.</p>
@@ -184,7 +184,7 @@
               {% include "search/_card_variable.html" with item=item %}
             {% endfor %}
             <p>
-              <a href="{% url 'search' %}{% url_with type='variables' page=None %}">Mehr anzeigen</a>
+              <a href="{% url 'search:search' %}{% url_with type='variables' page=None %}">Mehr anzeigen</a>
             </p>
           {% else %}
             <p class="muted">Keine Variablen gefunden.</p>

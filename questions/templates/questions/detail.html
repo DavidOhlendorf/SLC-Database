@@ -25,13 +25,13 @@
         {% for w in waves %}
           <li class="nav-item">
             {% if active_wave and w.id == active_wave.id %}
-              <a href="{% url 'question_detail' question.id %}?wave={{ w.id }}"
+              <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
                 class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
                 aria-current="page">
                 {{ w }}
               </a>
             {% else %}
-              <a href="{% url 'question_detail' question.id %}?wave={{ w.id }}"
+              <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
                 class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border">
                 {{ w }}
               </a>
@@ -65,7 +65,7 @@
               <div class="list-group list-group-flush">
                 {% for v in variables %}
                   <a class="list-group-item list-group-item-action"
-                    href="{% url 'variable_detail' v.id %}">
+                    href="{% url 'variables:variable_detail' v.id %}">
                     <div class="fw-semibold">{{ v.varname }}</div>
                     {% if v.varlab %}
                       <div class="text-muted small text-truncate">{{ v.varlab }}</div>

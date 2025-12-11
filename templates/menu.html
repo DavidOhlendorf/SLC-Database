@@ -5,7 +5,7 @@
     <div class="container-fluid">
 
       <!-- Logo -->
-      <a class="navbar-brand" href="{% url 'search_landing' %}">
+      <a class="navbar-brand" href="{% url 'search:search_landing' %}">
         <img src="{% static 'icons/slcDatabase.png' %}" style="height:40px;" alt="">
       </a>
 
@@ -36,7 +36,7 @@
           </li>
 
           <li class="nav-item">
-            <form action="{% url 'logout' %}" method="post" class="d-inline">
+            <form action="{% url 'accounts:logout' %}" method="post" class="d-inline">
               {% csrf_token %}
               <button class="btn btn-outline-secondary nav-link px-3" style="border:none;">
                 Logout
