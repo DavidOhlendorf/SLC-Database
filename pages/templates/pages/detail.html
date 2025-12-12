@@ -11,19 +11,23 @@
     </header>
 
     <!-- Wellen-Pills -->
-    {% with page.waves.all as waves %}
-      {% if waves %}
-        <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
-          {% for w in waves %}
-            <li class="nav-item">
-              <span class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border">
-                {{ w }}
-              </span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
+    {% if waves %}
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+        {% for w in waves %}
+          <li class="nav-item">
+            <a class="nav-link rounded-pill py-1 px-2 border
+                      {% if active_wave and w.id == active_wave.id %}
+                        active
+                      {% else %}
+                        bg-secondary-subtle text-secondary-emphasis
+                      {% endif %}"
+              href="?wave={{ w.id }}">
+              {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
 
     <!-- Fragen auf der Seite -->
     <div class="accordion mb-3" id="questionsAccordion-{{ page.id }}">
@@ -35,6 +39,12 @@
                   aria-expanded="true"
                   aria-controls="collapseQuestions-{{ page.id }}">
             Fragen auf dieser Seite
+            {% if active_wave %}
+              in {{ active_wave.cycle }}
+              {% if active_wave.instrument %} 
+                – {{ active_wave.instrument }}
+              {% endif %}
+            {% endif %}
           </button>
         </h2>
 
@@ -44,12 +54,12 @@
              data-bs-parent="#questionsAccordion-{{ page.id }}">
           <div class="accordion-body p-0">
 
-            {% with page.page_questions.all as page_questions %}
+            {% with page_questions_filtered as page_questions %}
               {% if page_questions %}
                 <div class="list-group list-group-flush">
                   {% for pq in page_questions %}
                     <a class="list-group-item list-group-item-action"
-                       href="{% url 'questions:question_detail' pq.question.id %}">
+                       href="{% url 'questions:question_detail' pq.question.id %}?wave={{ active_wave.id }}">
                       <div class="fw-semibold">
                         {{ pq.question }}
                       </div>

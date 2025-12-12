@@ -1,41 +1,83 @@
 {% extends "main.html" %}
+{% load waves_extras %}
 
 {% block content %}
-  <h1>Befragung: {{ wave }}</h1>
-  
-  {% with pages|length as page_count %}
-    <p class="text-muted">
-      Alle Seiten dieser Welle
-      {% if page_count %}
-        ({{ page_count }}{% if page_count == 1 %} Seite{% else %} Seiten{% endif %}).
-      {% else %}
-        (noch keine Seiten angelegt).
-      {% endif %}
-    </p>
-  {% endwith %}
+  <h1>Befragung: {{ surveyyear }}</h1>
 
-  {% if pages %}
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-      {% for page in pages %}
-        <div class="col">
-          <div class="card h-100">
-            <div class="card-body">
-              <h5 class="card-title">
-                  <a href="{% url 'pages:page-detail' page.pk %}"> {{ page.pagename }}</a>
-              </h5>
-            </div>
-            {# Footer kann später Buttons für "Seite bearbeiten / duplizieren" bekommen #}
-          </div>
-        </div>
+  {% if waves %}
+    <ul class="nav nav-pills flex-wrap gap-2 mb-3">
+      {% for w in waves %}
+        <li class="nav-item">
+          <a
+            class="nav-link {% if active_wave and w.id == active_wave.id %}active{% endif %}"
+            href="?wave={{ w.id }}"
+          >
+            {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
+          </a>
+        </li>
       {% endfor %}
-    </div>
-  {% else %}
-    <p class="text-muted">
-      Für diese Welle sind noch keine Seiten angelegt.
-    </p>
+    </ul>
   {% endif %}
 
-  <a href="{% url 'waves:survey_list' %}" class="btn btn-secondary mt-3">
-    Zurück zur Übersicht
-  </a>
+  {% if active_wave %}
+    <div class="mb-3">
+      <div class="text-muted small">
+        Aktuelle Auwahl: <strong>{{ active_wave }}</strong>
+        {% if active_wave.start_date %} | Feldstart: {{ active_wave.start_date }}{% endif %}
+        {% if active_wave.end_date %} | Feldende: {{ active_wave.end_date }}{% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="accordion mb-3" id="pagesAccordion-{{ surveyyear }}">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingPages-{{ surveyyear }}">
+        <button class="accordion-button" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapsePages-{{ surveyyear }}"
+                aria-expanded="true"
+                aria-controls="collapsePages-{{ surveyyear }}">
+          Fragebogenseiten
+          {% if active_wave %}
+            in {{ active_wave.cycle }}{% if active_wave.instrument %} – {{ active_wave.instrument }}{% endif %}
+          {% endif %}
+        </button>
+      </h2>
+
+      <div id="collapsePages-{{ surveyyear }}"
+          class="accordion-collapse collapse show"
+          aria-labelledby="headingPages-{{ surveyyear }}"
+          data-bs-parent="#pagesAccordion-{{ surveyyear }}">
+        <div class="accordion-body p-0">
+
+          {% if pages %}
+            <div class="list-group list-group-flush">
+              {% for p in pages %}
+                <a class="list-group-item list-group-item-action"
+                  href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
+                  
+                  <div class="fw-semibold">
+                    {{ p.pagename }}
+                  </div>
+
+                  <div class="text-muted small">
+                    {% with page_question_counts|get_item:p.id as cnt %}
+                      {% if cnt == 1 %} 1 Frage {% else %} {{ cnt|default:0 }} Fragen {% endif %}
+                    {% endwith %}
+                  </div>
+
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted px-3 py-2 mb-0">
+              In dieser Befragung sind noch keine Seiten verknüpft.
+            </p>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+
 {% endblock %}

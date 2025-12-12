@@ -3,42 +3,48 @@
 {% block content %}
   <h1>Befragungen</h1>
   <p class="text-muted">
-    Wähle eine Befragung aus, alle zugehörigen Fragebogenseiten anzusehen.
+    Wähle eine Befragung aus um eine Übersicht aller Fragebogenseiten zu erhalten.
   </p>
 
-  {% if waves %}
+  {% if surveys %}
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-      {% for wave in waves %}
+      {% for survey in surveys %}
         <div class="col">
           <div class="card h-100">
             <div class="card-body">
-              <h5 class="card-title">
-                <a href="{% url 'waves:survey_detail' wave.pk %}" class="stretched-link text-decoration-none"></a>
-                {{ wave }}
+              <h5 class="card-title mb-1">
+                {{ survey.surveyyear }}
               </h5>
-                <p class="small text-muted mb-1">
-                {% if wave.start_date %}
-                    <span>Feldphase: {{ wave.start_date }}</span>
-                {% endif %}
-                {% if wave.end_date %}
-                    <span class="ms-1">- {{ wave.end_date }}</span>
 
-                {% else %}
-                    <span class="ms-1">- ?</span>
+              <p class="small text-muted mb-3">
+                {% if survey.start_min %}
+                  <span>Feldstart: {{ survey.start_min }}</span>
                 {% endif %}
-                </p>
+                {% if survey.end_max %}
+                  <span class="ms-2">Feldende: {{ survey.end_max }}</span>
+                {% endif %}
+              </p>
 
+              <div class="d-flex flex-wrap gap-2">
+                {% for wave in survey.waves %}
+                  <a
+                    href="{% url 'waves:survey_detail' survey.surveyyear %}?wave={{ wave.id }}"
+                    class="btn btn-sm btn-dark"
+                    title="{{ wave }}"
+                  >
+                    {{ wave.cycle }}{% if wave.instrument %} – {{ wave.instrument }}{% endif %}
+                  </a>
+                {% endfor %}
+              </div>
             </div>
+
             <div class="card-footer bg-transparent border-0">
-                <a href="{% url 'waves:survey_detail' wave.pk %}" class="btn btn-sm btn-dark">
-                Details
-              </a>
             </div>
           </div>
         </div>
       {% endfor %}
     </div>
   {% else %}
-    <p class="text-muted">Es sind noch keine Wellen vorhanden.</p>
+    <p class="text-muted">Es sind noch keine Fragebogen vorhanden.</p>
   {% endif %}
 {% endblock %}
