@@ -5,7 +5,7 @@ from django.http import Http404
 from django.db.models import Count
 
 from .models import Wave, WaveQuestion
-from pages.models import WavePageQuestion
+from pages.models import WavePageQuestion, WavePage
 
 
 class SurveyListView(ListView):
@@ -36,7 +36,6 @@ class SurveyListView(ListView):
 
         return surveys
 
-
 class SurveyDetailView(TemplateView):
     template_name = "waves/survey_detail.html"
 
@@ -53,24 +52,78 @@ class SurveyDetailView(TemplateView):
         if not waves_qs.exists():
             raise Http404("Survey not found")
 
+        wave_param = self.request.GET.get("wave")
+        is_all_mode = (wave_param == "all")
+
         active_wave = None
-        wave_id = self.request.GET.get("wave")
-        if wave_id:
+        if not is_all_mode and wave_param:
             try:
-                wave_id_int = int(wave_id)
-                active_wave = waves_qs.filter(id=wave_id_int).first()
+                active_wave = waves_qs.filter(id=int(wave_param)).first()
             except ValueError:
                 active_wave = None
 
-        if active_wave is None:
+        if not is_all_mode and active_wave is None:
             active_wave = waves_qs.first()
 
-        pages_qs = active_wave.pages.all().order_by("pagename")
+        ctx["surveyyear"] = surveyyear
+        ctx["waves"] = waves_qs
+        ctx["is_all_mode"] = is_all_mode
+        ctx["active_wave"] = active_wave
 
-        # --- Frage-Counts pro Page (nur für active_wave) ---
-        wave_question_ids = WaveQuestion.objects.filter(
-            wave=active_wave
-        ).values_list("question_id", flat=True)
+        # ------------------------------------------------------------
+        # ALL MODE: Gesamtübersicht, getrennt nach Instrument
+        # ------------------------------------------------------------
+        if is_all_mode:
+            instrument_groups = []
+
+            waves_sorted = waves_qs.order_by("instrument", "cycle", "id")
+
+            def instrument_key(w):
+                return (w.instrument or "Unbekannt")
+
+            for instrument, wgroup in groupby(waves_sorted, key=instrument_key):
+                wlist = list(wgroup)
+                if not wlist:
+                    continue
+
+                pages_qs = (
+                    WavePage.objects
+                    .filter(waves__in=wlist)
+                    .distinct()
+                    .prefetch_related("waves")
+                    .order_by("pagename")
+                )
+
+                wave_ids_set = set(w.id for w in wlist)
+                page_wave_tags = {}
+                for p in pages_qs:
+                    page_wave_tags[p.id] = [w for w in p.waves.all() if w.id in wave_ids_set]
+
+                instrument_groups.append({
+                    "instrument": instrument,
+                    "waves": wlist,
+                    "pages": pages_qs,
+                    "page_wave_tags": page_wave_tags,
+                    "default_wave_id": wlist[0].id,
+                })
+
+            ctx["instrument_groups"] = instrument_groups
+            return ctx
+
+        # ------------------------------------------------------------
+        # WAVE MODE: (Pages + Frage-Counts pro Page)
+        # ------------------------------------------------------------
+        pages_qs = (
+            active_wave.pages
+            .all()
+            .order_by("pagename")
+        )
+
+        wave_question_ids = (
+            WaveQuestion.objects
+            .filter(wave=active_wave)
+            .values_list("question_id", flat=True)
+        )
 
         counts_qs = (
             WavePageQuestion.objects
@@ -79,12 +132,8 @@ class SurveyDetailView(TemplateView):
             .values("wave_page_id")
             .annotate(cnt=Count("id"))
         )
-
         page_question_counts = {row["wave_page_id"]: row["cnt"] for row in counts_qs}
 
-        ctx["surveyyear"] = surveyyear
-        ctx["waves"] = waves_qs
-        ctx["active_wave"] = active_wave
         ctx["pages"] = pages_qs
         ctx["page_question_counts"] = page_question_counts
 

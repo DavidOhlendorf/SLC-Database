@@ -4,6 +4,7 @@ register = template.Library()
 
 @register.filter
 def get_item(d, key):
-    if d is None:
+    try:
+        return d.get(key)
+    except Exception:
         return None
-    return d.get(key)
