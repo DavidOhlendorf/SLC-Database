@@ -5,8 +5,8 @@
 
     <!-- Seitentitel -->
     <header class="mb-3">
-      <h1 class="h4">
-        Seite {{ page.pagename }}
+      <h1 class="h3">
+        Seite: {{ page.pagename }}
       </h1>
     </header>
 
@@ -27,6 +27,15 @@
           </li>
         {% endfor %}
       </ul>
+    {% endif %}
+
+    {% if survey and active_wave %}
+      <div class="mb-3">
+        <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
+          class="text-muted small text-decoration-none opacity-75">
+          ← Alle Seiten dieses Fragebogens anzeigen
+        </a>
+      </div>
     {% endif %}
 
     <!-- Fragen auf der Seite -->

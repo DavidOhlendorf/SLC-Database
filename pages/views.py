@@ -66,4 +66,6 @@ class WavePageDetailView(DetailView):
         ctx["waves"] = waves_qs
         ctx["active_wave"] = active_wave
         ctx["page_questions_filtered"] = page_questions_qs
+        ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None
+
         return ctx
