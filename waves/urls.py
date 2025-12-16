@@ -6,5 +6,5 @@ app_name = "waves"
 
 urlpatterns = [
     path("",SurveyListView.as_view(),name="survey_list",),
-    path("<str:surveyyear>/",SurveyDetailView.as_view(),name="survey_detail",),
+    path("<str:survey_name>/",SurveyDetailView.as_view(),name="survey_detail",),
 ]

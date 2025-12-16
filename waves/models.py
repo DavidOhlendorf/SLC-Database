@@ -46,7 +46,7 @@ class Wave(models.Model):
     is_locked = models.BooleanField(default=False) 
 
     def __str__(self):
-        return f"{self.surveyyear} - {self.cycle} - {self.instrument}"
+        return f"{self.survey} - {self.cycle} - {self.instrument}"
 
 class WaveQuestion(models.Model):
     wave = models.ForeignKey(Wave, on_delete=models.CASCADE)

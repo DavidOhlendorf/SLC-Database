@@ -2,7 +2,7 @@
 {% load waves_extras %}
 
 {% block content %}
-  <h1>Befragung: {{ surveyyear }}</h1>
+  <h1> {{ survey.name }} </h1>
 
   {% if waves %}
     <ul class="nav nav-pills flex-wrap gap-2 mb-3">
@@ -26,12 +26,11 @@
     </ul>
   {% endif %}
 
-  
   <div class="mb-3">
     <div class="text-muted small">
       Aktuelle Auswahl:
       {% if is_all_mode %}
-        <strong>{{ surveyyear }} (alle)</strong> 
+        <strong>{{ survey.name }} (alle)</strong>
       {% elif active_wave %}
         <strong>{{ active_wave }}</strong>
         {% if active_wave.start_date %} | Feldstart: {{ active_wave.start_date }}{% endif %}
@@ -39,25 +38,25 @@
       {% endif %}
     </div>
   </div>
-    
+
   {% if is_all_mode %}
     {% for g in instrument_groups %}
-      <div class="accordion mb-3" id="pagesAccordion-{{ surveyyear }}-{{ forloop.counter }}">
+      <div class="accordion mb-3" id="pagesAccordion-{{ survey.name|slugify }}-{{ forloop.counter }}">
         <div class="accordion-item">
-          <h2 class="accordion-header" id="headingPages-{{ surveyyear }}-{{ forloop.counter }}">
+          <h2 class="accordion-header" id="headingPages-{{ survey.name|slugify }}-{{ forloop.counter }}">
             <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#collapsePages-{{ surveyyear }}-{{ forloop.counter }}"
+                    data-bs-target="#collapsePages-{{ survey.name|slugify }}-{{ forloop.counter }}"
                     aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
-                    aria-controls="collapsePages-{{ surveyyear }}-{{ forloop.counter }}">
+                    aria-controls="collapsePages-{{ survey.name|slugify }}-{{ forloop.counter }}">
               Fragebogenseiten – {{ g.instrument }}
             </button>
           </h2>
 
-          <div id="collapsePages-{{ surveyyear }}-{{ forloop.counter }}"
+          <div id="collapsePages-{{ survey.name|slugify }}-{{ forloop.counter }}"
               class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
-              aria-labelledby="headingPages-{{ surveyyear }}-{{ forloop.counter }}"
-              data-bs-parent="#pagesAccordion-{{ surveyyear }}-{{ forloop.counter }}">
+              aria-labelledby="headingPages-{{ survey.name|slugify }}-{{ forloop.counter }}"
+              data-bs-parent="#pagesAccordion-{{ survey.name|slugify }}-{{ forloop.counter }}">
             <div class="accordion-body p-0">
 
               {% if g.pages %}
@@ -80,7 +79,7 @@
                 </div>
               {% else %}
                 <p class="text-muted px-3 py-2 mb-0">
-                  Keine Seiten für {{ g.instrument }} in diesem Survey.
+                  Keine Seiten für {{ g.instrument }} in dieser Befragung.
                 </p>
               {% endif %}
 
@@ -91,15 +90,15 @@
     {% endfor %}
 
   {% else %}
-    
-    <div class="accordion mb-3" id="pagesAccordion-{{ surveyyear }}">
+
+    <div class="accordion mb-3" id="pagesAccordion-{{ survey.name|slugify }}">
       <div class="accordion-item">
-        <h2 class="accordion-header" id="headingPages-{{ surveyyear }}">
+        <h2 class="accordion-header" id="headingPages-{{ survey.name|slugify }}">
           <button class="accordion-button" type="button"
                   data-bs-toggle="collapse"
-                  data-bs-target="#collapsePages-{{ surveyyear }}"
+                  data-bs-target="#collapsePages-{{ survey.name|slugify }}"
                   aria-expanded="true"
-                  aria-controls="collapsePages-{{ surveyyear }}">
+                  aria-controls="collapsePages-{{ survey.name|slugify }}">
             Fragebogenseiten
             {% if active_wave %}
               in {{ active_wave.cycle }}{% if active_wave.instrument %} – {{ active_wave.instrument }}{% endif %}
@@ -107,10 +106,10 @@
           </button>
         </h2>
 
-        <div id="collapsePages-{{ surveyyear }}"
+        <div id="collapsePages-{{ survey.name|slugify }}"
             class="accordion-collapse collapse show"
-            aria-labelledby="headingPages-{{ surveyyear }}"
-            data-bs-parent="#pagesAccordion-{{ surveyyear }}">
+            aria-labelledby="headingPages-{{ survey.name|slugify }}"
+            data-bs-parent="#pagesAccordion-{{ survey.name|slugify }}">
           <div class="accordion-body p-0">
 
             {% if pages %}
@@ -118,7 +117,7 @@
                 {% for p in pages %}
                   <a class="list-group-item list-group-item-action"
                     href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
-                    
+
                     <div class="fw-semibold">
                       {{ p.pagename }}
                     </div>

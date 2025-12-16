@@ -13,7 +13,7 @@
           <div class="card h-100">
             <div class="card-body">
               <h4 class="card-title mb-1">
-                {{ survey.surveyyear }}
+                {{ survey.name }}
               </h4>
 
               <p class="small text-muted mb-3">
@@ -25,7 +25,7 @@
                 {% endif %}
               </p>
               <div class="d-flex flex-wrap gap-2 mb-3">
-                <a href="{% url 'waves:survey_detail' survey.surveyyear %}?wave=all"
+                <a href="{% url 'waves:survey_detail' survey.name %}?wave=all"
                   class="btn btn-sm btn-outline-dark">
                   Übersicht
                 </a>
@@ -35,8 +35,8 @@
               </p>
 
               <div class="d-flex flex-wrap gap-2">
-                {% for w in survey.waves %}
-                  <a href="{% url 'waves:survey_detail' survey.surveyyear %}?wave={{ w.id }}"
+                {% for w in survey.waves_list %}
+                  <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ w.id }}"
                     class="btn btn-sm btn-dark">
                     {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
                   </a>

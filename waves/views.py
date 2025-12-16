@@ -2,9 +2,9 @@ from itertools import groupby
 
 from django.views.generic import ListView, TemplateView
 from django.http import Http404
-from django.db.models import Count
+from django.db.models import Count, Min, Max, Prefetch
 
-from .models import Wave, WaveQuestion
+from .models import Survey, Wave, WaveQuestion
 from pages.models import WavePageQuestion, WavePage
 
 
@@ -13,28 +13,20 @@ class SurveyListView(ListView):
     context_object_name = "surveys"
 
     def get_queryset(self):
-        waves = (
-            Wave.objects
-            .exclude(surveyyear__isnull=True)
-            .exclude(surveyyear__exact="")
-            .order_by("-surveyyear", "cycle", "instrument", "id")
+        waves_qs = Wave.objects.order_by("cycle", "instrument", "id")
+
+        surveys = (
+            Survey.objects
+            .annotate(
+                wave_count=Count("waves", distinct=True),
+                start_min=Min("waves__start_date"),
+                end_max=Max("waves__end_date"),
+            )
+            .prefetch_related(Prefetch("waves", queryset=waves_qs, to_attr="waves_list"))
+            .order_by("-year", "name")
         )
-
-        surveys = []
-        for surveyyear, group in groupby(waves, key=lambda w: w.surveyyear):
-            group_list = list(group)
-            start_dates = [w.start_date for w in group_list if w.start_date]
-            end_dates = [w.end_date for w in group_list if w.end_date]
-
-            surveys.append({
-                "surveyyear": surveyyear,
-                "waves": group_list,
-                "wave_count": len(group_list),
-                "start_min": min(start_dates) if start_dates else None,
-                "end_max": max(end_dates) if end_dates else None,
-            })
-
         return surveys
+
 
 class SurveyDetailView(TemplateView):
     template_name = "waves/survey_detail.html"
@@ -42,11 +34,15 @@ class SurveyDetailView(TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
-        surveyyear = self.kwargs["surveyyear"]
+        survey_name = self.kwargs["survey_name"]
+
+        survey = Survey.objects.filter(name=survey_name).first()
+        if not survey:
+            raise Http404("Survey not found")
 
         waves_qs = (
             Wave.objects
-            .filter(surveyyear=surveyyear)
+            .filter(survey=survey)
             .order_by("cycle", "instrument", "id")
         )
         if not waves_qs.exists():
@@ -65,7 +61,7 @@ class SurveyDetailView(TemplateView):
         if not is_all_mode and active_wave is None:
             active_wave = waves_qs.first()
 
-        ctx["surveyyear"] = surveyyear
+        ctx["survey"] = survey
         ctx["waves"] = waves_qs
         ctx["is_all_mode"] = is_all_mode
         ctx["active_wave"] = active_wave
