@@ -1,7 +1,42 @@
 from django.db import models
 from questions.models import Question
 
+class Survey(models.Model):
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text="Eindeutiger Survey-Name, z. B. 'SLC 2022'"
+    )
+
+    year = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optionales Jahr (z. B. 2022). Nicht zwingend eindeutig."
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-year", "name"]
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+
+
 class Wave(models.Model):
+
+    survey = models.ForeignKey(
+        "Survey",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="waves",
+    )
+
+
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
     surveyyear = models.CharField(max_length=10)
     start_date = models.DateField(null=True, blank=True)
