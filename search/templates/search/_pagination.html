@@ -52,7 +52,7 @@
             {% else %}
               <li class="page-item">
                 <a class="page-link"
-                   href="{% url 'search' %}{% url_with page=num %}">{{ num }}</a>
+                   href="{% url 'search:search' %}{% url_with page=num %}">{{ num }}</a>
               </li>
             {% endif %}
           {% endif %}
@@ -73,7 +73,7 @@
         {% else %}
           <li class="page-item">
             <a class="page-link"
-               href="{% url 'search' %}{% url_with page=page_obj.paginator.num_pages  waves=selected_wave_ids%}">
+               href="{% url 'search:search' %}{% url_with page=page_obj.paginator.num_pages  waves=selected_wave_ids%}">
               {{ page_obj.paginator.num_pages }}
             </a>
           </li>
@@ -84,7 +84,7 @@
       {% if page_obj.has_next %}
         <li class="page-item">
           <a class="page-link"
-             href="{% url 'search' %}{% url_with page=page_obj.next_page_number  waves=selected_wave_ids%}"
+             href="{% url 'search:search' %}{% url_with page=page_obj.next_page_number  waves=selected_wave_ids%}"
              rel="next"
              aria-label="Nächste Seite">&raquo;</a>
         </li>

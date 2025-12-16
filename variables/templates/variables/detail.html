@@ -35,7 +35,7 @@
                   <div class="fw-semibold mb-1">
                     {{ object.question.questiontext|truncatechars:160 }}
                   </div>
-                  <a href="{% url 'question_detail' object.question.pk %}"
+                  <a href="{% url 'questions:question_detail' object.question.pk %}"
                     class="stretched-link text-decoration-none text-primary">
                   </a>
                 </div>

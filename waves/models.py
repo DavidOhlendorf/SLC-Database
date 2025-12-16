@@ -3,7 +3,7 @@ from questions.models import Question
 
 class Wave(models.Model):
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
-    surveyyear = models.CharField(max_length=10, blank=True, null=True)
+    surveyyear = models.CharField(max_length=10)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     cycle = models.CharField(max_length=200)

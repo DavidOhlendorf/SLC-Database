@@ -1,0 +1,125 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <div class="container my-4">
+
+    <!-- Seitentitel -->
+    <header class="mb-3">
+      <h1 class="h4">
+        Seite {{ page.pagename }}
+      </h1>
+    </header>
+
+    <!-- Wellen-Pills -->
+    {% if waves %}
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+        {% for w in waves %}
+          <li class="nav-item">
+            <a class="nav-link rounded-pill py-1 px-2 border
+                      {% if active_wave and w.id == active_wave.id %}
+                        active
+                      {% else %}
+                        bg-secondary-subtle text-secondary-emphasis
+                      {% endif %}"
+              href="?wave={{ w.id }}">
+              {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <!-- Fragen auf der Seite -->
+    <div class="accordion mb-3" id="questionsAccordion-{{ page.id }}">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingQuestions-{{ page.id }}">
+          <button class="accordion-button" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseQuestions-{{ page.id }}"
+                  aria-expanded="true"
+                  aria-controls="collapseQuestions-{{ page.id }}">
+            Fragen auf dieser Seite
+            {% if active_wave %}
+              in {{ active_wave.cycle }}
+              {% if active_wave.instrument %} 
+                – {{ active_wave.instrument }}
+              {% endif %}
+            {% endif %}
+          </button>
+        </h2>
+
+        <div id="collapseQuestions-{{ page.id }}"
+             class="accordion-collapse collapse show"
+             aria-labelledby="headingQuestions-{{ page.id }}"
+             data-bs-parent="#questionsAccordion-{{ page.id }}">
+          <div class="accordion-body p-0">
+
+            {% with page_questions_filtered as page_questions %}
+              {% if page_questions %}
+                <div class="list-group list-group-flush">
+                  {% for pq in page_questions %}
+                    <a class="list-group-item list-group-item-action"
+                       href="{% url 'questions:question_detail' pq.question.id %}?wave={{ active_wave.id }}">
+                      <div class="fw-semibold">
+                        {{ pq.question }}
+                      </div>
+                      {% if pq.question.questiontext %}
+                        <div class="text-muted small text-truncate">
+                          {{ pq.question.questiontext }}
+                        </div>
+                      {% endif %}
+                    </a>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <p class="text-muted px-3 py-2 mb-0">
+                  Auf dieser Seite sind derzeit keine Fragen verknüpft.
+                </p>
+              {% endif %}
+            {% endwith %}
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screenshots -->
+    {% with page.screenshots.all as screenshots %}
+      {% if screenshots %}
+        <h2 class="h6 mb-2 fw-semibold">Screenshots</h2>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+          {% for s in screenshots %}
+            <div class="col">
+              <div class="card shadow-sm">
+
+                <a href="/{{ s.image_path }}"
+                   class="glightbox"
+                   data-gallery="page-{{ page.id }}"
+                   data-title="Sprache: {{ s.language }} | Ansicht: {{ s.device }} | Seite: {{ page.pagename }}">
+
+                  <img
+                    src="/{{ s.image_path }}"
+                    class="card-img-top"
+                    alt="Screenshot {{ forloop.counter }}"
+                    style="cursor: zoom-in;"
+                    onerror='
+                      this.onerror = null;
+                      this.outerHTML = "<div class=\"d-flex align-items-center justify-content-center bg-light text-muted border\" style=\"height:200px; font-size:0.9rem;\">Screenshot konnte nicht geladen werden</div>";'
+                  >
+                </a>
+
+                <div class="card-body small">
+                  <div><strong>Sprache:</strong> {{ s.language }}</div>
+                  <div><strong>Ansicht:</strong> {{ s.device }}</div>
+                </div>
+
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+  </div>
+{% endblock %}
