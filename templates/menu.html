@@ -20,6 +20,11 @@
         <!-- Linke Seite (Befragungsübersicht) -->
         <ul class="navbar-nav me-auto">
           <li class="nav-item">
+            <a class="nav-link" href="{% url 'search:search_landing' %}">
+            Suche
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="{% url 'waves:survey_list' %}">
             Befragungen
             </a>

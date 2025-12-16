@@ -34,7 +34,6 @@
                 Fragebogenvarianten:
               </p>
 
-
               <div class="d-flex flex-wrap gap-2">
                 {% for w in survey.waves %}
                   <a href="{% url 'waves:survey_detail' survey.surveyyear %}?wave={{ w.id }}"
