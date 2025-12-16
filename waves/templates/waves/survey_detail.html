@@ -1,0 +1,150 @@
+{% extends "main.html" %}
+{% load waves_extras %}
+
+{% block content %}
+  <h1>Befragung: {{ surveyyear }}</h1>
+
+  {% if waves %}
+    <ul class="nav nav-pills flex-wrap gap-2 mb-3">
+        <li class="nav-item">
+          <a class="nav-link {% if is_all_mode %}active{% endif %}"
+            href="?wave=all">
+            Alle
+          </a>
+        </li>
+
+      {% for w in waves %}
+        <li class="nav-item">
+          <a
+            class="nav-link {% if not is_all_mode and active_wave and w.id == active_wave.id %}active{% endif %}"
+            href="?wave={{ w.id }}"
+          >
+            {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  
+  <div class="mb-3">
+    <div class="text-muted small">
+      Aktuelle Auswahl:
+      {% if is_all_mode %}
+        <strong>{{ surveyyear }} (alle)</strong> 
+      {% elif active_wave %}
+        <strong>{{ active_wave }}</strong>
+        {% if active_wave.start_date %} | Feldstart: {{ active_wave.start_date }}{% endif %}
+        {% if active_wave.end_date %} | Feldende: {{ active_wave.end_date }}{% endif %}
+      {% endif %}
+    </div>
+  </div>
+    
+  {% if is_all_mode %}
+    {% for g in instrument_groups %}
+      <div class="accordion mb-3" id="pagesAccordion-{{ surveyyear }}-{{ forloop.counter }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingPages-{{ surveyyear }}-{{ forloop.counter }}">
+            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapsePages-{{ surveyyear }}-{{ forloop.counter }}"
+                    aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                    aria-controls="collapsePages-{{ surveyyear }}-{{ forloop.counter }}">
+              Fragebogenseiten – {{ g.instrument }}
+            </button>
+          </h2>
+
+          <div id="collapsePages-{{ surveyyear }}-{{ forloop.counter }}"
+              class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+              aria-labelledby="headingPages-{{ surveyyear }}-{{ forloop.counter }}"
+              data-bs-parent="#pagesAccordion-{{ surveyyear }}-{{ forloop.counter }}">
+            <div class="accordion-body p-0">
+
+              {% if g.pages %}
+                <div class="list-group list-group-flush">
+                  {% for p in g.pages %}
+                    <a class="list-group-item list-group-item-action"
+                      href="{% url 'pages:page-detail' p.id %}?wave={{ g.default_wave_id }}">
+
+                      <div class="fw-semibold">{{ p.pagename }}</div>
+                      <div class="mt-1 d-flex flex-wrap gap-1">
+                        {% for w in g.page_wave_tags|get_item:p.id %}
+                          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border">
+                            {{ w.cycle }}
+                          </span>
+                        {% endfor %}
+                      </div>
+
+                    </a>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <p class="text-muted px-3 py-2 mb-0">
+                  Keine Seiten für {{ g.instrument }} in diesem Survey.
+                </p>
+              {% endif %}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+  {% else %}
+    
+    <div class="accordion mb-3" id="pagesAccordion-{{ surveyyear }}">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingPages-{{ surveyyear }}">
+          <button class="accordion-button" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapsePages-{{ surveyyear }}"
+                  aria-expanded="true"
+                  aria-controls="collapsePages-{{ surveyyear }}">
+            Fragebogenseiten
+            {% if active_wave %}
+              in {{ active_wave.cycle }}{% if active_wave.instrument %} – {{ active_wave.instrument }}{% endif %}
+            {% endif %}
+          </button>
+        </h2>
+
+        <div id="collapsePages-{{ surveyyear }}"
+            class="accordion-collapse collapse show"
+            aria-labelledby="headingPages-{{ surveyyear }}"
+            data-bs-parent="#pagesAccordion-{{ surveyyear }}">
+          <div class="accordion-body p-0">
+
+            {% if pages %}
+              <div class="list-group list-group-flush">
+                {% for p in pages %}
+                  <a class="list-group-item list-group-item-action"
+                    href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
+                    
+                    <div class="fw-semibold">
+                      {{ p.pagename }}
+                    </div>
+
+                    <div class="text-muted small">
+                      {% with page_question_counts|get_item:p.id as cnt %}
+                        {% if cnt == 1 %}
+                          1 Frage
+                        {% else %}
+                          {{ cnt|default:0 }} Fragen
+                        {% endif %}
+                      {% endwith %}
+                    </div>
+                  </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted px-3 py-2 mb-0">
+                In dieser Befragung sind noch keine Seiten verknüpft.
+              </p>
+            {% endif %}
+
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <h1>Befragungen</h1>
+  <p class="text-muted">
+    Wähle eine Befragung aus um eine Übersicht aller Fragebogenseiten zu erhalten.
+  </p>
+
+  {% if surveys %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for survey in surveys %}
+        <div class="col">
+          <div class="card h-100">
+            <div class="card-body">
+              <h4 class="card-title mb-1">
+                {{ survey.surveyyear }}
+              </h4>
+
+              <p class="small text-muted mb-3">
+                {% if survey.start_min %}
+                  <span>Feldstart: {{ survey.start_min }}</span>
+                {% endif %}
+                {% if survey.end_max %}
+                  <span class="ms-2">Feldende: {{ survey.end_max }}</span>
+                {% endif %}
+              </p>
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                <a href="{% url 'waves:survey_detail' survey.surveyyear %}?wave=all"
+                  class="btn btn-sm btn-outline-dark">
+                  Übersicht
+                </a>
+              </div>
+              <p class="small text-muted mb-2">
+                Fragebogenvarianten:
+              </p>
+
+              <div class="d-flex flex-wrap gap-2">
+                {% for w in survey.waves %}
+                  <a href="{% url 'waves:survey_detail' survey.surveyyear %}?wave={{ w.id }}"
+                    class="btn btn-sm btn-dark">
+                    {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
+                  </a>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="card-footer bg-transparent border-0">
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">Es sind noch keine Fragebogen vorhanden.</p>
+  {% endif %}
+{% endblock %}

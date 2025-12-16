@@ -40,7 +40,7 @@ def paginate_queryset(qs, request, per_page=RESULTS_PER_PAGE):
 def search(request):
     q = (request.GET.get("q") or "").strip()
     if not q:
-        return redirect("search_landing")
+        return redirect("search:search_landing")
 
     search_type = (request.GET.get("type") or "all").lower()
     if search_type not in ALLOWED_TYPES:

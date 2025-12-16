@@ -51,7 +51,7 @@ class Question(models.Model):
         return f"Q{self.id}: {self.questiontext[:100]}"
     
     def get_absolute_url(self):
-        return reverse("question_detail", args=[self.pk])
+        return reverse("questions:question_detail", args=[self.pk])
 
 
 def screenshot_upload_path(instance, filename):

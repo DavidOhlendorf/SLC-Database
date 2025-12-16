@@ -9,7 +9,7 @@ from django.urls import reverse
 def loginpage(request):
     #  eingeloggt? → direkt zur Suche
     if request.user.is_authenticated:
-        return redirect("search")
+        return redirect("search:search")
     
     if request.session.pop("slc_session_expired", False):
         messages.info(request, "Deine Sitzung ist abgelaufen. Bitte logge dich erneut ein.")
@@ -19,7 +19,7 @@ def loginpage(request):
     next_url = request.GET.get("next") or request.POST.get("next") or ""
 
     # Falls next auf die Logout-URL zeigt wird auf die Startseite umgeleitet
-    logout_url = reverse("logout")
+    logout_url = reverse("accounts:logout")
     if next_url.startswith(logout_url):
         next_url = ""
 
@@ -42,7 +42,7 @@ def loginpage(request):
                 return redirect(next_url)
             else:
                 # Fallback: Standard-Ziel (search)
-                return redirect("search")
+                return redirect("search:search")
         else:
             messages.error(request, "Benutzername oder Passwort falsch")
 

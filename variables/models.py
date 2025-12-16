@@ -91,4 +91,4 @@ class Variable(models.Model):
         return f"{self.varname} ({self.varlab})"
     
     def get_absolute_url(self):
-        return reverse("variable_detail", args=[self.pk])
+        return reverse("variables:variable_detail", args=[self.pk])
