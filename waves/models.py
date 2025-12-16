@@ -5,13 +5,13 @@ class Survey(models.Model):
     name = models.CharField(
         max_length=200,
         unique=True,
-        help_text="Eindeutiger Survey-Name, z. B. 'SLC 2022'"
+        help_text="Eindeutiger Survey-Name, z. B. 'EJ 2022'"
     )
 
     year = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        help_text="Optionales Jahr (z. B. 2022). Nicht zwingend eindeutig."
+        help_text="Optionales Jahr des Surveys"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
