@@ -4,7 +4,6 @@ from import_export.admin import ImportExportModelAdmin
 
 from .models import Survey, Wave, WaveQuestion
 from .resources import WaveResource, WaveQuestionResource
-from questions.models import QuestionScreenshot
 
 
 @admin.register(Survey)

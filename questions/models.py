@@ -114,34 +114,9 @@ class Question(models.Model):
     
     def get_absolute_url(self):
         return reverse("questions:question_detail", args=[self.pk])
+    
 
 
+# Legacy: required by old migrations (0007_questionscreenshot)
 def screenshot_upload_path(instance, filename):
-    try:
-        first_wq = instance.wavequestions.first()
-        if first_wq:
-            w = first_wq.wave
-            folder = f"{w.surveyyear}_{w.instrument}".replace(" ", "_").lower()
-        else:
-            folder = "unsorted"
-    except Exception:
-        folder = "unsorted"
-
-    return f"screenshots/{folder}/{filename}"
-
-
-
-class QuestionScreenshot(models.Model):
-    legacy_id = models.IntegerField(unique=True, null=True, blank=True)
-    image = models.ImageField(upload_to=screenshot_upload_path)
-    caption = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    wavequestions = models.ManyToManyField(
-        "waves.WaveQuestion",
-        blank=True,
-        related_name="screenshots"
-    )
-
-    def __str__(self):
-        return f"Screenshot {self.id}"
+    return f"legacy/question_screenshots/{filename}"
