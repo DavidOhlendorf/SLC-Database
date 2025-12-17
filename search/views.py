@@ -8,7 +8,7 @@ from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, Searc
 from collections import defaultdict
 from questions.models import Question, Keyword
 from variables.models import Variable
-from waves.models import Wave
+from waves.models import Wave, Survey
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
@@ -58,7 +58,13 @@ def search(request):
         wave_ids = []
     
     # Für Auswahl + Chips
-    all_waves = Wave.objects.order_by(F("surveyyear").desc(nulls_last=True))
+    all_waves = Wave.objects.select_related("survey").order_by(
+        F("survey__year").desc(nulls_last=True),
+        "survey__name",
+        "cycle",
+        "instrument",
+        "id",
+    )
     selected_waves = list(all_waves.filter(id__in=wave_ids)) if wave_ids else []
 
     ctx = {
@@ -188,7 +194,7 @@ def search(request):
             base_qs_q
             .filter(id__in=final_score_map.keys())
             .only("id", "questiontext")
-            .prefetch_related(Prefetch("waves"))
+            .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
             .distinct()
         )
 
@@ -346,7 +352,7 @@ def search(request):
             base_qs_v
             .filter(id__in=final_var_score_map.keys())
             .only("id", "varname", "varlab")
-            .prefetch_related(Prefetch("waves"))
+            .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
             .distinct()
         )
 
@@ -427,9 +433,15 @@ def search(request):
     # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr
     facet_waves_sorted = sorted(
         facet_waves_set,
-        key=lambda w: ((w.surveyyear is not None), w.surveyyear or 0),
+        key=lambda w: (
+            (w.survey_id is not None),
+            (w.survey.year if w.survey_id and w.survey.year is not None else -1),
+            (w.survey.name if w.survey_id else ""),
+            w.id,
+        ),
         reverse=True
     )
+
 
     ctx["facet_waves"] = [
         {

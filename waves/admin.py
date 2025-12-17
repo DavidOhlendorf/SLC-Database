@@ -24,7 +24,7 @@ class WaveAdmin(ImportExportModelAdmin):
     resource_class = WaveResource
     list_display = ("survey", "cycle", "instrument", "start_date", "end_date", "is_locked")
     list_filter = ("survey", "instrument", "is_locked")
-    search_fields = ("cycle", "survey__name", "surveyyear")
+    search_fields = ("cycle", "survey__name",)
 
 
 @admin.register(WaveQuestion)
