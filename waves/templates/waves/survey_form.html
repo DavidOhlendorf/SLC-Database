@@ -1,0 +1,97 @@
+{% extends "main.html" %}
+{% load static %}
+{% block extra_js %}
+  <script src="{% static 'js/builder/wave_formset.js' %}"></script>
+{% endblock %}
+
+
+{% block content %}
+  <h1>Neuen Survey anlegen</h1>
+  <p class="text-muted">Lege eine Befragung an. Mindestens eine Wave ist erforderlich.</p>
+
+    <form method="post" class="mt-3" style="max-width: 980px;">
+        {% csrf_token %}
+
+        <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Survey</h5>
+
+            <div class="mb-3">
+            {{ form.name.label_tag }}
+            {{ form.name }}
+            {{ form.name.errors }}
+            </div>
+
+            <div class="mb-0">
+            {{ form.year.label_tag }}
+            {{ form.year }}
+            {{ form.year.errors }}
+            <div class="form-text">Wird genutzt, um <code>surveyyear</code> der Waves automatisch zu setzen.</div>
+            </div>
+        </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-2">Mindestens eine Wave</h5>
+                <p class="text-muted small mb-3">
+                Ohne Wave kann kein Fragebogen existieren.
+                </p>
+
+                {{ wave_formset.management_form }}
+
+                <div id="wave-forms" data-formset-prefix="{{ wave_formset.prefix }}">
+                    {% for wf in wave_formset %}
+                        <div class="wave-form border rounded p-3 mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                {{ wf.cycle.label_tag }} {{ wf.cycle }} {{ wf.cycle.errors }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ wf.instrument.label_tag }} {{ wf.instrument }} {{ wf.instrument.errors }}
+                            </div>
+                            <div class="col-md-2">
+                                {{ wf.start_date.label_tag }} {{ wf.start_date }} {{ wf.start_date.errors }}
+                            </div>
+                            <div class="col-md-2">
+                                {{ wf.end_date.label_tag }} {{ wf.end_date }} {{ wf.end_date.errors }}
+                            </div>
+                        </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" class="btn btn-outline-dark btn-sm" id="add-wave">
+                + Weitere Wave hinzufügen
+                </button>
+
+                <template id="empty-wave-form">
+                    <div class="wave-form border rounded p-3 mb-3">
+                        <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ wave_formset.empty_form.cycle.label_tag }}
+                            {{ wave_formset.empty_form.cycle }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ wave_formset.empty_form.instrument.label_tag }}
+                            {{ wave_formset.empty_form.instrument }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ wave_formset.empty_form.start_date.label_tag }}
+                            {{ wave_formset.empty_form.start_date }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ wave_formset.empty_form.end_date.label_tag }}
+                            {{ wave_formset.empty_form.end_date }}
+                        </div>
+                        </div>
+                    </div>
+                </template>
+
+            </div>            
+        </div>
+        <button type="submit" class="btn btn-dark">Survey anlegen</button>
+        <a href="{% url 'waves:survey_list' %}" class="btn btn-outline-secondary">Abbrechen</a>
+    </form>
+
+{% endblock %}

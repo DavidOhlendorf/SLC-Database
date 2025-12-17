@@ -5,13 +5,13 @@ class Survey(models.Model):
     name = models.CharField(
         max_length=200,
         unique=True,
-        help_text="Eindeutiger Survey-Name, z. B. 'EJ 2022'"
+        help_text="Eindeutiger Name der Befragung, z. B. 'EJ 2022'"
     )
 
     year = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        help_text="Optionales Jahr des Surveys"
+        help_text="Jahr der Befragung"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -44,6 +44,11 @@ class Wave(models.Model):
     cycle = models.CharField(max_length=200)
     instrument = models.CharField(max_length=50, blank=True, null=True)
     is_locked = models.BooleanField(default=False) 
+
+    def save(self, *args, **kwargs):
+        if self.survey and not self.surveyyear:
+            self.surveyyear = str(self.survey.year) if self.survey.year else "n/a"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.survey} - {self.cycle} - {self.instrument}"

@@ -1,11 +1,16 @@
 from itertools import groupby
 
-from django.views.generic import ListView, TemplateView
+from django.views.generic import ListView, TemplateView, CreateView
+from django.urls import reverse
+from django.forms import inlineformset_factory
 from django.http import Http404
+from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
 
 from .models import Survey, Wave, WaveQuestion
 from pages.models import WavePageQuestion, WavePage
+
+from .forms import SurveyCreateForm, WaveFormSet
 
 
 class SurveyListView(ListView):
@@ -45,8 +50,17 @@ class SurveyDetailView(TemplateView):
             .filter(survey=survey)
             .order_by("cycle", "instrument", "id")
         )
+
+        ctx["wave_formset"] = WaveFormSet(self.request.POST or None, prefix="waves")
+        ctx["survey"] = survey
+        ctx["waves"] = waves_qs
+
         if not waves_qs.exists():
-            raise Http404("Survey not found")
+            ctx["is_all_mode"] = False
+            ctx["active_wave"] = None
+            ctx["pages"] = WavePage.objects.none()
+            ctx["page_question_counts"] = {}
+            return ctx
 
         wave_param = self.request.GET.get("wave")
         is_all_mode = (wave_param == "all")
@@ -61,8 +75,6 @@ class SurveyDetailView(TemplateView):
         if not is_all_mode and active_wave is None:
             active_wave = waves_qs.first()
 
-        ctx["survey"] = survey
-        ctx["waves"] = waves_qs
         ctx["is_all_mode"] = is_all_mode
         ctx["active_wave"] = active_wave
 
@@ -134,3 +146,29 @@ class SurveyDetailView(TemplateView):
         ctx["page_question_counts"] = page_question_counts
 
         return ctx
+    
+
+class SurveyCreateView(CreateView):
+    model = Survey
+    form_class = SurveyCreateForm
+    template_name = "waves/survey_form.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["wave_formset"] = WaveFormSet(self.request.POST or None)
+        return ctx
+
+    @transaction.atomic
+    def form_valid(self, form):
+        ctx = self.get_context_data()
+        wave_formset = ctx["wave_formset"]
+
+        if not wave_formset.is_valid():
+            return self.form_invalid(form)
+
+        self.object = form.save()
+
+        wave_formset.instance = self.object
+        wave_formset.save()  # surveyyear setzt das Model automatisch
+
+        return super().form_valid(form)
