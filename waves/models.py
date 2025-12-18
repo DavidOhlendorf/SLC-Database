@@ -42,8 +42,13 @@ class Wave(models.Model):
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     cycle = models.CharField(max_length=200)
-    instrument = models.CharField(max_length=50, blank=True, null=True)
-    is_locked = models.BooleanField(default=False) 
+    is_locked = models.BooleanField(default=False)
+
+    class Instrument(models.TextChoices):
+        CAWI = "CAWI", "CAWI"
+        PAPI = "PAPI", "PAPI"
+
+    instrument = models.CharField(max_length=10, choices=Instrument.choices)
 
     def save(self, *args, **kwargs):
         if self.survey and not self.surveyyear:
