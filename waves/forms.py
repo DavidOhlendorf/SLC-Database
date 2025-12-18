@@ -4,11 +4,22 @@ from .models import Survey, Wave
 import datetime
 
 
+class WaveInlineForm(forms.ModelForm):
+    class Meta:
+        model = Wave
+        fields = ["cycle", "instrument", "start_date", "end_date"]
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        }
+
+
+
 WaveFormSet = inlineformset_factory(
     Survey, Wave,
-    fields=["cycle", "instrument", "start_date", "end_date"],
+    form=WaveInlineForm,
     extra=0,
-    can_delete=False,
+    can_delete=True,
     min_num=1,
     validate_min=True,
 )
