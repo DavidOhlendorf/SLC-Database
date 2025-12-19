@@ -51,6 +51,16 @@ class Wave(models.Model):
 
     instrument = models.CharField(max_length=10, choices=Instrument.choices, verbose_name="Erhebungsmodus")
 
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["survey", "cycle", "instrument"],
+                name="uniq_wave_cycle_instrument_per_survey",
+            )
+        ]
+
+
     def save(self, *args, **kwargs):
         if self.survey and not self.surveyyear:
             self.surveyyear = str(self.survey.year) if self.survey.year else "n/a"

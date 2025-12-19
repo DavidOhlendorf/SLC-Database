@@ -79,13 +79,23 @@
                 </div>
 
                 <hr class="my-3">
+                <div id="wave-alert"
+                    class="alert alert-warning d-none mb-3"
+                    role="alert">
+                <span class="js-wave-alert-text"></span>
+                </div>
 
                 {{ wave_formset.management_form }}
 
                 <div id="wave-forms" data-formset-prefix="{{ wave_formset.prefix }}" class="vstack gap-3">
                 {% for wf in wave_formset %}
                     <div class="wave-form border rounded-3 p-3 bg-body-tertiary">
-                        <div class="row g-3 justify-content-center align-items-center">
+                        {% if wf.non_field_errors %}
+                            <div class="alert alert-warning py-2 mb-2">
+                                {{ wf.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        <div class="row g-3 justify-content-center align-items-start">
 
                             <div class="col-md-4">
                                 <div class="form-floating">
@@ -128,7 +138,9 @@
                             </div>
 
                             <div class="col-md-1 text-end">
-                                {{ wf.DELETE.as_hidden }}
+                                <div class="d-none">
+                                    {{ wf.DELETE }}
+                                </div>
                                 <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave"
                                         title="Gruppe entfernen">
                                     <i class="fa-solid fa-trash"></i>
@@ -142,32 +154,40 @@
 
                 <template id="empty-wave-form">
                 <div class="wave-form border rounded-3 p-3 bg-body-tertiary">
-                    <div class="row g-3 align-items-end">
+                   <div class="row g-3 justify-content-center align-items-start">
 
                         <div class="col-md-4">
                             <div class="form-floating">
-                            {{ wave_formset.empty_form.cycle }}
-                            <label>{{ wave_formset.empty_form.cycle.label }}</label>
+                                {{ wave_formset.empty_form.cycle }}
+                                <label for="{{ wave_formset.empty_form.cycle.id_for_label }}">{{ wave_formset.empty_form.cycle.label }}</label>
                             </div>
                         </div>
 
                         <div class="col-md-3">
-                            <label class="form-label">{{ wave_formset.empty_form.instrument.label }}</label>
-                            {{ wave_formset.empty_form.instrument }}
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.instrument}}
+                                <label for="{{ wave_formset.empty_form.instrument.id_for_label }}">{{ wave_formset.empty_form.instrument.label }}</label>
+                            </div>
                         </div>
 
                         <div class="col-md-2">
-                            <label class="form-label">{{ wave_formset.empty_form.start_date.label }}</label>
-                            {{ wave_formset.empty_form.start_date }}
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.start_date }}
+                                <label for="{{ wave_formset.empty_form.start_date.id_for_label }}">{{ wave_formset.empty_form.start_date.label }}</label>
+                            </div>
                         </div>
 
                         <div class="col-md-2">
-                            <label class="form-label">{{ wave_formset.empty_form.end_date.label }}</label>
-                            {{ wave_formset.empty_form.end_date }}
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.end_date }}
+                                <label for="{{ wave_formset.empty_form.end_date.id_for_label }}">{{ wave_formset.empty_form.end_date.label }}</label>
+                            </div>
                         </div>
 
                         <div class="col-md-1 text-end">
-                            {{ wave_formset.empty_form.DELETE.as_hidden }}
+                            <div class="d-none">
+                                {{ wave_formset.empty_form.DELETE }}
+                            </div>
                             <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave">
                             <i class="fa-solid fa-trash"></i>
                             </button>

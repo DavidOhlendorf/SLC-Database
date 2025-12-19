@@ -1,7 +1,7 @@
 from itertools import groupby
 
 from django.views.generic import ListView, TemplateView, CreateView
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.forms import inlineformset_factory
 from django.http import Http404
 from django.db import transaction
@@ -152,23 +152,31 @@ class SurveyCreateView(CreateView):
     model = Survey
     form_class = SurveyCreateForm
     template_name = "waves/survey_form.html"
+    success_url = reverse_lazy("waves:survey_list")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["wave_formset"] = WaveFormSet(self.request.POST or None)
+
+        if "wave_formset" not in ctx:
+            ctx["wave_formset"] = WaveFormSet()
+
         return ctx
 
     @transaction.atomic
     def form_valid(self, form):
         ctx = self.get_context_data()
-        wave_formset = ctx["wave_formset"]
+        wave_formset = WaveFormSet(self.request.POST)
 
         if not wave_formset.is_valid():
-            return self.form_invalid(form)
+            return self.render_to_response(
+                self.get_context_data(
+                    form=form,
+                    wave_formset=wave_formset,
+                )
+            )
 
         self.object = form.save()
-
         wave_formset.instance = self.object
-        wave_formset.save()  # surveyyear setzt das Model automatisch
+        wave_formset.save()
 
         return super().form_valid(form)
