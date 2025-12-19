@@ -34,21 +34,22 @@ class Wave(models.Model):
         null=True,
         blank=True,
         related_name="waves",
+        verbose_name="Befragung",
     )
 
 
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
     surveyyear = models.CharField(max_length=10)
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
-    cycle = models.CharField(max_length=200)
+    start_date = models.DateField(null=True, blank=True, verbose_name="Feldstart")
+    end_date = models.DateField(null=True, blank=True, verbose_name="Feldende")
+    cycle = models.CharField(max_length=200, verbose_name="Befragtengruppe")
     is_locked = models.BooleanField(default=False)
 
     class Instrument(models.TextChoices):
         CAWI = "CAWI", "CAWI"
         PAPI = "PAPI", "PAPI"
 
-    instrument = models.CharField(max_length=10, choices=Instrument.choices)
+    instrument = models.CharField(max_length=10, choices=Instrument.choices, verbose_name="Erhebungsmodus")
 
     def save(self, *args, **kwargs):
         if self.survey and not self.surveyyear:

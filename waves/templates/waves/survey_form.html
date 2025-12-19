@@ -1,97 +1,192 @@
 {% extends "main.html" %}
 {% load static %}
 {% block extra_js %}
-  <script src="{% static 'js/builder/wave_formset.js' %}"></script>
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
+    <script src="{% static 'js/builder/wave_formset.js' %}"></script>
 {% endblock %}
 
 
 {% block content %}
-  <h1>Neuen Survey anlegen</h1>
-  <p class="text-muted">Lege eine Befragung an. Mindestens eine Wave ist erforderlich.</p>
+    <header class="mb-4">
+        <h1>Neue Befragung anlegen</h1>
+    </header>
 
     <form method="post" class="mt-3" style="max-width: 980px;">
         {% csrf_token %}
 
-        <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title mb-3">Survey</h5>
-
-            <div class="mb-3">
-            {{ form.name.label_tag }}
-            {{ form.name }}
-            {{ form.name.errors }}
-            </div>
-
-            <div class="mb-0">
-            {{ form.year.label_tag }}
-            {{ form.year }}
-            {{ form.year.errors }}
-            <div class="form-text">Wird genutzt, um <code>surveyyear</code> der Waves automatisch zu setzen.</div>
-            </div>
-        </div>
-        </div>
-
-        <div class="card mb-4">
+       <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <h5 class="card-title mb-2">Mindestens eine Wave</h5>
-                <p class="text-muted small mb-3">
-                Ohne Wave kann kein Fragebogen existieren.
-                </p>
+                <div class="d-flex align-items-start justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-1">Befragung / Erhebungsjahr</h5>
+                        <div class="text-muted small">Bitte vergib einen eindeutigen Namen, der noch nicht verwendet wird.
+                            Im SLC entspricht der Name der Befragung für gewöhnlich dem Erhebungsjahr (z.B. "EJ 2026").
+                        </div>
+                    </div>
+
+                    <button type="button"
+                        class="btn btn-sm"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="left"
+                        title="Hier legst du die Basisdaten an, unter denen die Befragung gefunden werden kann. Der Name muss eindeutig sein und darf noch nicht genutzt werden. Das Jahr ist optional und dient der Sortierung.">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-7">
+                        <div class="form-floating">
+                            {{ form.name }}
+                            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                        </div>
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">{{ form.name.errors|striptags }}</div>
+                            {% endif %}
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="form-floating">
+                            {{ form.year }}
+                            <label for="{{ form.year.id_for_label }}">{{ form.year.label }}</label>
+                        </div>
+
+                        {% if form.year.errors %}
+                            <div class="invalid-feedback d-block">{{ form.year.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-1">Befragungsgruppen</h5>
+                        <div class="text-muted small">Hier kannst du angeben, welche Personengruppen in der Befragung vorkommen. Mindestens eine Gruppe pro Befragung ist erforderlich.</div>
+                    </div>
+
+                    <button type="button"
+                        class="btn btn-sm"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="left"
+                        title="Jede Gruppe, die eine eigene Fragebogenvariante erhält oder im Fragebogen gesondert gefiltert wird, sollte hier aufgelistet sein. Gruppen können auch später noch hinzugefügt werden. ">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+
+
+                </div>
+
+                <hr class="my-3">
 
                 {{ wave_formset.management_form }}
 
-                <div id="wave-forms" data-formset-prefix="{{ wave_formset.prefix }}">
-                    {% for wf in wave_formset %}
-                        <div class="wave-form border rounded p-3 mb-3">
-                        <div class="row g-3">
+                <div id="wave-forms" data-formset-prefix="{{ wave_formset.prefix }}" class="vstack gap-3">
+                {% for wf in wave_formset %}
+                    <div class="wave-form border rounded-3 p-3 bg-body-tertiary">
+                        <div class="row g-3 justify-content-center align-items-center">
+
                             <div class="col-md-4">
-                                {{ wf.cycle.label_tag }} {{ wf.cycle }} {{ wf.cycle.errors }}
+                                <div class="form-floating">
+                                    {{ wf.cycle }}
+                                    <label for="{{ wf.cycle.id_for_label }}">{{ wf.cycle.label }}</label>
+                                </div>
+                                {% if wf.cycle.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.cycle.errors|striptags }}</div>
+                                {% endif %}
                             </div>
+
                             <div class="col-md-3">
-                                {{ wf.instrument.label_tag }} {{ wf.instrument }} {{ wf.instrument.errors }}
+                                <div class="form-floating">
+                                    {{ wf.instrument }}
+                                    <label for="{{ wf.instrument.id_for_label }}">{{ wf.instrument.label }}</label>
+                                </div>
+                                {% if wf.instrument.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.instrument.errors|striptags }}</div>
+                                {% endif %}
                             </div>
-                            <div class="col-md-2">
-                                {{ wf.start_date.label_tag }} {{ wf.start_date }} {{ wf.start_date.errors }}
-                            </div>
-                            <div class="col-md-2">
-                                {{ wf.end_date.label_tag }} {{ wf.end_date }} {{ wf.end_date.errors }}
-                            </div>
-                        </div>
-                        </div>
-                    {% endfor %}
-                </div>
 
-                <button type="button" class="btn btn-outline-dark btn-sm" id="add-wave">
-                + Weitere Wave hinzufügen
-                </button>
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    {{ wf.start_date }}
+                                    <label for="{{ wf.start_date.id_for_label }}">{{ wf.start_date.label }}</label>
+                                </div>
+                                {% if wf.start_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.start_date.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
 
-                <template id="empty-wave-form">
-                    <div class="wave-form border rounded p-3 mb-3">
-                        <div class="row g-3">
-                        <div class="col-md-4">
-                            {{ wave_formset.empty_form.cycle.label_tag }}
-                            {{ wave_formset.empty_form.cycle }}
-                        </div>
-                        <div class="col-md-3">
-                            {{ wave_formset.empty_form.instrument.label_tag }}
-                            {{ wave_formset.empty_form.instrument }}
-                        </div>
-                        <div class="col-md-2">
-                            {{ wave_formset.empty_form.start_date.label_tag }}
-                            {{ wave_formset.empty_form.start_date }}
-                        </div>
-                        <div class="col-md-2">
-                            {{ wave_formset.empty_form.end_date.label_tag }}
-                            {{ wave_formset.empty_form.end_date }}
-                        </div>
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    {{ wf.end_date }}
+                                    <label for="{{ wf.end_date.id_for_label }}">{{ wf.end_date.label }}</label>
+                                </div>
+                                {% if wf.end_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.end_date.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-1 text-end">
+                                {{ wf.DELETE.as_hidden }}
+                                <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave"
+                                        title="Gruppe entfernen">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+
                         </div>
                     </div>
+                {% endfor %}
+                </div>
+
+                <template id="empty-wave-form">
+                <div class="wave-form border rounded-3 p-3 bg-body-tertiary">
+                    <div class="row g-3 align-items-end">
+
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                            {{ wave_formset.empty_form.cycle }}
+                            <label>{{ wave_formset.empty_form.cycle.label }}</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">{{ wave_formset.empty_form.instrument.label }}</label>
+                            {{ wave_formset.empty_form.instrument }}
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">{{ wave_formset.empty_form.start_date.label }}</label>
+                            {{ wave_formset.empty_form.start_date }}
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">{{ wave_formset.empty_form.end_date.label }}</label>
+                            {{ wave_formset.empty_form.end_date }}
+                        </div>
+
+                        <div class="col-md-1 text-end">
+                            {{ wave_formset.empty_form.DELETE.as_hidden }}
+                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave">
+                            <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
                 </template>
 
-            </div>            
+                <button type="button" class="btn btn-outline-dark btn-sm mt-3" id="add-wave">
+                    + Neue Gruppe
+                </button>
+            </div>
         </div>
-        <button type="submit" class="btn btn-dark">Survey anlegen</button>
+
+        <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-dark">Speichern</button>
         <a href="{% url 'waves:survey_list' %}" class="btn btn-outline-secondary">Abbrechen</a>
+        </div>
     </form>
 
 {% endblock %}
