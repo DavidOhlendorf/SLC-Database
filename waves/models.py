@@ -1,6 +1,7 @@
 from django.db import models
 from questions.models import Question
 
+# Das zentrale Modell für eine Befragung
 class Survey(models.Model):
     name = models.CharField(
         max_length=200,
@@ -24,8 +25,7 @@ class Survey(models.Model):
         return f"{self.name}"
 
 
-
-
+# Modell für eine Erhebungsgruppe innerhalb einer Befragung (wave-Name hier aus legacy-Gründen)
 class Wave(models.Model):
 
     survey = models.ForeignKey(
@@ -58,6 +58,40 @@ class Wave(models.Model):
 
     def __str__(self):
         return f"{self.survey} - {self.cycle} - {self.instrument}"
+    
+    @property
+    def can_be_deleted(self) -> bool:
+        """
+        Eine Gruppe darf aus Sicherheitsgründen nur gelöscht werden, wenn:
+        - sie nicht admins-seitig gesperrt ist
+        - keine Fragen verknüpft sind
+        - keine Seiten verknüpft sind
+        """
+        if self.is_locked:
+            return False
+
+        has_questions = self.wavequestion_set.exists()
+        has_pages = self.pages.exists()
+
+        return not (has_questions or has_pages)
+
+    @property
+    def delete_block_reason(self) -> str:
+        """
+        Begründung, warum eine Wave nicht gelöscht werden darf.
+        Priorität: Sperre > Fragen > Seiten
+        """
+        if self.is_locked:
+            return "Diese Gruppe gehört zu einer abgeschlossenen Befragung und kann nicht gelöscht werden."
+
+        if self.wavequestion_set.exists():
+            return "Diese Gruppe kann nicht gelöscht werden, weil bereits Fragen verknüpft sind."
+
+        if self.pages.exists():
+            return "Diese Gruppe kann nicht gelöscht werden, weil bereits Seiten verknüpft sind."
+
+        return ""
+
 
 class WaveQuestion(models.Model):
     wave = models.ForeignKey(Wave, on_delete=models.CASCADE)
