@@ -11,6 +11,7 @@ from .models import Survey, Wave, WaveQuestion
 from pages.models import WavePageQuestion, WavePage
 
 from .forms import SurveyCreateForm, WaveFormSet
+from accounts.mixin import EditorRequiredMixin
 
 
 class SurveyListView(ListView):
@@ -148,7 +149,7 @@ class SurveyDetailView(TemplateView):
         return ctx
     
 
-class SurveyCreateView(CreateView):
+class SurveyCreateView(EditorRequiredMixin, CreateView):
     model = Survey
     form_class = SurveyCreateForm
     template_name = "waves/survey_form.html"
