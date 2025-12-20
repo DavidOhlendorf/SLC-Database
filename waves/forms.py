@@ -94,8 +94,8 @@ class WaveInlineForm(forms.ModelForm):
 
 class WaveInlineFormSet(BaseInlineFormSet):
 
-    def validate_unique(self):
-        return
+    #def validate_unique(self):
+    #    return
 
     def clean(self):
         super().clean()
@@ -134,13 +134,15 @@ class WaveInlineFormSet(BaseInlineFormSet):
 
             # 2) Wenn gelöscht werden soll: nur erlauben, wenn Wave löschbar ist
             # Nur relevant im Edit-Fall (bestehende Instanzen)
+
             if marked_for_delete and form.instance and form.instance.pk:
                 if not form.instance.can_be_deleted:
-                    form.add_error(
-                        None,
-                        form.instance.delete_block_reason or
-                        "Diese Gruppe kann nicht gelöscht werden."
+                    msg = (
+                        form.instance.delete_block_reason
+                        or "Diese Gruppe kann nicht gelöscht werden."
                     )
+                    form.add_error(None, msg)          # Meldung direkt an der Zeile
+                    raise ValidationError(msg)         # …und Formset sicher invalid machen
 
         if remaining < 1:
             raise ValidationError("Mindestens eine Gruppe ist erforderlich.")

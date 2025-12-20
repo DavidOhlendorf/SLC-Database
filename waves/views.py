@@ -1,6 +1,6 @@
 from itertools import groupby
 
-from django.views.generic import ListView, TemplateView, CreateView
+from django.views.generic import ListView, TemplateView, CreateView, UpdateView
 from django.urls import reverse, reverse_lazy
 from django.forms import inlineformset_factory
 from django.http import Http404
@@ -181,3 +181,47 @@ class SurveyCreateView(EditorRequiredMixin, CreateView):
         wave_formset.save()
 
         return super().form_valid(form)
+    
+
+class SurveyUpdateView(EditorRequiredMixin, UpdateView):
+    model = Survey
+    form_class = SurveyCreateForm
+    template_name = "waves/survey_form.html"
+    success_url = reverse_lazy("waves:survey_list")
+
+    def post(self, request, *args, **kwargs):
+        print("POST HIT SurveyUpdateView")
+        return super().post(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        survey = self.object
+
+        if "wave_formset" not in ctx:
+            if self.request.method == "POST":
+                ctx["wave_formset"] = WaveFormSet(self.request.POST, instance=survey)
+            else:
+                ctx["wave_formset"] = WaveFormSet(instance=survey)
+
+        ctx["is_edit_mode"] = True
+        return ctx
+
+    @transaction.atomic
+    def form_valid(self, form):
+        survey = form.save(commit=False)
+
+        wave_formset = WaveFormSet(self.request.POST, instance=survey)
+
+        if not wave_formset.is_valid():
+            return self.render_to_response(
+                self.get_context_data(form=form, wave_formset=wave_formset)
+            )
+
+        self.object = survey
+        self.object.save()
+
+        wave_formset.save()
+
+        return super().form_valid(form)
+    
+

@@ -30,19 +30,18 @@
       {% for survey in surveys %}
         <div class="col">
           <div class="card h-100 ">
-            <div class="card-body">
-              <h4 class="card-title mb-1">
+            <div class="card-body position-relative">
+              {% if perms.accounts.can_edit_slc %}
+                <a href="{% url 'waves:survey_edit' survey.pk %}"
+                  class="btn btn-sm position-absolute top-0 end-0 m-2"
+                  title="Bearbeiten">
+                  <i class="fa-solid fa-pen"></i>
+                </a>
+              {% endif %}
+              <h4 class="card-title mb-3">
                 {{ survey.name }}
               </h4>
 
-              <p class="small text-muted mb-3">
-                {% if survey.start_min %}
-                  <span>Feldstart: {{ survey.start_min }}</span>
-                {% endif %}
-                {% if survey.end_max %}
-                  <span class="ms-2">Feldende: {{ survey.end_max }}</span>
-                {% endif %}
-              </p>
               <div class="d-flex flex-wrap gap-2 mb-3">
                 <a href="{% url 'waves:survey_detail' survey.name %}?wave=all"
                   class="btn btn-sm btn-outline-dark">
@@ -50,7 +49,7 @@
                 </a>
               </div>
               <p class="small text-muted mb-2">
-                Fragebogenvarianten:
+                Gruppen in dieser Befragung:
               </p>
 
               <div class="d-flex flex-wrap gap-2">

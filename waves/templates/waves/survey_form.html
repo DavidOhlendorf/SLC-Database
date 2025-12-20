@@ -5,10 +5,9 @@
     <script src="{% static 'js/builder/wave_formset.js' %}"></script>
 {% endblock %}
 
-
 {% block content %}
     <header class="mb-4">
-        <h1>Neue Befragung anlegen</h1>
+        <h1>{% if is_edit_mode %}Befragung bearbeiten{% else %}Neue Befragung anlegen{% endif %}</h1>
     </header>
 
     <form method="post" class="mt-3" style="max-width: 980px;">
@@ -74,27 +73,49 @@
                         title="Jede Gruppe, die eine eigene Fragebogenvariante erhält oder im Fragebogen gesondert gefiltert wird, sollte hier aufgelistet sein. Gruppen können auch später noch hinzugefügt werden. ">
                         <i class="fa-solid fa-circle-info"></i>
                     </button>
-
-
                 </div>
 
                 <hr class="my-3">
+
                 <div id="wave-alert"
                     class="alert alert-warning d-none mb-3"
                     role="alert">
-                <span class="js-wave-alert-text"></span>
+                  <span class="js-wave-alert-text"></span>
                 </div>
+
+                {% if wave_formset.non_form_errors %}
+                  <div class="alert alert-warning mb-3">
+                    {{ wave_formset.non_form_errors|striptags }}
+                  </div>
+                {% endif %}
 
                 {{ wave_formset.management_form }}
 
                 <div id="wave-forms" data-formset-prefix="{{ wave_formset.prefix }}" class="vstack gap-3">
                 {% for wf in wave_formset %}
-                    <div class="wave-form border rounded-3 p-3 bg-body-tertiary">
+
+                    {% with inst=wf.instance %}
+                      {% if inst and inst.pk %}
+                        {% with can_del=inst.can_be_deleted reason=inst.delete_block_reason %}
+                          <div class="wave-form border rounded-3 p-3 bg-body-tertiary"
+                               data-can-delete="{% if can_del %}1{% else %}0{% endif %}"
+                               data-delete-reason="{{ reason|default_if_none:''|escape }}">
+                        {% endwith %}
+                      {% else %}
+                        <div class="wave-form border rounded-3 p-3 bg-body-tertiary"
+                             data-can-delete="1" data-delete-reason="">
+                      {% endif %}
+
                         {% if wf.non_field_errors %}
                             <div class="alert alert-warning py-2 mb-2">
-                                {{ wf.non_field_errors }}
+                                {{ wf.non_field_errors|striptags }}
                             </div>
                         {% endif %}
+
+                        {% for hidden in wf.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
                         <div class="row g-3 justify-content-center align-items-start">
 
                             <div class="col-md-4">
@@ -141,19 +162,42 @@
                                 <div class="d-none">
                                     {{ wf.DELETE }}
                                 </div>
-                                <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave"
-                                        title="Gruppe entfernen">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+
+                                {% if wf.instance and wf.instance.pk and not wf.instance.can_be_deleted %}
+                                <span class="d-inline-block"
+                                    tabindex="0"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="left"
+                                    title="{{ wf.instance.delete_block_reason|default:'Diese Gruppe kann nicht gelöscht werden.' }}">
+                                    <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave disabled">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </span>
+                                {% else %}
+                                  <button type="button"
+                                          class="btn btn-outline-danger btn-sm js-remove-wave"
+                                          data-bs-toggle="tooltip"
+                                          data-bs-placement="left"
+                                          title="Gruppe entfernen">
+                                      <i class="fa-solid fa-trash"></i>
+                                  </button>
+                                {% endif %}
                             </div>
 
                         </div>
                     </div>
+                    {% endwith %}
+
                 {% endfor %}
                 </div>
 
                 <template id="empty-wave-form">
-                <div class="wave-form border rounded-3 p-3 bg-body-tertiary">
+                <div class="wave-form border rounded-3 p-3 bg-body-tertiary"
+                     data-can-delete="1" data-delete-reason="">
+                    {% for hidden in wave_formset.empty_form.hidden_fields %}
+                        {{ hidden }}
+                    {% endfor %}
+
                    <div class="row g-3 justify-content-center align-items-start">
 
                         <div class="col-md-4">
@@ -188,8 +232,12 @@
                             <div class="d-none">
                                 {{ wave_formset.empty_form.DELETE }}
                             </div>
-                            <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave">
-                            <i class="fa-solid fa-trash"></i>
+                            <button type="button"
+                                    class="btn btn-outline-danger btn-sm js-remove-wave"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="left"
+                                    title="Gruppe entfernen">
+                              <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
 

@@ -7,8 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   formsDiv.querySelectorAll(".wave-form").forEach(formEl => {
     const delInput = formEl.querySelector('input[name$="-DELETE"]');
-    if (delInput && delInput.checked) {
+    const hasErrors = formEl.querySelector(".invalid-feedback, .alert.alert-warning");
+    if (delInput && delInput.checked && !hasErrors) {
       formEl.classList.add("d-none");
+    } else if (hasErrors) {
+      // falls Fehler: sichtbar lassen
+      formEl.classList.remove("d-none");
     }
   });
 
