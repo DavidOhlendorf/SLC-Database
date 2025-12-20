@@ -55,7 +55,7 @@ class WaveInlineForm(forms.ModelForm):
 
         self.fields["cycle"].widget.attrs.update({
             "class": "form-control",
-            "placeholder": " ",  # floating label
+            "placeholder": " ", 
         })
 
         self.fields["cycle"].error_messages.update({
@@ -91,11 +91,13 @@ class WaveInlineForm(forms.ModelForm):
                 )
 
         return cleaned_data
+    
+    # Unique-Validierung hier unterdrücken, da wir das im Formset machen
+    def validate_unique(self):
+        return
+
 
 class WaveInlineFormSet(BaseInlineFormSet):
-
-    #def validate_unique(self):
-    #    return
 
     def clean(self):
         super().clean()
@@ -104,15 +106,12 @@ class WaveInlineFormSet(BaseInlineFormSet):
         if any(self.errors):
             return
 
-        # 1) Mindestens eine Gruppe muss übrig bleiben
         remaining = 0
-
-        # 2) Doppelte Kombinationen aus cycle+instrument vermeiden
-        seen = {}
+        seen = set()
+        duplicate_found = False
 
         for form in self.forms:
-            # gelöschte / leere extra-Forms überspringen
-            if not form.cleaned_data:
+            if not getattr(form, "cleaned_data", None):
                 continue
 
             marked_for_delete = form.cleaned_data.get("DELETE", False)
@@ -120,20 +119,16 @@ class WaveInlineFormSet(BaseInlineFormSet):
             instrument = (form.cleaned_data.get("instrument") or "").strip()
 
             if not marked_for_delete:
-                remaining += 1
+                if cycle:
+                    remaining += 1
 
-                key = (cycle.casefold(), instrument.casefold())
+                # Duplikate prüfen (wenn beides gesetzt)
                 if cycle and instrument:
+                    key = (cycle.casefold(), instrument.casefold())
                     if key in seen:
-                        msg = "Diese Kombination aus Befragtengruppe und Erhebungsmodus ist in diesem Survey bereits vorhanden."
-                        form.add_error("cycle", msg)
-                        seen[key].add_error("cycle", msg)
+                        duplicate_found = True
                     else:
-                        seen[key] = form
-                
-
-            # 2) Wenn gelöscht werden soll: nur erlauben, wenn Wave löschbar ist
-            # Nur relevant im Edit-Fall (bestehende Instanzen)
+                        seen.add(key)
 
             if marked_for_delete and form.instance and form.instance.pk:
                 if not form.instance.can_be_deleted:
@@ -141,11 +136,21 @@ class WaveInlineFormSet(BaseInlineFormSet):
                         form.instance.delete_block_reason
                         or "Diese Gruppe kann nicht gelöscht werden."
                     )
-                    form.add_error(None, msg)          # Meldung direkt an der Zeile
-                    raise ValidationError(msg)         # …und Formset sicher invalid machen
+                    form.add_error(None, msg)
+                    raise ValidationError(msg)
+
+        if duplicate_found:
+            raise ValidationError(
+                "Diese Kombination aus Befragtengruppe und Erhebungsmodus ist in diesem Survey bereits vorhanden."
+            )
 
         if remaining < 1:
             raise ValidationError("Mindestens eine Gruppe ist erforderlich.")
+
+    # Unique-Validierung-Message von Django hier unterdrücken, da wir eigene ausgeben
+    def validate_unique(self):
+        return
+
 
 
 WaveFormSet = inlineformset_factory(

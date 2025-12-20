@@ -164,6 +164,13 @@ class SurveyCreateView(EditorRequiredMixin, CreateView):
             ctx["wave_formset"] = WaveFormSet()
 
         return ctx
+    
+    # wenn das Hauptformular fehlerhaft ist, wird das Formset neu gerendert
+    def form_invalid(self, form):
+        wave_formset = WaveFormSet(self.request.POST)
+        return self.render_to_response(
+            self.get_context_data(form=form, wave_formset=wave_formset)
+        )
 
     @transaction.atomic
     def form_valid(self, form):
@@ -234,6 +241,18 @@ class SurveyUpdateView(EditorRequiredMixin, UpdateView):
 
         ctx["is_edit_mode"] = True
         return ctx
+    
+    # wenn das Hauptformular fehlerhaft ist, wird das Formset neu gerendert
+    def form_invalid(self, form):
+        survey = self.object
+        wave_formset = WaveFormSet(self.request.POST, instance=survey)
+
+        return self.render_to_response(
+            self.get_context_data(
+                form=form,
+                wave_formset=wave_formset,
+            )
+        )
 
     @transaction.atomic
     def form_valid(self, form):
