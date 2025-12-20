@@ -13,6 +13,9 @@ from .models import Survey, Wave, WaveQuestion
 from pages.models import WavePageQuestion, WavePage
 
 from .forms import SurveyCreateForm, WaveFormSet
+from pages.forms import WavePageCreateForm
+
+from django.core.exceptions import PermissionDenied
 from accounts.mixin import EditorRequiredMixin
 
 
@@ -57,6 +60,8 @@ class SurveyDetailView(TemplateView):
         ctx["wave_formset"] = WaveFormSet(self.request.POST or None, prefix="waves")
         ctx["survey"] = survey
         ctx["waves"] = waves_qs
+         # Formular für "Neue Seite" (Modal)
+        ctx["page_create_form"] = WavePageCreateForm(survey=survey)
 
         if not waves_qs.exists():
             ctx["is_all_mode"] = False
@@ -149,6 +154,43 @@ class SurveyDetailView(TemplateView):
         ctx["page_question_counts"] = page_question_counts
 
         return ctx
+    
+    # POST request for creating a new WavePage
+    def post(self, request, *args, **kwargs):
+
+        if request.POST.get("create_page") != "1":
+            return redirect(request.path)
+        
+        if not request.user.has_perm("accounts.can_edit_slc"):
+            raise PermissionDenied
+
+        survey_name = self.kwargs["survey_name"]
+        survey = Survey.objects.filter(name=survey_name).first()
+        if not survey:
+            raise Http404("Survey not found")
+
+        form = WavePageCreateForm(request.POST, survey=survey)
+
+        if form.is_valid():
+            page = WavePage.objects.create(
+                pagename=form.cleaned_data["pagename"]
+            )
+            page.waves.set(form.cleaned_data["waves"])
+
+            # Redirect auf Page-Detail; wave-Parameter auf erste ausgewählte Wave setzen
+            first_wave = form.cleaned_data["waves"].first()
+            url = reverse("pages:page-detail", args=[page.id])
+            if first_wave:
+                url = f"{url}?wave={first_wave.id}"
+
+            messages.success(request, f"Seite „{page.pagename}“ wurde angelegt.")
+            return redirect(url)
+
+        # Fehler: Seite erneut anzeigen + Modal automatisch öffnen
+        ctx = self.get_context_data(**kwargs)
+        ctx["page_create_form"] = form
+        ctx["page_modal_open"] = True
+        return self.render_to_response(ctx)
     
 
 class SurveyCreateView(EditorRequiredMixin, CreateView):

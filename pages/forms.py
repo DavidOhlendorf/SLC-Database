@@ -9,14 +9,14 @@ class WavePageCreateForm(forms.Form):
         max_length=200,
         required=True,
         label="Seitenname (pn)",
-        help_text="Interner Seitenname, z.B. 'dem123'. Muss innerhalb der Befragung eindeutig sein.",
+        help_text="Interner Seitenname, z.B. 'dem_123'. Muss innerhalb der Befragung eindeutig sein.",
     )
 
     waves = forms.ModelMultipleChoiceField(
         queryset=Wave.objects.none(),
         required=True,
-        label="Befragtengruppen",
-        help_text="Mindestens eine Gruppe auswählen.",
+        label="Welche Befragtengruppen sollen diese Seite sehen?",
+        help_text="Mindestens eine Gruppe auswählen. Kann später im Editor angepasst werden.",
         widget=forms.CheckboxSelectMultiple,
     )
 
