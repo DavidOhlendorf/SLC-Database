@@ -6,6 +6,8 @@ from django.forms import inlineformset_factory
 from django.http import Http404
 from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
+from django.shortcuts import redirect
+from django.contrib import messages
 
 from .models import Survey, Wave, WaveQuestion
 from pages.models import WavePageQuestion, WavePage
@@ -189,8 +191,35 @@ class SurveyUpdateView(EditorRequiredMixin, UpdateView):
     template_name = "waves/survey_form.html"
     success_url = reverse_lazy("waves:survey_list")
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        print("POST HIT SurveyUpdateView")
+        self.object = self.get_object()
+
+        # gesamte Befragung löschen (inkl. Gruppen, sofern alle löschbar)
+        if request.POST.get("delete_survey") == "1":
+            survey = self.object
+
+            waves = list(survey.waves.all())
+
+            # Prüfen: alle Waves müssen löschbar sein
+            blocked = [w for w in waves if not w.can_be_deleted]
+
+            if blocked:
+                messages.error(
+                    request,
+                    "Diese Befragung kann nicht gelöscht werden, weil mindestens eine Gruppe gesperrt ist "
+                    "oder bereits Seiten/Fragen enthält. "
+                )
+                return redirect(request.path)
+
+            # Wenn alles ok: erst Gruppen löschen, dann Survey löschen
+            Wave.objects.filter(survey=survey).delete()
+            survey.delete()
+
+            messages.success(request, "Befragung wurde gelöscht.")
+            return redirect(self.success_url)
+        
+        #Default: normales Update
         return super().post(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

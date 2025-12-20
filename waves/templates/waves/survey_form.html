@@ -251,9 +251,42 @@
             </div>
         </div>
 
-        <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-dark">Speichern</button>
-        <a href="{% url 'waves:survey_list' %}" class="btn btn-outline-secondary">Abbrechen</a>
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-dark">Speichern</button>
+                <a href="{% url 'waves:survey_list' %}" class="btn btn-outline-secondary">Abbrechen</a>
+            </div>
+
+            {% if is_edit_mode %}
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteSurveyModal">Befragung löschen</button>
+            {% endif %}
+
+            {% if is_edit_mode %}
+                <div class="modal fade" id="deleteSurveyModal" tabindex="-1" aria-labelledby="deleteSurveyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteSurveyModalLabel">Befragung löschen</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                            </div>
+
+                            <div class="modal-body">
+                                <p class="mb-2">Soll diese Befragung wirklich gelöscht werden?</p>
+                                <p class="text-muted mb-0">Das ist nur möglich, wenn alle Gruppen leer und nicht gesperrt sind (keine Seiten/Fragen enthalten).</p>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+
+                                <form method="post" action="" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="delete_survey" value="1" class="btn btn-danger">Ja, löschen</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </form>
 
