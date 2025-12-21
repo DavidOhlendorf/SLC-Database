@@ -108,6 +108,11 @@
                             href="{% url 'pages:page-edit' p.id %}?wave={{ g.default_wave_id }}">
                             <i class="fa-solid fa-pen-to-square"></i>
                           </a>
+                          <a class="btn btn-link px-2 icon-action"
+                            title="Seite in andere Befragung kopieren"
+                            href="#">
+                            <i class="fa-solid fa-copy"></i>
+                          </a>
                           <a class="btn btn-link px-2 icon-action--danger"
                             title="Seite löschen"
                             href="#">
@@ -185,7 +190,11 @@
                           href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
                           <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-
+                        <a class="btn btn-link px-2 icon-action"
+                          title="Seite in andere Befragung kopieren"
+                          href="#">
+                          <i class="fa-solid fa-copy"></i>
+                        </a>
                         <a class="btn btn-link px-2 icon-action--danger"
                           title="Seite löschen"
                           href="#">
