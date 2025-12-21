@@ -1,0 +1,109 @@
+{% extends "main.html" %}
+
+{% block content %}
+    <div class="d-flex align-items-center justify-content-between gap-2">
+        <h1 class="mb-0">Fragebogenseite bearbeiten</h1>
+
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary"
+                href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+                Zurück
+            </a>
+        </div>
+    </div>
+
+    <form method="post" class="mt-3" style="max-width: 980px;">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors|striptags }}
+            </div>
+        {% endif %}
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Basis</h5>
+
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <div class="form-floating">
+                            {{ form.pagename }}
+                            <label for="{{ form.pagename.id_for_label }}">Seitenname (pn)</label>
+                        </div>
+                        {% if form.pagename.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.pagename.errors|striptags }}
+                            </div>
+                        {% endif %}
+                        {% if form.pagename.help_text %}
+                            <div class="form-text">{{ form.pagename.help_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="fw-semibold mb-1">Befragtengruppen</div>
+
+                        {% if form.waves.errors %}
+                            <div class="invalid-feedback d-block mb-2">
+                                {{ form.waves.errors|striptags }}
+                            </div>
+                        {% endif %}
+
+                        <div class="vstack gap-1">
+                            {% for cb in form.waves %}
+                                <label class="form-check">
+                                    {{ cb.tag }}
+                                    <span class="form-check-label">{{ cb.choice_label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        {% if form.waves.help_text %}
+                            <div class="form-text">{{ form.waves.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Zusatzfelder</h5>
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.page_heading.id_for_label }}">Überschrift (hl)</label>
+                    {{ form.page_heading }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.introduction.id_for_label }}">Einleitung (in)</label>
+                    {{ form.introduction }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.transition_control.id_for_label }}">Transitionskontrolle (tc)</label>
+                    {{ form.transition_control }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.transitions.id_for_label }}">Filter / Transitions (tr)</label>
+                    {{ form.transitions }}
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label" for="{{ form.page_programming_notes.id_for_label }}">Programmierhinweise (hi)</label>
+                    {{ form.page_programming_notes }}
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-dark">Speichern</button>
+            <a class="btn btn-outline-secondary"
+                href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+                Abbrechen
+            </a>
+        </div>
+    </form>
+{% endblock %}

@@ -1,13 +1,21 @@
 # pages/views.py
-from django.views.generic import DetailView
+from django.views.generic import DetailView, UpdateView
+from django.urls import reverse
+from django.contrib import messages
+
+from accounts.mixins import EditorRequiredMixin
+
 from django.db.models import Prefetch
 from waves.models import WaveQuestion
+
+from .forms import WavePageForm
+
 
 
 
 from .models import WavePage, WavePageQuestion, WavePageScreenshot
 
-
+# View zum Anzeigen einer Fragebogenseite
 class WavePageDetailView(DetailView):
     model = WavePage
     template_name = "pages/detail.html"
@@ -70,3 +78,22 @@ class WavePageDetailView(DetailView):
         ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None
 
         return ctx
+    
+# View zum Bearbeiten einer bestehenden Fragebogenseite
+class WavePageUpdateView(EditorRequiredMixin, UpdateView):
+    model = WavePage
+    form_class = WavePageForm
+    template_name = "pages/page_form.html"
+    context_object_name = "page"
+
+    def get_success_url(self):
+        # zurück zur Detailseite; wave-Parameter beibehalten, falls vorhanden
+        url = reverse("pages:page-detail", args=[self.object.pk])
+        wave_id = self.request.GET.get("wave")
+        if wave_id:
+            url = f"{url}?wave={wave_id}"
+        return url
+
+    def form_valid(self, form):
+        messages.success(self.request, "Seite wurde gespeichert.")
+        return super().form_valid(form)

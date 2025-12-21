@@ -29,14 +29,28 @@
       </ul>
     {% endif %}
 
-    {% if survey and active_wave %}
-      <div class="mb-3">
-        <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
-          class="text-muted small text-decoration-none opacity-75">
-          ← Alle Seiten dieses Fragebogens anzeigen
-        </a>
+
+    <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
+      <div>
+        {% if survey and active_wave %}
+          <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
+            class="text-muted small text-decoration-none opacity-75">
+            ← Alle Seiten dieses Fragebogens anzeigen
+          </a>
+        {% endif %}
       </div>
-    {% endif %}
+
+      <div>
+        {% if perms.accounts.can_edit_slc %}
+          <a class="btn btn-sm btn-outline-secondary"
+            href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+            <i class="fa-solid fa-pen-to-square me-1"></i> Bearbeiten
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+
 
     <!-- Fragen auf der Seite -->
     <div class="accordion mb-3" id="questionsAccordion-{{ page.id }}">

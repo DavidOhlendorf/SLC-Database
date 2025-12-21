@@ -23,3 +23,22 @@ button.collapse-toggle[aria-expanded="false"] i {
   box-shadow: 0 .25rem .5rem rgba(0,0,0,.08);
 }
 
+/* Hover Effekt für Icons */
+.icon-action i {
+  color: var(--bs-secondary-color);
+}
+
+.icon-action:hover i,
+.icon-action:focus i {
+  color: var(--bs-body-color);
+}
+
+.icon-action--danger i {
+  color: var(--bs-danger);
+}
+
+.icon-action--danger:hover i,
+.icon-action--danger:focus i {
+  color: var(--bs-danger-text-emphasis, #842029);
+}
+

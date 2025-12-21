@@ -82,19 +82,41 @@
               {% if g.pages %}
                 <div class="list-group list-group-flush">
                   {% for p in g.pages %}
-                    <a class="list-group-item list-group-item-action"
-                      href="{% url 'pages:page-detail' p.id %}?wave={{ g.default_wave_id }}">
+                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">{{ p.pagename }}</div>
 
-                      <div class="fw-semibold">{{ p.pagename }}</div>
-                      <div class="mt-1 d-flex flex-wrap gap-1">
-                        {% for w in g.page_wave_tags|get_item:p.id %}
-                          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border">
-                            {{ w.cycle }}
-                          </span>
-                        {% endfor %}
+                        <div class="mt-1 d-flex flex-wrap gap-1">
+                          {% for w in g.page_wave_tags|get_item:p.id %}
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border">
+                              {{ w.cycle }}
+                            </span>
+                          {% endfor %}
+                        </div>
                       </div>
 
-                    </a>
+                      <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
+                        <a class="btn btn-link px-2 icon-action"
+                          title="Details anzeigen"
+                          href="{% url 'pages:page-detail' p.id %}?wave={{ g.default_wave_id }}">
+                          <i class="fa-regular fa-eye"></i>
+                        </a>
+
+                        {% if perms.accounts.can_edit_slc %}
+                          <a class="btn btn-link px-2 icon-action"
+                            title="Seite bearbeiten"
+                            href="{% url 'pages:page-edit' p.id %}?wave={{ g.default_wave_id }}">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </a>
+                          <a class="btn btn-link px-2 icon-action--danger"
+                            title="Seite löschen"
+                            href="#">
+                            <i class="fa-solid fa-trash"></i>
+                          </a>
+                        {% endif %}
+                      </div>
+                    </div>
+
                   {% endfor %}
                 </div>
               {% else %}
@@ -135,23 +157,44 @@
             {% if pages %}
               <div class="list-group list-group-flush">
                 {% for p in pages %}
-                  <a class="list-group-item list-group-item-action"
-                    href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
+                  <div class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">{{ p.pagename }}</div>
 
-                    <div class="fw-semibold">
-                      {{ p.pagename }}
+                      <div class="text-muted small">
+                        {% with page_question_counts|get_item:p.id as cnt %}
+                          {% if cnt == 1 %}
+                            1 Frage
+                          {% else %}
+                            {{ cnt|default:0 }} Fragen
+                          {% endif %}
+                        {% endwith %}
+                      </div>
                     </div>
 
-                    <div class="text-muted small">
-                      {% with page_question_counts|get_item:p.id as cnt %}
-                        {% if cnt == 1 %}
-                          1 Frage
-                        {% else %}
-                          {{ cnt|default:0 }} Fragen
-                        {% endif %}
-                      {% endwith %}
+                    <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
+                      <a class="btn btn-link px-2 icon-action"
+                        title="Details anzeigen"
+                        href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
+                        <i class="fa-regular fa-eye"></i>
+                      </a>
+
+                      {% if perms.accounts.can_edit_slc %}
+                        <a class="btn btn-link px-2 icon-action"
+                          title="Seite bearbeiten"
+                          href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+
+                        <a class="btn btn-link px-2 icon-action--danger"
+                          title="Seite löschen"
+                          href="#">
+                          <i class="fa-solid fa-trash"></i>
+                        </a>
+                      {% endif %}
                     </div>
-                  </a>
+                  </div>
+
                 {% endfor %}
               </div>
             {% else %}

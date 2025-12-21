@@ -16,7 +16,7 @@ from .forms import SurveyCreateForm, WaveFormSet
 from pages.forms import WavePageCreateForm
 
 from django.core.exceptions import PermissionDenied
-from accounts.mixin import EditorRequiredMixin
+from accounts.mixins import EditorRequiredMixin
 
 
 class SurveyListView(ListView):
@@ -179,7 +179,7 @@ class SurveyDetailView(TemplateView):
 
             # Redirect auf Page-Detail; wave-Parameter auf erste ausgewählte Wave setzen
             first_wave = form.cleaned_data["waves"].first()
-            url = reverse("pages:page-detail", args=[page.id])
+            url = reverse("pages:page-edit", args=[page.id])
             if first_wave:
                 url = f"{url}?wave={first_wave.id}"
 
