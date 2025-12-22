@@ -77,19 +77,12 @@ class WavePageCreateForm(forms.Form):
 
         return name
     
-# Form zum Bearbeiten einer bestehenden Fragebogenseite    
-class WavePageForm(forms.ModelForm):
+# Form für die Basisdaten einer Fragebogenseite ---
+class WavePageBaseForm(forms.ModelForm):
+
     class Meta:
         model = WavePage
-        fields = [
-            "pagename",
-            "waves",
-            "page_heading",
-            "introduction",
-            "transition_control",
-            "transitions",
-            "page_programming_notes",
-        ]
+        fields = ["pagename", "waves"]
         widgets = {
             "waves": forms.CheckboxSelectMultiple,
         }
@@ -97,7 +90,6 @@ class WavePageForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # pagename required
         self.fields["pagename"].required = True
         self.fields["pagename"].widget.attrs.update({
             "class": "form-control",
@@ -107,23 +99,12 @@ class WavePageForm(forms.ModelForm):
             "required": "Bitte gib einen Seitennamen ein.",
         })
 
-        # waves required
         self.fields["waves"].required = True
         self.fields["waves"].error_messages.update({
             "required": "Bitte wähle mindestens eine Befragtengruppe aus.",
         })
 
-        # Zusatzfelder
-        for fname in [
-            "page_heading",
-            "introduction",
-            "transition_control",
-            "transitions",
-            "page_programming_notes",
-        ]:
-            self.fields[fname].widget.attrs.update({"class": "form-control"})
-
-        # Survey der Page ableiten und Befragtengruppen darauf begrenzen ---
+        # Survey der Page ableiten und Befragtengruppen darauf begrenzen
         survey = None
         if self.instance and self.instance.pk:
             first_wave = self.instance.waves.select_related("survey").first()
@@ -139,8 +120,6 @@ class WavePageForm(forms.ModelForm):
                 .order_by("cycle", "instrument", "id")
             )
         else:
-            # Fallback: Sollte praktisch nie vorkommen,
-            # weil Pages immer mit mind. einer Wave erzeugt werden.
             self.fields["waves"].queryset = Wave.objects.none()
 
     def clean(self):
@@ -180,6 +159,41 @@ class WavePageForm(forms.ModelForm):
             )
 
         return cleaned
+
+
+# Form für die Inhaltsdaten einer Fragebogenseite ---
+class WavePageContentForm(forms.ModelForm):
+
+    class Meta:
+        model = WavePage
+        fields = [
+            "page_heading",
+            "introduction",
+            "transition_control",
+            "transitions",
+            "page_programming_notes",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Größe der Textfelder anpassen
+        row_map = {
+            "page_heading": 5,
+            "introduction": 5,
+            "transition_control": 5,
+            "transitions": 5,
+            "page_programming_notes": 5,
+        }
+
+
+        for fname, rows in row_map.items():
+            self.fields[fname].widget.attrs.update({
+                "class": "form-control",
+                "rows": rows,
+            })
+
+
 
 
 # Formset zum Verknüpfen von Fragen mit der Seite und den Befragtengruppen

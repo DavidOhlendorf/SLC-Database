@@ -1,3 +1,5 @@
+{# pages/page_form.html #}
+
 {% extends "main.html" %}
 {% load static %}
 
@@ -8,214 +10,403 @@
 {% block content %}
     <div class="d-flex align-items-center justify-content-between gap-2">
         <h1 class="mb-0">Fragebogenseite bearbeiten</h1>
-
-        <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary"
-                href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
-                Zurück
-            </a>
-        </div>
     </div>
 
-    <form method="post" class="mt-3" style="max-width: 980px;">
-        {% csrf_token %}
 
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {{ form.non_field_errors|striptags }}
+    <div class="mt-3" style="max-width: 980px;">
+        <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
+            <div>
+                {% if survey and active_wave %}
+                <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
+                    class="text-muted small text-decoration-none opacity-75">
+                    ← Alle Seiten dieses Fragebogens anzeigen
+                </a>
+                {% endif %}
             </div>
-        {% endif %}
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h5 class="card-title mb-3">Basis</h5>
-
-                <div class="row g-3">
-                    <div class="col-md-7">
-                        <div class="form-floating">
-                            {{ form.pagename }}
-                            <label for="{{ form.pagename.id_for_label }}">Seitenname (pn)</label>
-                        </div>
-                        {% if form.pagename.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.pagename.errors|striptags }}
-                            </div>
-                        {% endif %}
-                        {% if form.pagename.help_text %}
-                            <div class="form-text">{{ form.pagename.help_text }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="col-md-5">
-                        <div class="fw-semibold mb-1">Befragtengruppen</div>
-
-                        {% if form.waves.errors %}
-                            <div class="invalid-feedback d-block mb-2">
-                                {{ form.waves.errors|striptags }}
-                            </div>
-                        {% endif %}
-
-                        <div class="vstack gap-1">
-                            {% for cb in form.waves %}
-                                <label class="form-check">
-                                    {{ cb.tag }}
-                                    <span class="form-check-label">{{ cb.choice_label }}</span>
-                                </label>
-                            {% endfor %}
-                        </div>
-
-                        {% if form.waves.help_text %}
-                            <div class="form-text">{{ form.waves.help_text }}</div>
-                        {% endif %}
-                    </div>
-                </div>
+            <div>
+                <a href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
+                    class="text-muted small text-decoration-none opacity-75">
+                    Zur Seitenansicht →
+                </a>
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
+    
+       <!--- Basisdaten der Seite--->
+        <div class="card shadow-sm mb-4" id="base">
             <div class="card-body">
-                <h5 class="card-title mb-3">Zusatzfelder</h5>
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Seitenname und Befragtengruppen</h5>
 
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.page_heading.id_for_label }}">Überschrift (hl)</label>
-                    {{ form.page_heading }}
+                    <div class="d-flex align-items-center gap-1">
+                        <button
+                            type="button"
+                            class="btn btn-link px-2 icon-action"
+                            form="base-form"
+                            id="base-edit-btn"
+                            title="Bearbeiten">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+
+                        <button 
+                            type="submit"
+                            class="btn btn-link px-2 icon-action--success d-none"
+                            form="base-form"
+                            id="base-save-btn"
+                            title="Speichern">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-link px-2 icon-action--danger d-none"
+                            form="base-form"
+                            id="base-cancel-btn"
+                            title="Änderungen verwerfen">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.introduction.id_for_label }}">Einleitung (in)</label>
-                    {{ form.introduction }}
-                </div>
+                {% url "pages:page-edit-base" page.id as base_action %}
+                <form
+                    method="post"
+                    action="{{ base_action }}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
+                    id="base-form">
 
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.transition_control.id_for_label }}">Transitionskontrolle (tc)</label>
-                    {{ form.transition_control }}
-                </div>
+                    {% csrf_token %}
 
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.transitions.id_for_label }}">Filter / Transitions (tr)</label>
-                    {{ form.transitions }}
-                </div>
+                    {% if base_form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ base_form.non_field_errors|striptags }}
+                        </div>
+                    {% endif %}
 
-                <div class="mb-0">
-                    <label class="form-label" for="{{ form.page_programming_notes.id_for_label }}">Programmierhinweise (hi)</label>
-                    {{ form.page_programming_notes }}
-                </div>
-            </div>
-        </div>
-
-        <!-- Fragen auf dieser Seite -->
-        <div class="card shadow-sm mb-4" id="questions">
-            <div class="card-body">
-                <h5 class="card-title mb-3">Fragen auf dieser Seite</h5>
-
-                {% if question_formset.non_form_errors %}
-                <div class="alert alert-danger">
-                    {{ question_formset.non_form_errors|striptags }}
-                </div>
-                {% endif %}
-
-                <!-- Verstecktes Feld, um JS mitzuteilen, ob es Fehler im Formset gibt -->
-                {% if question_formset.errors or question_formset.non_form_errors %}
-                    <input type="hidden" id="qfs-has-errors" value="1">
-                {% endif %}
-
-                {{ question_formset.management_form }}
-
-                <div id="qfs-container" class="vstack gap-3" data-formset-prefix="qfs">
-                {% for qf in question_formset.forms %}
-                    <div class="border rounded p-3 qfs-form {% if qf.errors %}border-danger{% endif %}">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                        <label class="form-label">Frage</label>
-                        {{ qf.question }}
-                        {% if qf.question.errors %}
-                            <div class="invalid-feedback d-block">
-                            {{ qf.question.errors|striptags }}
+                    <div class="row g-3" id="base-fields">
+                        <div class="col-md-7">
+                            <div class="form-floating">
+                                {{ base_form.pagename }}
+                                <label for="{{ base_form.pagename.id_for_label }}">Seitenname (pn)</label>
                             </div>
-                        {% endif %}
+
+                            {% if base_form.pagename.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ base_form.pagename.errors|striptags }}
+                                </div>
+                            {% endif %}
+
+                            {% if base_form.pagename.help_text %}
+                                <div class="form-text">{{ base_form.pagename.help_text }}</div>
+                            {% endif %}
                         </div>
 
                         <div class="col-md-5">
-                        <label class="form-label">Befragtengruppe(n)</label>
-                        <div class="vstack gap-1">
-                            {% for cb in qf.waves %}
-                            <label class="form-check">
-                                {{ cb.tag }}
-                                <span class="form-check-label">{{ cb.choice_label }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                        {% if qf.waves.errors %}
-                            <div class="invalid-feedback d-block">
-                            {{ qf.waves.errors|striptags }}
-                            </div>
-                        {% endif %}
-                        </div>
+                            <div class="fw-semibold mb-1">Befragtengruppen</div>
 
-                        <div class="col-md-1 text-end">
-                            {% if qf.DELETE %}
-                            <div class="d-none">{{ qf.DELETE }}</div>
+                            {% if base_form.waves.errors %}
+                                <div class="invalid-feedback d-block mb-2">
+                                    {{ base_form.waves.errors|striptags }}
+                                </div>
                             {% endif %}
-                        <button type="button"
-                            class="btn btn-outline-danger btn-sm qfs-remove"
-                            title="Frage entfernen">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
+
+                            <div class="vstack gap-1">
+                                {% for cb in base_form.waves %}
+                                    <label class="form-check">
+                                        {{ cb.tag }}
+                                        <span class="form-check-label">{{ cb.choice_label }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+
+                            {% if base_form.waves.help_text %}
+                                <div class="form-text">{{ base_form.waves.help_text }}</div>
+                            {% endif %}
                         </div>
-                    </div>
-                    </div>
-                {% endfor %}
-                </div>
 
-                <div class="mt-3">
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="qfs-add">
-                    + Frage hinzufügen
-                </button>
-                </div>
-
-                <template id="qfs-empty-form-template">
-                <div class="border rounded p-3 qfs-form {% if qf.errors %}border-danger{% endif %}">
-                    <div class="row g-3 align-items-end">
-                    <div class="col-md-6">
-                        <label class="form-label">Frage</label>
-                        {{ question_formset.empty_form.question }}
                     </div>
-
-                    <div class="col-md-5">
-                        <label class="form-label">Befragtengruppe(n)</label>
-                        <div class="vstack gap-1">
-                        {% for cb in question_formset.empty_form.waves %}
-                            <label class="form-check">
-                            {{ cb.tag }}
-                            <span class="form-check-label">{{ cb.choice_label }}</span>
-                            </label>
-                        {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="col-md-1 text-end">
-                        {% if question_formset.empty_form.DELETE %}
-                        <div class="d-none">{{ question_formset.empty_form.DELETE }}</div>
-                        {% endif %}
-                        <button type="button"
-                            class="btn btn-outline-danger btn-sm qfs-remove"
-                            title="Frage entfernen">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                    </div>
-                </div>
-                </template>
-
+                </form>
             </div>
-            </div>
-
-        <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-dark">Speichern</button>
-            <a class="btn btn-outline-secondary"
-                href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
-                Abbrechen
-            </a>
         </div>
-    </form>
+
+
+        <!--- Inhaltsdaten der Seite--->
+        {% url "pages:page-edit-content" page.id as content_action %}
+        <form method="post"
+            action="{{ content_action }}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
+            id="content-form">
+
+            {% csrf_token %}
+
+            {% if content_form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ content_form.non_field_errors|striptags }}
+                </div>
+            {% endif %}
+
+            <!-- Zusatzfelder 1 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Seitenkopf</h5>
+
+                    <div class="accordion" id="accordionPageHeader">
+
+                        <!-- Überschrift (hl) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-hl">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-hl">
+                                    Überschrift (hl)
+                                    {% if content_form.page_heading.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-hl"
+                                class="accordion-collapse collapse {% if content_form.page_heading.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.page_heading }}
+                                    {% if content_form.page_heading.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.page_heading.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Einleitung (in) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-in">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#col-in">
+                                Einleitung (in)
+                                {% if content_form.introduction.value %}
+                                <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                {% endif %}
+                            </button>
+                            </h2>
+                            <div id="col-in"
+                                class="accordion-collapse collapse {% if content_form.introduction.errors %}show{% endif %}">
+                            <div class="accordion-body">
+                                {{ content_form.introduction }}
+                                {% if content_form.introduction.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ content_form.introduction.errors|striptags }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            </div>
+                        </div>
+
+                        <!-- Transitionskontrolle (tc) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-tc">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-tc">
+                                    Transitionskontrolle (tc)
+                                    {% if content_form.transition_control.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-tc"
+                                class="accordion-collapse collapse {% if content_form.transition_control.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.transition_control }}
+                                    {% if content_form.transition_control.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.transition_control.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fragen auf dieser Seite -->
+            <div class="card shadow-sm mb-4" id="questions">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Fragen auf dieser Seite</h5>
+
+                    {% if question_formset.non_form_errors %}
+                        <div class="alert alert-danger">
+                            {{ question_formset.non_form_errors|striptags }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Verstecktes Feld, um JS mitzuteilen, ob es Fehler im Formset gibt -->
+                    {% if question_formset.errors or question_formset.non_form_errors %}
+                        <input type="hidden" id="qfs-has-errors" value="1">
+                    {% endif %}
+
+                    {{ question_formset.management_form }}
+
+                    <div id="qfs-container" class="vstack gap-3" data-formset-prefix="qfs">
+                        {% for qf in question_formset.forms %}
+                            <div class="border rounded p-3 qfs-form {% if qf.errors %}border-danger{% endif %}">
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Frage</label>
+                                        {{ qf.question }}
+                                        {% if qf.question.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ qf.question.errors|striptags }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-5">
+                                        <label class="form-label">Befragtengruppe(n)</label>
+                                        <div class="vstack gap-1">
+                                            {% for cb in qf.waves %}
+                                                <label class="form-check">
+                                                    {{ cb.tag }}
+                                                    <span class="form-check-label">{{ cb.choice_label }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% if qf.waves.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ qf.waves.errors|striptags }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-1 text-end">
+                                        {% if qf.DELETE %}
+                                            <div class="d-none">{{ qf.DELETE }}</div>
+                                        {% endif %}
+                                        <button type="button"
+                                                class="btn btn-outline-danger btn-sm qfs-remove"
+                                                title="Frage entfernen">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="qfs-add">
+                            + Frage hinzufügen
+                        </button>
+                    </div>
+
+                    <template id="qfs-empty-form-template">
+                        <div class="border rounded p-3 qfs-form">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label">Frage</label>
+                                    {{ question_formset.empty_form.question }}
+                                </div>
+
+                                <div class="col-md-5">
+                                    <label class="form-label">Befragtengruppe(n)</label>
+                                    <div class="vstack gap-1">
+                                        {% for cb in question_formset.empty_form.waves %}
+                                            <label class="form-check">
+                                                {{ cb.tag }}
+                                                <span class="form-check-label">{{ cb.choice_label }}</span>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-1 text-end">
+                                    {% if question_formset.empty_form.DELETE %}
+                                        <div class="d-none">{{ question_formset.empty_form.DELETE }}</div>
+                                    {% endif %}
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm qfs-remove"
+                                            title="Frage entfernen">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Zusatzfelder 2 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Logik & Hinweise</h5>
+
+                    <div class="accordion" id="accordionPageLogic">
+
+                        <!-- Filter / Transitions (tr) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-tr">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-tr">
+                                    Filter / Transitions (tr)
+                                    {% if content_form.transitions.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-tr"
+                                class="accordion-collapse collapse {% if content_form.transitions.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.transitions }}
+                                    {% if content_form.transitions.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.transitions.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Programmierhinweise (hi) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-hi">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-hi">
+                                    Programmierhinweise (hi)
+                                    {% if content_form.page_programming_notes.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-hi"
+                                class="accordion-collapse collapse {% if content_form.page_programming_notes.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.page_programming_notes }}
+                                    {% if content_form.page_programming_notes.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.page_programming_notes.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons für das Formular -->
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-dark">Inhalte speichern</button>
+                <a class="btn btn-outline-secondary"
+                   href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+                    Abbrechen
+                </a>
+            </div>
+        </form>
+    </div>
 {% endblock %}

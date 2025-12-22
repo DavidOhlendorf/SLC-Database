@@ -10,13 +10,13 @@ class WavePage(models.Model):
         Wave,
         related_name="pages",
         blank=True,
-        help_text="Wellen, in denen diese Seite verwendet wird.",
+        help_text="Befragtengruppen, die diese Seite sehen.",
     )
 
     # Interner Seitenname (pn)
     pagename = models.CharField(
         max_length=200,
-        help_text="Interner Seitenname, z.B. 'dem123' (pn).",
+        help_text="Interner Seitenname, z.B. 'dem_123' (pn).",
     )
 
     # Überschrift auf der Seite (hl)
