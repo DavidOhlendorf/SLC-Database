@@ -1,6 +1,11 @@
 {% extends "main.html" %}
 {% load waves_extras %}
 
+{% load static %}
+  {% block extra_js %}
+      <script src="{% static 'js/ui/tooltips.js' %}"></script>
+{% endblock %}
+
 {% block content %}
   <h1> {{ survey.name }} </h1>
 
@@ -58,7 +63,7 @@
       </div>
   </div>
 
-
+  <!-- Seiten-Anzeige für die gesamte Befragung-->
   {% if is_all_mode %}
     {% for g in instrument_groups %}
       <div class="accordion mb-3" id="pagesAccordion-{{ survey.name|slugify }}-{{ forloop.counter }}">
@@ -113,17 +118,64 @@
                             href="#">
                             <i class="fa-solid fa-copy"></i>
                           </a>
-                          <a class="btn btn-link px-2 icon-action--danger"
-                            title="Seite löschen"
-                            href="#">
-                            <i class="fa-solid fa-trash"></i>
-                          </a>
+                          {% if g.page_delete_blocked|get_item:p.id %}
+                            <span
+                                class="d-inline-block"
+                                tabindex="0"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+                                <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </span>
+                          {% else %}
+                            <button
+                                type="button"
+                                class="btn btn-link px-2 icon-action--danger"
+                                title="Seite löschen"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deletePageModal-{{ p.id }}">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                          {% endif %}
                         {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- Modal zum Löschen der Seite -->
+                    {% url "pages:page-delete" p.id as delete_action %}
+
+                    <div class="modal fade" id="deletePageModal-{{ p.id }}" tabindex="-1"
+                        aria-labelledby="deletePageModalLabel-{{ p.id }}" aria-hidden="true">
+                      <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="deletePageModalLabel-{{ p.id }}">Seite löschen</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                          </div>
+
+                          <div class="modal-body">
+                            Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
+                          </div>
+
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+
+                            <form method="post"
+                                  action="{{ delete_action }}?wave={% if is_all_mode %}{{ g.default_wave_id }}{% else %}{{ active_wave.id }}{% endif %}">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-danger">Löschen</button>
+                            </form>
+                          </div>
+
+                        </div>
                       </div>
                     </div>
 
                   {% endfor %}
                 </div>
+
               {% else %}
                 <p class="text-muted px-3 py-2 mb-0">
                   Keine Seiten für {{ g.instrument }} in dieser Befragung.
@@ -137,7 +189,7 @@
     {% endfor %}
 
   {% else %}
-
+    <!-- Seiten-Anzeige für die einzelne Befragungsgruppe-->
     <div class="accordion mb-3" id="pagesAccordion-{{ survey.name|slugify }}">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingPages-{{ survey.name|slugify }}">
@@ -195,15 +247,60 @@
                           href="#">
                           <i class="fa-solid fa-copy"></i>
                         </a>
-                        <a class="btn btn-link px-2 icon-action--danger"
-                          title="Seite löschen"
-                          href="#">
-                          <i class="fa-solid fa-trash"></i>
-                        </a>
+                          {% if delete_blocked_global %}
+                            <span
+                                class="d-inline-block"
+                                tabindex="0"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+                                <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </span>
+                          {% else %}
+                            <button
+                                type="button"
+                                class="btn btn-link px-2 icon-action--danger"
+                                title="Seite löschen"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deletePageModal-{{ p.id }}">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                          {% endif %}
                       {% endif %}
                     </div>
                   </div>
 
+                  <!-- Modal zum Löschen der Seite -->
+                  {% url "pages:page-delete" p.id as delete_action %}
+
+                  <div class="modal fade" id="deletePageModal-{{ p.id }}" tabindex="-1"
+                      aria-labelledby="deletePageModalLabel-{{ p.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content">
+
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="deletePageModalLabel-{{ p.id }}">Seite löschen</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                        </div>
+
+                        <div class="modal-body">
+                          Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
+                        </div>
+
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+
+                          <form method="post"
+                                action="{{ delete_action }}?wave={% if is_all_mode %}{{ g.default_wave_id }}{% else %}{{ active_wave.id }}{% endif %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Löschen</button>
+                          </form>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
                 {% endfor %}
               </div>
             {% else %}

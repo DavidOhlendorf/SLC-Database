@@ -115,12 +115,23 @@ class SurveyDetailView(TemplateView):
                 for p in pages_qs:
                     page_wave_tags[p.id] = [w for w in p.waves.all() if w.id in wave_ids_set]
 
+                # Gesperrte Befragungsgruppen ermitteln
+                locked_wave_ids = {w.id for w in wlist if w.is_locked}
+
+                # Prüfen, ob Seite mit gesperrter Befragungsgruppe verknüpft ist und in dict speichern
+                page_delete_blocked = {}
+                for p in pages_qs:
+                    waves_for_page_in_group = page_wave_tags[p.id]
+                    page_delete_blocked[p.id] = any(w.id in locked_wave_ids for w in waves_for_page_in_group)
+
+
                 instrument_groups.append({
                     "instrument": instrument,
                     "waves": wlist,
                     "pages": pages_qs,
                     "page_wave_tags": page_wave_tags,
                     "default_wave_id": wlist[0].id,
+                    "page_delete_blocked": page_delete_blocked,
                 })
 
             ctx["instrument_groups"] = instrument_groups
@@ -152,6 +163,8 @@ class SurveyDetailView(TemplateView):
 
         ctx["pages"] = pages_qs
         ctx["page_question_counts"] = page_question_counts
+        ctx["delete_blocked_global"] = bool(active_wave and active_wave.is_locked)
+
 
         return ctx
     

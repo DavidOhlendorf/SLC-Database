@@ -5,13 +5,11 @@
 
 {% block extra_js %}
     <script src="{% static 'js/builder/page_question_formset.js' %}"></script>
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
 {% block content %}
-    <div class="d-flex align-items-center justify-content-between gap-2">
-        <h1 class="mb-0">Fragebogenseite bearbeiten</h1>
-    </div>
-
+    <h1 class="mb-0">Fragebogenseite bearbeiten</h1>
 
     <div class="mt-3" style="max-width: 980px;">
         <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
@@ -400,13 +398,78 @@
             </div>
 
             <!-- Buttons für das Formular -->
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-dark">Inhalte speichern</button>
-                <a class="btn btn-outline-secondary"
-                   href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-dark">Inhalte speichern</button>
+                    <a class="btn btn-outline-secondary"
+                    href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
                     Abbrechen
-                </a>
+                    </a>
+                </div>
+
+                <div>
+                    {% if delete_blocked %}
+                    <span
+                        class="d-inline-block"
+                        tabindex="0"
+                        data-bs-toggle="tooltip"
+                        data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+                        <button type="button" class="btn btn-outline-danger" disabled>
+                            <i class="fa-solid fa-trash me-1"></i> Seite löschen
+                        </button>
+                    </span>
+                    {% else %}
+                    <button
+                        type="button"
+                        class="btn btn-outline-danger"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deletePageModal">
+                        <i class="fa-solid fa-trash me-1"></i> Seite löschen
+                    </button>
+                    {% endif %}
+                </div>
             </div>
+
         </form>
     </div>
+    
+    <!-- Modal zum Löschen der Seite -->
+    {% url "pages:page-delete" page.id as delete_action %}
+    <div class="modal fade" id="deletePageModal" tabindex="-1" aria-labelledby="deletePageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="deletePageModalLabel">Seite löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+
+            <div class="modal-body">
+                <p class="mb-2">
+                    Soll die Seite <strong>{{ page.pagename }}</strong> wirklich gelöscht werden?
+                </p>
+                <p class="text-muted small mb-0">
+                    Dabei werden auch alle Verknüpfungen dieser Seite zu Fragen entfernt.
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    Abbrechen
+                </button>
+
+                <form
+                    method="post"
+                    action="{{ delete_action }}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        Löschen
+                    </button>
+                </form>
+            </div>
+
+            </div>
+        </div>
+    </div>
+
 {% endblock %}

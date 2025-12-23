@@ -1,5 +1,6 @@
 # pages/views.py
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views import View
 from django.views.generic import DetailView, UpdateView, TemplateView
 from django.views.decorators.http import require_http_methods
 from django.urls import reverse
@@ -8,7 +9,7 @@ from django.contrib import messages
 from accounts.mixins import EditorRequiredMixin
 
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, OuterRef, Exists
 from waves.models import WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion
 
@@ -141,6 +142,11 @@ class WavePageUpdateView(EditorRequiredMixin, TemplateView):
         page = WavePage.objects.get(pk=pk)
 
         allowed_waves = page.waves.all()
+
+        # Gib die Info mit, ob die Seite mit einer gesperrten Befragung verknüpft ist
+        # Deaktiviert aktuell den Löschen-Button im Template, wäre aber auch auf 
+        # Bearebeitungslogik anwendbar, wenn das gewünscht wäre.
+        ctx["delete_blocked"] = allowed_waves.filter(is_locked=True).exists()
 
         ctx["page"] = page
         ctx["base_form"] = WavePageBaseForm(instance=page)
@@ -330,3 +336,71 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
         ctx["survey"] = active_wave.survey if active_wave else None
 
         return render(self.request, self.template_name, ctx)
+    
+# view zum Löschen einer Fragebogenseite
+class WavePageDeleteView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, pk, *args, **kwargs):
+        page = get_object_or_404(WavePage, pk=pk)
+
+        # Schritt 3: Sperrlogik
+        if page.waves.filter(is_locked=True).exists():
+            messages.error(
+                request,
+                "Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist."
+            )
+            url = reverse("pages:page-edit", kwargs={"pk": page.pk})
+            wave = request.GET.get("wave")
+            if wave:
+                url = f"{url}?wave={wave}"
+            return redirect(url)
+
+        # Redirect-Ziel vorab bestimmen (nach delete ist M2M weg)
+        wave_id = request.GET.get("wave")
+        active_wave = page.waves.filter(pk=wave_id).select_related("survey").first() if wave_id else None
+        if active_wave is None:
+            active_wave = page.waves.select_related("survey").first()
+
+        with transaction.atomic():
+            wave_ids = list(page.waves.values_list("id", flat=True))
+            question_ids = list(page.page_questions.values_list("question_id", flat=True).distinct())
+
+            # 5) WaveQuestion cleanup (future-proof)
+            # "keep" = es gibt eine andere Seite (≠ page), die diese question enthält
+            #          UND die zu derselben wave gehört.
+            other_usage = WavePageQuestion.objects.filter(
+                question_id=OuterRef("question_id"),
+                wave_page__waves__id=OuterRef("wave_id"),
+            ).exclude(wave_page=page)
+
+            wq_qs = WaveQuestion.objects.filter(
+                wave_id__in=wave_ids,
+                question_id__in=question_ids,
+            ).annotate(
+                keep=Exists(other_usage)
+            )
+
+            # optional: Zählung für Feedback
+            delete_wq_count = wq_qs.filter(keep=False).count()
+
+            # löschen nur, wenn nicht mehr gebraucht
+            wq_qs.filter(keep=False).delete()
+
+            # 6) Seite löschen (WavePageQuestion & Screenshots gehen via CASCADE mit)
+            page_name = page.pagename
+            page.delete()
+
+        # Erfolgsmeldung
+        messages.success(
+            request,
+            f"Seite '{page_name}' wurde gelöscht. ({delete_wq_count} WaveQuestion-Verknüpfungen bereinigt)"
+        )
+
+        # Redirect: zurück zur Survey-Detailansicht, falls möglich
+        if active_wave and active_wave.survey:
+            url = reverse("waves:survey_detail", kwargs={"survey_name": active_wave.survey.name})
+            url = f"{url}?wave={active_wave.id}"
+            return redirect(url)
+
+        return redirect(reverse("waves:survey_list"))
