@@ -45,6 +45,7 @@ class Question(models.Model):
 
     # Fragetext (q)
     questiontext = models.TextField(
+        blank=True,
         help_text="Fragetext (q).",
     )
 
@@ -97,6 +98,7 @@ class Question(models.Model):
     #  Zugeordnete Schlagwörter
     keywords = models.ManyToManyField(
         Keyword,
+        blank=True,
         related_name="questions"
     )
 
