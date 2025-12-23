@@ -17,70 +17,27 @@ from .forms import WavePageBaseForm, WavePageContentForm, PageQuestionLinkFormSe
 
 
 
-# View zum Anzeigen einer Fragebogenseite
-class WavePageDetailView(DetailView):
-    model = WavePage
-    template_name = "pages/detail.html"
-    context_object_name = "page"
+# Helper: Aktive Wave aus QuerySet bestimmen
+def _get_active_wave_from_qs(request, waves_qs, *, default_first=True):
+    """
+    Bestimmt die aktive Wave über ?wave= aus einem QuerySet von Waves.
+    - Wenn ?wave= ungültig oder nicht im QS: fallback auf first() (wenn default_first=True)
+    - Gibt None zurück, wenn QS leer ist und default_first=False
+    """
+    wave_id = request.GET.get("wave")
+    active_wave = None
 
-    def get_queryset(self):
+    if wave_id:
+        try:
+            active_wave = waves_qs.filter(id=int(wave_id)).first()
+        except (TypeError, ValueError):
+            active_wave = None
 
-        qs = (
-            WavePage.objects
-            .prefetch_related(
-                "waves", 
-                Prefetch(
-                    "page_questions",
-                    queryset=WavePageQuestion.objects.select_related("question"),
-                ),
-                "screenshots", 
-            )
-        )
-        return qs
+    if active_wave is None and default_first:
+        active_wave = waves_qs.first()
 
+    return active_wave
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        page = self.object
-
-        waves_qs = page.waves.all().order_by("cycle", "instrument", "id")
-
-        # active wave aus ?wave=
-        active_wave = None
-        wave_id = self.request.GET.get("wave")
-        if wave_id:
-            try:
-                active_wave = waves_qs.filter(id=int(wave_id)).first()
-            except ValueError:
-                active_wave = None
-
-        if active_wave is None:
-            active_wave = waves_qs.first()
-
-        # Fragen auf der Seite (alle)
-        page_questions_qs = (
-            page.page_questions
-            .select_related("question")
-            .all()
-        )
-
-        # Falls keine wave verknüpft ist, nicht filtern
-        if active_wave:
-            wave_question_ids = WaveQuestion.objects.filter(
-                wave=active_wave
-            ).values_list("question_id", flat=True)
-
-            page_questions_qs = page_questions_qs.filter(
-                question_id__in=wave_question_ids
-            )
-
-        ctx["waves"] = waves_qs
-        ctx["active_wave"] = active_wave
-        ctx["page_questions_filtered"] = page_questions_qs
-        ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None
-
-        return ctx
-    
 
 # Helper: Formset für GET (Initial) oder für POST (bound)
 def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=None):
@@ -129,8 +86,66 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
     )
 
 
+# View zum Anzeigen einer Fragebogenseite
+class WavePageDetailView(DetailView):
+    model = WavePage
+    template_name = "pages/detail.html"
+    context_object_name = "page"
+
+    def get_queryset(self):
+
+        qs = (
+            WavePage.objects
+            .prefetch_related(
+                "waves", 
+                Prefetch(
+                    "page_questions",
+                    queryset=WavePageQuestion.objects.select_related("question"),
+                ),
+                "screenshots", 
+            )
+        )
+        return qs
+
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        page = self.object
+
+        waves_qs = page.waves.all().order_by("cycle", "instrument", "id")
+
+        # active wave aus ?wave=
+        active_wave = _get_active_wave_from_qs(self.request, waves_qs, default_first=True)
+
+        # Fragen auf der Seite (alle)
+        page_questions_qs = (
+            page.page_questions
+            .select_related("question")
+            .all()
+        )
+
+        # Falls keine wave verknüpft ist, nicht filtern
+        if active_wave:
+            wave_question_ids = WaveQuestion.objects.filter(
+                wave=active_wave
+            ).values_list("question_id", flat=True)
+
+            page_questions_qs = page_questions_qs.filter(
+                question_id__in=wave_question_ids
+            )
+
+        ctx["waves"] = waves_qs
+        ctx["active_wave"] = active_wave
+        ctx["page_questions_filtered"] = page_questions_qs
+        ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None
+
+        return ctx
+    
+
+
+# View zur Antzeige der Bearbeitungsoberfläche einer Fragebogenseite
 # Edit-Renderer: GET /pages/<pk>/edit/
-# - rendert beide Blöcke (Basis + Content/Formset)
+# - rendert 2 Blöcke (Basis + Content/Formset)
 class WavePageUpdateView(EditorRequiredMixin, TemplateView):
 
     template_name = "pages/page_form.html"
@@ -158,20 +173,15 @@ class WavePageUpdateView(EditorRequiredMixin, TemplateView):
         )
 
         # active wave aus ?wave= & survey mitgeben, damit zurück-Links funktionieren
-        wave_id = self.request.GET.get("wave")
-        if wave_id:
-            wave_id = self.request.GET.get("wave")
-            active_wave = page.waves.filter(pk=wave_id).first() if wave_id else None
-            ctx["active_wave"] = active_wave
-            ctx["survey"] = active_wave.survey if active_wave else None
+        active_wave = _get_active_wave_from_qs(self.request, allowed_waves, default_first=True)
 
-        else:
-            ctx["active_wave"] = None
-            ctx["survey"] = None
+        ctx["active_wave"] = active_wave
+        ctx["survey"] = active_wave.survey if active_wave else None
 
         return ctx
 
 
+# View zum Speichern der Basisinformationen der Seite (Name und Befragungsgruppen)
 # Basis speichern: POST /pages/<pk>/edit/base/
 # - speichert nur pagename + waves
 # - danach Redirect zurück auf /edit/
@@ -206,8 +216,7 @@ class WavePageBaseUpdateView(EditorRequiredMixin, UpdateView):
         }
 
         # active wave aus ?wave=
-        wave_id = self.request.GET.get("wave")
-        active_wave = page.waves.filter(pk=wave_id).first() if wave_id else None
+        active_wave = _get_active_wave_from_qs(self.request, allowed_waves, default_first=True)
         ctx["active_wave"] = active_wave
         ctx["survey"] = active_wave.survey if active_wave else None
 
@@ -215,6 +224,7 @@ class WavePageBaseUpdateView(EditorRequiredMixin, UpdateView):
 
 
 
+# View zum Speichern der Seiteninhalte und Fragen
 # Content + Fragen speichern: POST /pages/<pk>/edit/content/
 # - speichert nur Zusatzfelder
 # - validiert/speichert Formset
@@ -247,8 +257,7 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
             }
 
             # active wave aus ?wave=
-            wave_id = self.request.GET.get("wave")
-            active_wave = page.waves.filter(pk=wave_id).first() if wave_id else None
+            active_wave = _get_active_wave_from_qs(self.request, allowed_waves, default_first=True)
             ctx["active_wave"] = active_wave
             ctx["survey"] = active_wave.survey if active_wave else None
 
@@ -330,14 +339,15 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
             ),
         }
 
-        wave_id = self.request.GET.get("wave")
-        active_wave = page.waves.filter(pk=wave_id).first() if wave_id else None
+        # active wave aus ?wave=
+        active_wave = _get_active_wave_from_qs(self.request, allowed_waves, default_first=True)
         ctx["active_wave"] = active_wave
         ctx["survey"] = active_wave.survey if active_wave else None
 
         return render(self.request, self.template_name, ctx)
     
-# view zum Löschen einer Fragebogenseite
+
+# View zum Löschen einer Fragebogenseite
 class WavePageDeleteView(EditorRequiredMixin, View):
     http_method_names = ["post"]
 
@@ -366,9 +376,11 @@ class WavePageDeleteView(EditorRequiredMixin, View):
             wave_ids = list(page.waves.values_list("id", flat=True))
             question_ids = list(page.page_questions.values_list("question_id", flat=True).distinct())
 
-            # 5) WaveQuestion cleanup (future-proof)
-            # "keep" = es gibt eine andere Seite (≠ page), die diese question enthält
-            #          UND die zu derselben wave gehört.
+            # 5) WaveQuestion cleanup
+            # "keep" = es gibt eine andere Seite (≠ page), die diese Frage enthält
+            #          UND die zu derselben Befragungsgruppe gehört.
+            # Szenario sollte im Core nicht vorkommen, da Fragen pro Befragung nicht mehrfach auf Seiten vorkommen dürfen.
+            # Für zukünftige Episodes-Logik aber sinnvoll, da es in Episodes identische Fragen auf mehreren Seiten einer Befragung geben kann.
             other_usage = WavePageQuestion.objects.filter(
                 question_id=OuterRef("question_id"),
                 wave_page__waves__id=OuterRef("wave_id"),
@@ -381,7 +393,7 @@ class WavePageDeleteView(EditorRequiredMixin, View):
                 keep=Exists(other_usage)
             )
 
-            # optional: Zählung für Feedback
+            # optional: Zählung für Feedback, gibt an wie viele Fragen/Waves gelöscht wurden
             delete_wq_count = wq_qs.filter(keep=False).count()
 
             # löschen nur, wenn nicht mehr gebraucht
@@ -394,7 +406,7 @@ class WavePageDeleteView(EditorRequiredMixin, View):
         # Erfolgsmeldung
         messages.success(
             request,
-            f"Seite '{page_name}' wurde gelöscht. ({delete_wq_count} WaveQuestion-Verknüpfungen bereinigt)"
+            f"Seite '{page_name}' wurde gelöscht."
         )
 
         # Redirect: zurück zur Survey-Detailansicht, falls möglich

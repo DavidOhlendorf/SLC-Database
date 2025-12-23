@@ -156,7 +156,13 @@
                           </div>
 
                           <div class="modal-body">
-                            Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
+                            <p class="mb-4">
+                                Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
+                            </p>
+                            <p class="text-muted small mb-0">
+                                Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
+                                Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungspübersicht der Seite anpassen.
+                            </p>
                           </div>
 
                           <div class="modal-footer">
@@ -284,9 +290,15 @@
                           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                         </div>
 
-                        <div class="modal-body">
-                          Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
-                        </div>
+                          <div class="modal-body">
+                            <p class="mb-4">
+                                Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
+                            </p>
+                            <p class="text-muted small mb-0">
+                                Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
+                                Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungspübersicht der Seite anpassen.
+                            </p>
+                          </div>
 
                         <div class="modal-footer">
                           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
