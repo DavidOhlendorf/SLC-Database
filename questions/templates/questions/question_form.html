@@ -1,0 +1,62 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <div class="container my-4">
+
+    <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
+      <div>
+        {% if page %}
+            <a href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+                ← Zurück zur Seite
+            </a>
+        {% endif %}
+
+        <a class="text-muted small text-decoration-none opacity-75"
+           href="{% url 'questions:question_detail' question.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+          ← Zurück zur Frage
+        </a>
+      </div>
+    </div>
+
+    <h1 class="h3 mb-3">Frage bearbeiten</h1>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label">Fragetext</label>
+                {{ form.questiontext }}
+                {% if form.questiontext.errors %}
+                <div class="text-danger small mt-1">{{ form.questiontext.errors|striptags }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Fragetyp</label>
+                {{ form.question_type }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Instruktion</label>
+                {{ form.instruction }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Itemstamm</label>
+                {{ form.item_stem }}
+            </div>
+
+          <div class="d-flex justify-content-end">
+            <button class="btn btn-primary" type="submit">
+              Speichern
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+  </div>
+{% endblock %}

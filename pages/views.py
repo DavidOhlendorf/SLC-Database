@@ -133,11 +133,16 @@ class WavePageDetailView(DetailView):
             page_questions_qs = page_questions_qs.filter(
                 question_id__in=wave_question_ids
             )
+        
+        # Gib die Info mit, ob die Seite mit einer gesperrten Befragung verknüpft ist
+        page_is_locked = waves_qs.filter(is_locked=True).exists()    
 
         ctx["waves"] = waves_qs
         ctx["active_wave"] = active_wave
         ctx["page_questions_filtered"] = page_questions_qs
-        ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None
+        ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None 
+        ctx["page_is_locked"] = page_is_locked
+        ctx["edit_question_allowed_waves"] = waves_qs.filter(is_locked=False)
 
         return ctx
     

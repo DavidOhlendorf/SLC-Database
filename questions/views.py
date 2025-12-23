@@ -1,12 +1,28 @@
 # questions/views.py
-from django.views.generic import DetailView
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
+from django.http import Http404
+
+from django.views import View
+from django.views.generic import DetailView, UpdateView
+
+
+from accounts.mixins import EditorRequiredMixin
+
 from django.db.models import Prefetch
+from django.db import transaction
 
 from .models import Question
 from variables.models import Variable
-from waves.models import Wave
-from pages.models import WavePage 
+from waves.models import Wave, WaveQuestion
+from pages.models import WavePage, WavePageQuestion 
 
+from .forms import QuestionEditForm
+
+
+
+# View für Detailanzeige einer Frage
 class QuestionDetail(DetailView):
     model = Question
     template_name = "questions/detail.html"
@@ -51,8 +67,8 @@ class QuestionDetail(DetailView):
             page = (
                 WavePage.objects
                 .filter(
-                    page_questions__question=question,  # Link Question <-> WavePage
-                    waves=active_wave,                    # Link WavePage <-> Wave
+                    page_questions__question=question,
+                    waves=active_wave,
                 )
                 .only("id", "pagename")
                 .first()
@@ -64,7 +80,8 @@ class QuestionDetail(DetailView):
         if page:
             screenshots = list(page.screenshots.all())
         else:
-            screenshots = []    
+            screenshots = []
+ 
 
         ctx.update({
             "waves": waves,
@@ -74,3 +91,139 @@ class QuestionDetail(DetailView):
             "screenshots": screenshots,
         })
         return ctx
+    
+# View zum Anlegen einer neuen Frage 
+class QuestionCreateFromPageView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, page_id, *args, **kwargs):
+        page = get_object_or_404(WavePage, pk=page_id)
+
+        # Harte Sperre: wenn Seite an locked-wave hängt → kein Neuanlegen
+        if page.waves.filter(is_locked=True).exists():
+            messages.error(
+                request,
+                "Auf dieser Seite können keine neuen Fragen angelegt werden, "
+                "weil sie mit einer abgeschlossenen Befragung verknüpft ist."
+            )
+            url = reverse("pages:page_detail", kwargs={"pk": page.pk})
+            wave = request.GET.get("wave")
+            if wave:
+                url = f"{url}?wave={wave}"
+            return redirect(url)
+
+        # Erlaubte Waves: nur Waves der Seite, die NICHT locked sind
+        allowed_waves_qs = page.waves.filter(is_locked=False)
+
+        # vom Modal: waves=<id>&waves=<id>...
+        selected_ids = request.POST.getlist("waves")
+        # defensive: nur IDs zulassen, die in allowed_waves liegen
+        selected_waves = list(allowed_waves_qs.filter(id__in=selected_ids))
+
+        if not selected_waves:
+            messages.error(request, "Bitte wähle mindestens eine Befragungsgruppe aus.")
+            url = reverse("pages:page_detail", kwargs={"pk": page.pk})
+            wave = request.GET.get("wave")
+            if wave:
+                url = f"{url}?wave={wave}"
+            return redirect(url)
+
+        with transaction.atomic():
+            q = Question.objects.create(questiontext="")
+
+            WavePageQuestion.objects.create(
+                wave_page=page,
+                question=q,
+            )
+
+            for w in selected_waves:
+                WaveQuestion.objects.get_or_create(wave=w, question=q)
+
+        # Redirect auf Edit-View
+        base = reverse("questions:question_edit", kwargs={"pk": q.pk})
+
+        # page ist Pflicht für die Edit-View
+        params = f"page={page.pk}"
+
+        # optional: aktive wave für UI mitgeben
+        wave = request.GET.get("wave")
+        if wave and any(str(w.id) == str(wave) for w in selected_waves):
+            params += f"&wave={wave}"
+        else:
+            params += f"&wave={selected_waves[0].id}"
+
+        return redirect(f"{base}?{params}")
+    
+
+# View zum Bearbeiten einer Frage    
+class QuestionUpdateView(EditorRequiredMixin, UpdateView):
+    model = Question
+    form_class = QuestionEditForm
+    template_name = "questions/question_form.html"
+    context_object_name = "question"
+
+    # ---- helpers -------------------------------------------------
+    def _get_page_from_request(self, question: Question) -> WavePage:
+        """
+        Edit-View ist IMMER seitenkontextbasiert.
+        page kommt als GET-Parameter (?page=<id>) und muss zur Frage passen.
+        """
+        page_id = self.request.GET.get("page")
+        if not page_id:
+            raise Http404("Fehlender Seitenkontext (page).")
+
+        page = get_object_or_404(WavePage, pk=page_id)
+
+        if not WavePageQuestion.objects.filter(wave_page=page, question=question).exists():
+            raise Http404("Diese Frage ist nicht mit der angegebenen Seite verknüpft.")
+
+        return page
+
+    def _preserve_querystring(self, base_url: str) -> str:
+        """
+        Hängt page/wave an URLs an, falls vorhanden.
+        """
+        page = self.request.GET.get("page")
+        wave = self.request.GET.get("wave")
+
+        params = []
+        if page:
+            params.append(f"page={page}")
+        if wave:
+            params.append(f"wave={wave}")
+
+        if not params:
+            return base_url
+        return base_url + "?" + "&".join(params)
+
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        question = self.get_object()
+        page = self._get_page_from_request(question)
+
+        ctx["page"] = page
+        ctx["active_wave_id"] = self.request.GET.get("wave")
+
+        return ctx
+
+    def form_valid(self, form):
+        _ = self._get_page_from_request(self.get_object())
+        messages.success(self.request, "Frage gespeichert.")
+        return super().form_valid(form)
+    
+
+    def get_success_url(self):
+        url = reverse("questions:question_edit", kwargs={"pk": self.object.pk})
+        return self._preserve_querystring(url)
+
+    def get(self, request, *args, **kwargs):
+        # Wenn page fehlt, lieber sauberer Hinweis als stilles Fehlverhalten
+        if not request.GET.get("page"):
+            messages.error(request, "Fehlender Seitenkontext. Bitte öffne die Frage aus einer Seite heraus.")
+            # falls es eine Question-Detail-Seite gibt:
+            try:
+                return redirect(reverse("questions:question_detail", kwargs={"pk": kwargs["pk"]}))
+            except Exception:
+                raise Http404("Fehlender Seitenkontext (page).")
+        return super().get(request, *args, **kwargs)
