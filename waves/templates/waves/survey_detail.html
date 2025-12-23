@@ -69,17 +69,17 @@
       <div class="accordion mb-3" id="pagesAccordion-{{ survey.name|slugify }}-{{ forloop.counter }}">
         <div class="accordion-item">
           <h2 class="accordion-header" id="headingPages-{{ survey.name|slugify }}-{{ forloop.counter }}">
-            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+            <button class="accordion-button " type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapsePages-{{ survey.name|slugify }}-{{ forloop.counter }}"
-                    aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                    aria-expanded="true"
                     aria-controls="collapsePages-{{ survey.name|slugify }}-{{ forloop.counter }}">
               Fragebogenseiten – {{ g.instrument }}
             </button>
           </h2>
 
           <div id="collapsePages-{{ survey.name|slugify }}-{{ forloop.counter }}"
-              class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+              class="accordion-collapse collapse show"
               aria-labelledby="headingPages-{{ survey.name|slugify }}-{{ forloop.counter }}"
               data-bs-parent="#pagesAccordion-{{ survey.name|slugify }}-{{ forloop.counter }}">
             <div class="accordion-body p-0">
