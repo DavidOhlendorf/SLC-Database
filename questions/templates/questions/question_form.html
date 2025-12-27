@@ -1,4 +1,14 @@
 {% extends "main.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script src="{% static 'js/builder/question_keywords.js' %}"></script>
+{% endblock %}
 
 {% block content %}
   <div class="container my-4">
@@ -22,16 +32,31 @@
 
     <div class="card shadow-sm">
       <div class="card-body">
-        <form method="post">
+        <form method="post" novalidate>
           {% csrf_token %}
 
-            <div class="mb-3">
-                <label class="form-label">Fragetext</label>
-                {{ form.questiontext }}
-                {% if form.questiontext.errors %}
-                <div class="text-danger small mt-1">{{ form.questiontext.errors|striptags }}</div>
-                {% endif %}
+          {% if form.errors %}
+            <div class="alert alert-danger">
+              Bitte korrigiere die markierten Felder.
             </div>
+          {% endif %}
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
+
+
+          <div class="mb-3">
+            <label class="form-label">Fragetext</label>
+            {{ form.questiontext }}
+            {% if form.questiontext.errors %}
+              <div class="invalid-feedback d-block">
+                {{ form.questiontext.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
 
             <div class="mb-3">
               <label class="form-label">Fragetyp</label>
@@ -56,6 +81,31 @@
             <div class="mb-3">
               <label class="form-label">Überkategorien</label>
               {{ form.top_categories }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Konstrukt</label>
+              {{ form.construct }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Schlagworte</label>
+
+              <div
+                id="keyword-widget"
+                data-search-url="{% url 'questions:keyword_search' %}"
+                data-create-url="{% url 'questions:keyword_create' %}"
+              >
+                {{ form.keywords }}
+              </div>
+
+              <div class="form-text">
+                Tippe mindestens 2 Zeichen, um Vorschläge zu sehen.
+              </div>
+
+              <div class="form-text text-danger d-none" id="keyword-minlength-hint">
+                Schlagwörter müssen mindestens 2 Zeichen lang sein.
+              </div>
             </div>
 
           <div class="d-flex justify-content-end">

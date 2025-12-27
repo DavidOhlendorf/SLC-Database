@@ -2,10 +2,12 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.http import Http404
+from django.http import Http404, JsonResponse
 
 from django.views import View
 from django.views.generic import DetailView, UpdateView
+from django.views.decorators.http import require_GET
+from django.utils.decorators import method_decorator
 
 
 from accounts.mixins import EditorRequiredMixin
@@ -13,7 +15,7 @@ from accounts.mixins import EditorRequiredMixin
 from django.db.models import Prefetch
 from django.db import transaction
 
-from .models import Question
+from .models import Question, Keyword
 from variables.models import Variable
 from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion 
@@ -227,3 +229,43 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
             except Exception:
                 raise Http404("Fehlender Seitenkontext (page).")
         return super().get(request, *args, **kwargs)
+    
+
+
+# Views für Keyword-Suche und -Anlage
+class KeywordSearchView(EditorRequiredMixin, View):
+    http_method_names = ["get"]
+
+    def get(self, request, *args, **kwargs):
+        q = (request.GET.get("q") or "").strip()
+
+        if len(q) < 2:
+            return JsonResponse([], safe=False)
+
+        qs = (
+            Keyword.objects
+            .filter(name__icontains=q)
+            .order_by("name")[:15]
+        )
+
+        data = [{"value": kw.id, "text": kw.name} for kw in qs]
+        return JsonResponse(data, safe=False)
+
+
+# View zum Anlegen eines neuen Keywords
+class KeywordCreateView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        name = (request.POST.get("name") or "").strip()
+
+        if len(name) < 2:
+            return JsonResponse({"error": "Keyword zu kurz."}, status=400)
+
+        # case-insensitive
+        existing = Keyword.objects.filter(name__iexact=name).first()
+        if existing:
+            return JsonResponse({"value": existing.id, "text": existing.name})
+
+        kw = Keyword.objects.create(name=name)
+        return JsonResponse({"value": kw.id, "text": kw.name})
