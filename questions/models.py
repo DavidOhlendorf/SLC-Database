@@ -80,6 +80,19 @@ class Question(models.Model):
         help_text="Itemstamm, z. B. 'Ich bin jemand, der…' (st).",
     )
 
+    # fehlende Werte (mv)
+    missing_values = models.TextField(
+        blank= True,
+        help_text="Fehlende Werte (mv) im Format mv: Wert : anzuzeigender Wert : Wertelabel (z. B.  mv: -999 : : Das weiß ich nicht.)."
+    )
+
+    # Überkategorien (ka)
+    top_categories = models.TextField(
+        blank= True,
+        help_text="Gruppierung von Items/Antwortoptionen nach übergeordndeten Kategorien (ka)"
+    )
+
+    # Antwortoptionen (ao)
     answer_options = models.JSONField(
     default=list,
     blank=True,
