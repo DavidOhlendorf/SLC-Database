@@ -1,7 +1,12 @@
 # questions/forms.py
 from django import forms
+from django.forms import formset_factory, BaseFormSet
+
 from .models import Question, Keyword, Construct
 
+
+
+# Formular zur Bearbeitung von Fragen
 class QuestionEditForm(forms.ModelForm):
 
     class Meta:
@@ -41,3 +46,75 @@ class QuestionEditForm(forms.ModelForm):
             selected = list(self.instance.keywords.order_by("name").values_list("pk", "name"))
 
         self.fields["keywords"].choices = selected
+
+
+# Formular für einzelne Antwortoptionen
+class AnswerOptionForm(forms.Form):
+    uid = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    variable = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    value = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    label = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+
+# Formset für Antwortoptionen mit Validierung
+class BaseAnswerOptionFormSet(BaseFormSet):
+    """
+    Validierung:
+    - komplett leere Zeilen ignorieren
+    - wenn Zeile nicht leer: uid + label Pflicht
+    - uid muss innerhalb des Formsets eindeutig sein
+    """
+    def clean(self):
+        super().clean()
+
+        seen_uids = set()
+
+        for form in self.forms:
+            # wenn das einzelne Form schon field errors hat, kann cleaned_data fehlen
+            if not hasattr(form, "cleaned_data"):
+                continue
+
+            if form.cleaned_data.get("DELETE"):
+                continue
+
+            uid = (form.cleaned_data.get("uid") or "").strip()
+            variable = (form.cleaned_data.get("variable") or "").strip()
+            value = (form.cleaned_data.get("value") or "").strip()
+            label = (form.cleaned_data.get("label") or "").strip()
+
+            # komplett leere Zeile → ignorieren
+            if not uid and not variable and not value and not label:
+                continue
+
+            # Pflichtfelder (nur wenn Zeile nicht leer)
+            if not uid:
+                form.add_error("uid", "UID ist ein Pflichtfeld.")
+            if not label:
+                form.add_error("label", "Label ist ein Pflichtfeld.")
+
+            # UID-Duplizierung prüfen (nur wenn uid vorhanden)
+            if uid:
+                key = uid.lower()  # case-insensitive Duplikate verhindern
+                if key in seen_uids:
+                    form.add_error("uid", "Diese UID kommt mehrfach vor.")
+                else:
+                    seen_uids.add(key)
+
+
+AnswerOptionFormSet = formset_factory(
+    AnswerOptionForm,
+    formset=BaseAnswerOptionFormSet,
+    can_delete=True,
+    extra=0,
+)

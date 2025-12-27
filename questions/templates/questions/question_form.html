@@ -8,6 +8,7 @@
 {% block extra_js %}
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script src="{% static 'js/builder/question_keywords.js' %}"></script>
+  <script src="{% static 'js/builder/answeroptions_formset.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -113,6 +114,117 @@
               Speichern
             </button>
           </div>
+
+          <!-- Formset für Antwortoptionen -->
+          <hr class="my-4">
+
+          <div class="mb-2 d-flex align-items-center justify-content-between gap-2">
+            <div>
+              <h2 class="h5 mb-1">Antwortoptionen</h2>
+              <div class="text-muted small">
+                UID und Label sind Pflichtfelder. Value/Variable sind optional.
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="ao-add-row">
+              + Antwortoption hinzufügen
+            </button>
+          </div>
+
+          {{ answeroption_formset.management_form }}
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2" id="ao-table">
+              <thead>
+                <tr class="text-muted small">
+                  <th style="min-width: 120px;">UID *</th>
+                  <th style="min-width: 160px;">Variable</th>
+                  <th style="min-width: 120px;">Value</th>
+                  <th style="min-width: 220px;">Label *</th>
+                  <th style="width: 1%;">&nbsp;</th>
+                </tr>
+              </thead>
+
+              <tbody id="ao-tbody">
+                {% for f in answeroption_formset.forms %}
+                  <tr class="ao-row">
+                    <td>
+                      {{ f.uid }}
+                      {% if f.uid.errors %}
+                        <div class="invalid-feedback d-block">{{ f.uid.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {{ f.variable }}
+                      {% if f.variable.errors %}
+                        <div class="invalid-feedback d-block">{{ f.variable.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {{ f.value }}
+                      {% if f.value.errors %}
+                        <div class="invalid-feedback d-block">{{ f.value.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {{ f.label }}
+                      {% if f.label.errors %}
+                        <div class="invalid-feedback d-block">{{ f.label.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td class="text-end">
+                      {# DELETE Feld versteckt, Button setzt es per JS #}
+                      <div class="d-none">
+                        {{ f.DELETE }}
+                      </div>
+
+                      <button type="button"
+                              class="btn btn-link text-danger px-2 ao-delete-row"
+                              title="Zeile löschen">
+                              <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {# Vorlage für neue Zeilen (wird per JS geklont). empty_form nutzt __prefix__ #}
+          <template id="ao-empty-form-template">
+            <tr class="ao-row">
+              <td>
+                {{ answeroption_formset.empty_form.uid }}
+              </td>
+              <td>
+                {{ answeroption_formset.empty_form.variable }}
+              </td>
+              <td>
+                {{ answeroption_formset.empty_form.value }}
+              </td>
+              <td>
+                {{ answeroption_formset.empty_form.label }}
+              </td>
+              <td class="text-end">
+                <div class="d-none">
+                  {{ answeroption_formset.empty_form.DELETE }}
+                </div>
+                <button type="button"
+                        class="btn btn-link text-danger px-2 ao-delete-row"
+                        title="Zeile löschen">
+                  🗑
+                </button>
+              </td>
+            </tr>
+          </template>
+
+
+
+
 
         </form>
       </div>

@@ -20,7 +20,7 @@ from variables.models import Variable
 from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion 
 
-from .forms import QuestionEditForm
+from .forms import QuestionEditForm, AnswerOptionFormSet
 
 
 
@@ -164,6 +164,8 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
     template_name = "questions/question_form.html"
     context_object_name = "question"
 
+    AO_PREFIX = "ao"
+
     # ---- helpers -------------------------------------------------
     def _get_page_from_request(self, question: Question) -> WavePage:
         """
@@ -181,6 +183,7 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
 
         return page
 
+
     def _preserve_querystring(self, base_url: str) -> str:
         """
         Hängt page/wave an URLs an, falls vorhanden.
@@ -197,6 +200,56 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         if not params:
             return base_url
         return base_url + "?" + "&".join(params)
+    
+
+    def _ao_initial(self, question: Question) -> list[dict]:
+        """
+        Initialdaten fürs Formset aus question.answer_options.
+        Fehlende Keys werden als leere Strings ergänzt.
+        """
+        raw = question.answer_options or []
+        initial = []
+        for row in raw:
+            row = row or {}
+            initial.append({
+                "uid": (row.get("uid") or ""),
+                "variable": (row.get("variable") or ""),
+                "value": (row.get("value") or ""),
+                "label": (row.get("label") or ""),
+            })
+        return initial
+
+
+    def _ao_to_json(self, formset) -> list[dict]:
+        """
+        Formset -> JSON-Liste.
+        - gelöschte Zeilen raus
+        - komplett leere Zeilen raus
+        - Pflicht: uid + label (kommt aus Formset-Validierung)
+        - optionale Felder als leere Strings
+        """
+        out = []
+        for cd in formset.cleaned_data:
+            if cd.get("DELETE"):
+                continue
+
+            uid = (cd.get("uid") or "").strip()
+            variable = (cd.get("variable") or "").strip()
+            value = (cd.get("value") or "").strip()
+            label = (cd.get("label") or "").strip()
+
+            # komplett leere Zeile → ignorieren
+            if not uid and not variable and not value and not label:
+                continue
+            
+            # Keys als leere Strings, falls None
+            out.append({
+                "uid": uid,
+                "variable": variable,
+                "value": value,
+                "label": label,
+            })
+        return out
 
 
     def get_context_data(self, **kwargs):
@@ -207,12 +260,51 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         ctx["page"] = page
         ctx["active_wave_id"] = self.request.GET.get("wave")
 
+        if "answeroption_formset" not in ctx:
+            if self.request.method == "POST":
+                ctx["answeroption_formset"] = AnswerOptionFormSet(
+                    self.request.POST,
+                    prefix=self.AO_PREFIX,
+                )
+            else:
+                ctx["answeroption_formset"] = AnswerOptionFormSet(
+                    initial=self._ao_initial(question),
+                    prefix=self.AO_PREFIX,
+                )
+
         return ctx
 
-    def form_valid(self, form):
-        _ = self._get_page_from_request(self.get_object())
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        _ = self._get_page_from_request(self.object)
+
+        form = self.get_form()
+        formset = AnswerOptionFormSet(request.POST, prefix=self.AO_PREFIX)
+
+        if form.is_valid() and formset.is_valid():
+            return self._forms_valid(form, formset)
+
+        return self._forms_invalid(form, formset)
+
+
+    def _forms_valid(self, form, formset):
+        # Hauptobjekt speichern
+        self.object = form.save(commit=False)
+
+        # JSON aus Formset
+        self.object.answer_options = self._ao_to_json(formset)
+
+        self.object.save()
+        form.save_m2m() # für Keywords
+
         messages.success(self.request, "Frage gespeichert.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
+
+
+    def _forms_invalid(self, form, formset):
+        ctx = self.get_context_data(form=form)
+        ctx["answeroption_formset"] = formset
+        return self.render_to_response(ctx)
     
 
     def get_success_url(self):
