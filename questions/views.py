@@ -1,4 +1,5 @@
 # questions/views.py
+from urllib import request
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -20,7 +21,7 @@ from variables.models import Variable
 from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion 
 
-from .forms import QuestionEditForm, AnswerOptionFormSet
+from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet
 
 
 
@@ -165,6 +166,7 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
     context_object_name = "question"
 
     AO_PREFIX = "ao"
+    ITEM_PREFIX = "it"
 
     # ---- helpers -------------------------------------------------
     def _get_page_from_request(self, question: Question) -> WavePage:
@@ -250,6 +252,43 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
                 "label": label,
             })
         return out
+    
+    # Initialdaten fürs Item-Formset
+    def _it_initial(self, question: Question) -> list[dict]:
+        raw = question.items or []
+        initial = []
+        for row in raw:
+            row = row or {}
+            initial.append({
+                "uid": (row.get("uid") or ""),
+                "variable": (row.get("variable") or ""),
+                "label": (row.get("label") or ""),
+            })
+        return initial
+
+
+    # JSON-Liste aus Item-Formset
+    def _it_to_json(self, formset) -> list[dict]:
+        out = []
+        for cd in formset.cleaned_data:
+            if cd.get("DELETE"):
+                continue
+
+            uid = (cd.get("uid") or "").strip()
+            variable = (cd.get("variable") or "").strip()
+            label = (cd.get("label") or "").strip()
+
+            if not uid and not variable and not label:
+                continue
+
+            out.append({
+                "uid": uid,
+                "variable": variable,
+                "label": label,
+            })
+        return out
+
+
 
 
     def get_context_data(self, **kwargs):
@@ -271,6 +310,13 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
                     initial=self._ao_initial(question),
                     prefix=self.AO_PREFIX,
                 )
+        
+        if "item_formset" not in ctx:
+            if self.request.method == "POST":
+                ctx["item_formset"] = ItemFormSet(self.request.POST, prefix=self.ITEM_PREFIX)
+            else:
+                ctx["item_formset"] = ItemFormSet(initial=self._it_initial(question), prefix=self.ITEM_PREFIX)
+
 
         return ctx
 
@@ -279,20 +325,22 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         _ = self._get_page_from_request(self.object)
 
         form = self.get_form()
-        formset = AnswerOptionFormSet(request.POST, prefix=self.AO_PREFIX)
+        ao_formset = AnswerOptionFormSet(request.POST, prefix=self.AO_PREFIX)
+        it_formset = ItemFormSet(request.POST, prefix=self.ITEM_PREFIX)
 
-        if form.is_valid() and formset.is_valid():
-            return self._forms_valid(form, formset)
+        if form.is_valid() and ao_formset.is_valid() and it_formset.is_valid():
+            return self._forms_valid(form, ao_formset, it_formset)
 
-        return self._forms_invalid(form, formset)
+        return self._forms_invalid(form, ao_formset, it_formset)
 
 
-    def _forms_valid(self, form, formset):
+    def _forms_valid(self, form, ao_formset, it_formset):
         # Hauptobjekt speichern
         self.object = form.save(commit=False)
 
-        # JSON aus Formset
-        self.object.answer_options = self._ao_to_json(formset)
+        # JSON aus Formsets
+        self.object.answer_options = self._ao_to_json(ao_formset)
+        self.object.items = self._it_to_json(it_formset)
 
         self.object.save()
         form.save_m2m() # für Keywords
@@ -301,9 +349,10 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return redirect(self.get_success_url())
 
 
-    def _forms_invalid(self, form, formset):
+    def _forms_invalid(self, form, ao_formset, it_formset):
         ctx = self.get_context_data(form=form)
-        ctx["answeroption_formset"] = formset
+        ctx["answeroption_formset"] = ao_formset
+        ctx["item_formset"] = it_formset
         return self.render_to_response(ctx)
     
 

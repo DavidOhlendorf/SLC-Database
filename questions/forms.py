@@ -118,3 +118,65 @@ AnswerOptionFormSet = formset_factory(
     can_delete=True,
     extra=0,
 )
+
+
+# Formular für einzelne Items
+class ItemForm(forms.Form):
+    uid = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    variable = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    label = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+
+
+class BaseItemFormSet(BaseFormSet):
+    """
+    Validierung:
+    - komplett leere Zeilen ignorieren
+    - wenn Zeile nicht leer: uid + label Pflicht
+    - uid muss innerhalb des Formsets eindeutig sein
+    """
+    def clean(self):
+        super().clean()
+
+        seen_uids = set()
+
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data"):
+                continue
+            if form.cleaned_data.get("DELETE"):
+                continue
+
+            uid = (form.cleaned_data.get("uid") or "").strip()
+            variable = (form.cleaned_data.get("variable") or "").strip()
+            label = (form.cleaned_data.get("label") or "").strip()
+
+            if not uid and not variable and not label:
+                continue
+
+            if not uid:
+                form.add_error("uid", "UID ist ein Pflichtfeld.")
+            if not label:
+                form.add_error("label", "Label ist ein Pflichtfeld.")
+
+            if uid:
+                key = uid.lower()
+                if key in seen_uids:
+                    form.add_error("uid", "Diese UID kommt mehrfach vor.")
+                else:
+                    seen_uids.add(key)
+
+
+ItemFormSet = formset_factory(
+    ItemForm,
+    formset=BaseItemFormSet,
+    can_delete=True,
+    extra=0,
+)

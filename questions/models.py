@@ -87,6 +87,13 @@ class Question(models.Model):
         help_text="Itemstamm, z. B. 'Ich bin jemand, der…' (st).",
     )
 
+    # Items (it)
+    items = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Items der Frage als Liste von Objekten, z.B. [{'uid': 'it1', 'value': '1', 'label': 'stimme zu'}].",
+    )
+
     # fehlende Werte (mv)
     missing_values = models.TextField(
         blank= True,

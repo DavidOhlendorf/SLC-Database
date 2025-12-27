@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script src="{% static 'js/builder/question_keywords.js' %}"></script>
   <script src="{% static 'js/builder/answeroptions_formset.js' %}"></script>
+  <script src="{% static 'js/builder/item_formset.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -216,12 +217,108 @@
                 <button type="button"
                         class="btn btn-link text-danger px-2 ao-delete-row"
                         title="Zeile löschen">
-                  🗑
+                        <i class="fa-solid fa-trash"></i>
                 </button>
               </td>
             </tr>
           </template>
 
+
+          <!-- Formset für Items -->
+          <hr class="my-4">
+
+          <div class="mb-2 d-flex align-items-center justify-content-between gap-2">
+            <div>
+              <h2 class="h5 mb-1">Items</h2>
+              <div class="text-muted small">
+                UID und Label sind Pflichtfelder. Variable ist optional.
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="it-add-row">
+              + Item hinzufügen
+            </button>
+          </div>
+
+          {{ item_formset.management_form }}
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2" id="it-table">
+              <thead>
+                <tr class="text-muted small">
+                  <th style="min-width: 120px;">UID *</th>
+                  <th style="min-width: 160px;">Variable</th>
+                  <th style="min-width: 220px;">Label *</th>
+                  <th style="width: 1%;">&nbsp;</th>
+                </tr>
+              </thead>
+
+              <tbody id="it-tbody">
+                {% for f in item_formset.forms %}
+                  <tr class="it-row">
+                    <td>
+                      {{ f.uid }}
+                      {% if f.uid.errors %}
+                        <div class="invalid-feedback d-block">{{ f.uid.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {{ f.variable }}
+                      {% if f.variable.errors %}
+                        <div class="invalid-feedback d-block">{{ f.variable.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {{ f.label }}
+                      {% if f.label.errors %}
+                        <div class="invalid-feedback d-block">{{ f.label.errors|striptags }}</div>
+                      {% endif %}
+                    </td>
+
+                    <td class="text-end">
+                      {# DELETE Feld versteckt, Button setzt es per JS #}
+                      <div class="d-none">
+                        {{ f.DELETE }}
+                      </div>
+
+                      <button type="button"
+                              class="btn btn-link text-danger px-2 ao-delete-row"
+                              title="Zeile löschen">
+                              <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {# Vorlage für neue Zeilen (wird per JS geklont). empty_form nutzt __prefix__ #}
+          <template id="it-empty-form-template">
+            <tr class="it-row">
+              <td>
+                {{ item_formset.empty_form.uid }}
+              </td>
+              <td>
+                {{ item_formset.empty_form.variable }}
+              </td>
+              <td>
+                {{ item_formset.empty_form.label }}
+              </td>
+              <td class="text-end">
+                <div class="d-none">
+                  {{ item_formset.empty_form.DELETE }}
+                </div>
+                <button type="button"
+                        class="btn btn-link text-danger px-2 it-delete-row"
+                        title="Zeile löschen">
+                        <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </template>
 
 
 
