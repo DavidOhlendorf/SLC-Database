@@ -1,9 +1,16 @@
 from django.db import models
 from django.urls import reverse
+from django.db.models.functions import Lower 
 
 class Keyword(models.Model):
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
-    name = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=200, unique=False)
+
+    class Meta:
+        # Enforce case-insensitive uniqueness on 'name'
+        constraints = [
+            models.UniqueConstraint(Lower("name"), name="uniq_keyword_name_lower"),
+        ]
 
     def __str__(self):
         return self.name
