@@ -2,20 +2,23 @@
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, UpdateView, TemplateView
-from django.views.decorators.http import require_http_methods
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.contrib import messages
 
 from accounts.mixins import EditorRequiredMixin
 
 from django.db import transaction
-from django.db.models import Prefetch, OuterRef, Exists
+from django.db.models import Prefetch
+from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
 from waves.models import WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion
+from questions.models import Question
 
 from .forms import WavePageBaseForm, WavePageContentForm, PageQuestionLinkFormSet
 
-
+# Session-Key für verwaiste Fragen-Review
+ORPHAN_REVIEW_SESSION_KEY = "orphan_review"
 
 # Helper: Aktive Wave aus QuerySet bestimmen
 def _get_active_wave_from_qs(request, waves_qs, *, default_first=True):
@@ -301,11 +304,30 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
             to_delete = existing_ids - desired_question_ids
             to_add = desired_question_ids - existing_ids
 
+            removed_qids = list(to_delete)
+
             if to_delete:
-                WavePageQuestion.objects.filter(
-                    wave_page=page,
-                    question_id__in=to_delete
-                ).delete()
+                WavePageQuestion.objects.filter(wave_page=page, question_id__in=to_delete).delete()
+
+                cleanup_wavequestions_for_removed_questions(
+                    page=page,
+                    removed_question_ids=removed_qids,
+                    wave_ids=list(page.waves.values_list("id", flat=True)),
+                )
+
+                orphan_qids = get_new_orphan_question_ids(removed_qids)
+
+                if orphan_qids:
+                    return_url = reverse("pages:page-edit", kwargs={"pk": page.pk})
+                    wave = self.request.GET.get("wave")
+                    if wave:
+                        return_url = f"{return_url}?wave={wave}"
+
+                    self.request.session[ORPHAN_REVIEW_SESSION_KEY] = {
+                        "question_ids": orphan_qids,
+                        "return_url": return_url,
+                    }
+                    return redirect(reverse("pages:orphan_questions_review"))
 
             if to_add:
                 WavePageQuestion.objects.bulk_create([
@@ -377,36 +399,37 @@ class WavePageDeleteView(EditorRequiredMixin, View):
         if active_wave is None:
             active_wave = page.waves.select_related("survey").first()
 
+        # return_url vorab festlegen (für Orphan-Review)
+        if active_wave and active_wave.survey:
+            return_url = reverse("waves:survey_detail", kwargs={"survey_name": active_wave.survey.name})
+            return_url = f"{return_url}?wave={active_wave.id}"
+        else:
+            return_url = reverse("waves:survey_list")
+
+        # Schritt 1: WaveQuestion-Cleanup & Seite löschen
         with transaction.atomic():
             wave_ids = list(page.waves.values_list("id", flat=True))
             question_ids = list(page.page_questions.values_list("question_id", flat=True).distinct())
 
-            # 5) WaveQuestion cleanup
-            # "keep" = es gibt eine andere Seite (≠ page), die diese Frage enthält
-            #          UND die zu derselben Befragungsgruppe gehört.
-            # Szenario sollte im Core nicht vorkommen, da Fragen pro Befragung nicht mehrfach auf Seiten vorkommen dürfen.
-            # Für zukünftige Episodes-Logik aber sinnvoll, da es in Episodes identische Fragen auf mehreren Seiten einer Befragung geben kann.
-            other_usage = WavePageQuestion.objects.filter(
-                question_id=OuterRef("question_id"),
-                wave_page__waves__id=OuterRef("wave_id"),
-            ).exclude(wave_page=page)
-
-            wq_qs = WaveQuestion.objects.filter(
-                wave_id__in=wave_ids,
-                question_id__in=question_ids,
-            ).annotate(
-                keep=Exists(other_usage)
+            # WaveQuestion-Cleanup
+            cleanup_wavequestions_for_removed_questions(
+                page=page,
+                removed_question_ids=question_ids,
+                wave_ids=wave_ids,
             )
 
-            # optional: Zählung für Feedback, gibt an wie viele Fragen/Waves gelöscht wurden
-            delete_wq_count = wq_qs.filter(keep=False).count()
-
-            # löschen nur, wenn nicht mehr gebraucht
-            wq_qs.filter(keep=False).delete()
-
-            # 6) Seite löschen (WavePageQuestion & Screenshots gehen via CASCADE mit)
+            # Seite löschen
             page_name = page.pagename
             page.delete()
+
+        #  Schritt 2: nach der Transaktion: Orphans bestimmen (b)
+        orphan_qids = get_new_orphan_question_ids(question_ids)
+        if orphan_qids:
+            request.session[ORPHAN_REVIEW_SESSION_KEY] = {
+                "question_ids": orphan_qids,
+                "return_url": return_url,   
+            }
+            return redirect(reverse("pages:orphan_questions_review"))
 
         # Erfolgsmeldung
         messages.success(
@@ -415,9 +438,55 @@ class WavePageDeleteView(EditorRequiredMixin, View):
         )
 
         # Redirect: zurück zur Survey-Detailansicht, falls möglich
-        if active_wave and active_wave.survey:
-            url = reverse("waves:survey_detail", kwargs={"survey_name": active_wave.survey.name})
-            url = f"{url}?wave={active_wave.id}"
-            return redirect(url)
+        return redirect(return_url)
+    
 
-        return redirect(reverse("waves:survey_list"))
+
+# View zur Überprüfung verwaister Fragen
+class OrphanQuestionsReviewView(EditorRequiredMixin, View):
+    template_name = "pages/orphan_questions_review.html"
+    http_method_names = ["get", "post"]
+
+    def get(self, request, *args, **kwargs):
+        payload = request.session.get(ORPHAN_REVIEW_SESSION_KEY)
+        if not payload:
+            messages.info(request, "Keine verwaisten Fragen zur Bereinigung vorhanden.")
+            return redirect("waves:survey_list")
+
+        qids = payload.get("question_ids", [])
+        return_url = payload.get("return_url", "")
+
+        questions = (
+            Question.objects
+            .filter(id__in=qids)
+            .only("id", "questiontext")
+            .order_by("id")
+        )
+
+        return render(request, self.template_name, {
+            "questions": questions,
+            "return_url": return_url,
+        })
+
+    def post(self, request, *args, **kwargs):
+        payload = request.session.get(ORPHAN_REVIEW_SESSION_KEY)
+        if not payload:
+            messages.info(request, "Keine verwaisten Fragen zur Bereinigung vorhanden.")
+            return redirect("waves:survey_list")
+
+        action = request.POST.get("action")  # "delete" | "keep"
+        qids = payload.get("question_ids", [])
+        return_url = payload.get("return_url", "")
+
+        # Return-URL absichern
+        if return_url and not url_has_allowed_host_and_scheme(return_url, allowed_hosts={request.get_host()}):
+            return_url = ""
+
+        if action == "delete":
+            num_deleted, _ = Question.objects.filter(id__in=qids).delete()
+            messages.success(request, f"{num_deleted} verwaiste Frage(n) wurden gelöscht.")
+        else:
+            messages.info(request, f"{len(qids)} verwaiste Frage(n) wurden behalten.")
+
+        request.session.pop(ORPHAN_REVIEW_SESSION_KEY, None)
+        return redirect(return_url or "waves:survey_list")
