@@ -1,5 +1,5 @@
 # questions/views.py
-from urllib import request
+
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -7,9 +7,6 @@ from django.http import Http404, JsonResponse
 
 from django.views import View
 from django.views.generic import DetailView, UpdateView
-from django.views.decorators.http import require_GET
-from django.utils.decorators import method_decorator
-
 
 from accounts.mixins import EditorRequiredMixin
 
@@ -169,11 +166,10 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
     ITEM_PREFIX = "it"
 
     # ---- helpers -------------------------------------------------
+
+    # Helper: Edit-View hängt an Seitenkontext. page kommt als GET-Parameter (?page=<id>) und muss zur Frage passen.
     def _get_page_from_request(self, question: Question) -> WavePage:
-        """
-        Edit-View ist IMMER seitenkontextbasiert.
-        page kommt als GET-Parameter (?page=<id>) und muss zur Frage passen.
-        """
+
         page_id = self.request.GET.get("page")
         if not page_id:
             raise Http404("Fehlender Seitenkontext (page).")
@@ -186,10 +182,9 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return page
 
 
+    # Helper: Hägt page/wave an URL an, falls vorhanden
     def _preserve_querystring(self, base_url: str) -> str:
-        """
-        Hängt page/wave an URLs an, falls vorhanden.
-        """
+
         page = self.request.GET.get("page")
         wave = self.request.GET.get("wave")
 
@@ -204,93 +199,48 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return base_url + "?" + "&".join(params)
     
 
-    def _ao_initial(self, question: Question) -> list[dict]:
-        """
-        Initialdaten fürs Formset aus question.answer_options.
-        Fehlende Keys werden als leere Strings ergänzt.
-        """
-        raw = question.answer_options or []
+    # Helper: Lädt Initialdaten aus JSON-Listen
+    def _json_initial(self, rows: list[dict] | None, fields: list[str]) -> list[dict]:
+        rows = rows or []
         initial = []
-        for row in raw:
+        for row in rows:
             row = row or {}
-            initial.append({
-                "uid": (row.get("uid") or ""),
-                "variable": (row.get("variable") or ""),
-                "value": (row.get("value") or ""),
-                "label": (row.get("label") or ""),
-            })
+            initial.append({f: (row.get(f) or "") for f in fields})
         return initial
+    
 
-
-    def _ao_to_json(self, formset) -> list[dict]:
-        """
-        Formset -> JSON-Liste.
-        - gelöschte Zeilen raus
-        - komplett leere Zeilen raus
-        - Pflicht: uid + label (kommt aus Formset-Validierung)
-        - optionale Felder als leere Strings
-        """
+    # Helper: Wandelt das Formset in JSON-Liste um
+    def _formset_to_json(self, formset, fields: list[str]) -> list[dict]:
         out = []
         for cd in formset.cleaned_data:
+            # gelöschte Zeilen raus
             if cd.get("DELETE"):
-                continue
+                continue 
 
-            uid = (cd.get("uid") or "").strip()
-            variable = (cd.get("variable") or "").strip()
-            value = (cd.get("value") or "").strip()
-            label = (cd.get("label") or "").strip()
+            cleaned = {f: (cd.get(f) or "").strip() for f in fields}
 
             # komplett leere Zeile → ignorieren
-            if not uid and not variable and not value and not label:
+            if all(v == "" for v in cleaned.values()):
                 continue
-            
-            # Keys als leere Strings, falls None
-            out.append({
-                "uid": uid,
-                "variable": variable,
-                "value": value,
-                "label": label,
-            })
+
+            out.append(cleaned)  # Keys vollständig, optionale Felder als ""
         return out
-    
-    # Initialdaten fürs Item-Formset
+
+    # Lade Initialdaten für AO- und Item-Formsets
+    def _ao_initial(self, question: Question) -> list[dict]:
+        return self._json_initial(question.answer_options, ["uid", "variable", "value", "label"])
+
     def _it_initial(self, question: Question) -> list[dict]:
-        raw = question.items or []
-        initial = []
-        for row in raw:
-            row = row or {}
-            initial.append({
-                "uid": (row.get("uid") or ""),
-                "variable": (row.get("variable") or ""),
-                "label": (row.get("label") or ""),
-            })
-        return initial
+        return self._json_initial(question.items, ["uid", "variable", "label"])
 
+    # Wandle Formsets von AO und Items in JSON-Listen um
+    def _ao_to_json(self, formset) -> list[dict]:
+        return self._formset_to_json(formset, ["uid", "variable", "value", "label"])
 
-    # JSON-Liste aus Item-Formset
     def _it_to_json(self, formset) -> list[dict]:
-        out = []
-        for cd in formset.cleaned_data:
-            if cd.get("DELETE"):
-                continue
+        return self._formset_to_json(formset, ["uid", "variable", "label"])
 
-            uid = (cd.get("uid") or "").strip()
-            variable = (cd.get("variable") or "").strip()
-            label = (cd.get("label") or "").strip()
-
-            if not uid and not variable and not label:
-                continue
-
-            out.append({
-                "uid": uid,
-                "variable": variable,
-                "label": label,
-            })
-        return out
-
-
-
-
+    # ---- View-Methoden -------------------------------------------
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         question = self.get_object()
