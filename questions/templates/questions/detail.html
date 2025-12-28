@@ -19,6 +19,24 @@
       </div>
     {% endif %}
 
+    {% if perms.accounts.can_edit_slc %}
+      <div class="d-flex justify-content-end mb-3">
+        {% if page and active_wave %}
+          <a class="btn btn-primary btn-sm"
+            href="{% url 'questions:question_edit' question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
+            <i class="fa-solid fa-pen-to-square me-1"></i>
+            Bearbeiten
+          </a>
+        {% else %}
+          <button class="btn btn-primary btn-sm" disabled
+                  title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Welle einer Seite zugeordnet ist.">
+            <i class="fa-solid fa-pen-to-square me-1"></i>
+            Bearbeiten
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <!-- Wellen-Pills -->
     {% if waves %}
       <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
