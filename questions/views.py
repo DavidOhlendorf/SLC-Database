@@ -1,8 +1,10 @@
 # questions/views.py
 
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse
+from urllib.parse import quote
 from django.http import Http404, JsonResponse
 
 from django.views import View
@@ -18,7 +20,7 @@ from variables.models import Variable
 from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion 
 
-from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet
+from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet, AttachWavePageForm
 
 
 
@@ -167,26 +169,60 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
 
     # ---- helpers -------------------------------------------------
 
-    # Helper: Edit-View hängt an Seitenkontext. page kommt als GET-Parameter (?page=<id>) und muss zur Frage passen.
-    def _get_page_from_request(self, question: Question) -> WavePage:
-
+    # Helper: Edit-View hängt an Seitenkontext.
+    # - Wenn ?page=<id> übergeben wird: muss zur Frage passen (sonst 404)
+    # - Wenn ?page fehlt: nimm erste verknüpfte Seite (Fragen sind über Seiten hinweg identisch)
+    # - Wenn gar keine Seite existiert: return None (Orphan)
+    def _get_page_from_request(self, question: Question) -> WavePage | None:
         page_id = self.request.GET.get("page")
-        if not page_id:
-            raise Http404("Fehlender Seitenkontext (page).")
 
-        page = get_object_or_404(WavePage, pk=page_id)
+        # 1) expliziter Kontext: streng validieren
+        if page_id:
+            page = get_object_or_404(WavePage, pk=page_id)
+            if not WavePageQuestion.objects.filter(wave_page=page, question=question).exists():
+                raise Http404("Diese Frage ist nicht mit der angegebenen Seite verknüpft.")
+            return page
 
-        if not WavePageQuestion.objects.filter(wave_page=page, question=question).exists():
-            raise Http404("Diese Frage ist nicht mit der angegebenen Seite verknüpft.")
+        # 2) kein Kontext: erste verknüpfte Seite nehmen
+        return (
+            WavePage.objects
+            .filter(page_questions__question=question)
+            .order_by("id")
+            .first()
+        )
+    
+    # Helper: Redirect zur Attach-View mit Erhalt der ursprünglichen URL
+    def _redirect_to_attach(self, request, question):
+        attach = reverse("questions:question_attach_page", kwargs={"pk": question.pk})
 
-        return page
+        # Zurück zur ursprünglich gewünschten URL (inkl. Querystring)
+        next_url = request.get_full_path()
+        params = f"next={quote(next_url, safe='')}"
+
+        # wave nur durchreichen, wenn sie existiert und nicht locked ist
+        wave = request.GET.get("wave")
+        if wave and Wave.objects.filter(pk=wave, is_locked=False).exists():
+            params += f"&wave={wave}"
+
+        return redirect(f"{attach}?{params}")
 
 
-    # Helper: Hägt page/wave an URL an, falls vorhanden
+
+
+    # Helper: Hägt page/wave an URL an
     def _preserve_querystring(self, base_url: str) -> str:
-
         page = self.request.GET.get("page")
+
+        if not page:
+            # Fallback: erste verknüpfte Seite bestimmen (damit URL stabil ist)
+            q = getattr(self, "object", None) or self.get_object()
+            p = self._get_page_from_request(q)
+            if p:
+                page = str(p.pk)
+
         wave = self.request.GET.get("wave")
+        if wave and not Wave.objects.filter(pk=wave, is_locked=False).exists():
+            wave = None  # locked/invalid nicht durchreichen
 
         params = []
         if page:
@@ -197,6 +233,7 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         if not params:
             return base_url
         return base_url + "?" + "&".join(params)
+
     
 
     # Helper: Lädt Initialdaten aus JSON-Listen
@@ -243,11 +280,12 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
     # ---- View-Methoden -------------------------------------------
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        question = self.get_object()
-        page = self._get_page_from_request(question)
 
-        ctx["page"] = page
+        question = getattr(self, "object", None) or self.get_object()
+
+        ctx["page"] = self._get_page_from_request(question)
         ctx["active_wave_id"] = self.request.GET.get("wave")
+
 
         if "answeroption_formset" not in ctx:
             if self.request.method == "POST":
@@ -272,7 +310,15 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        _ = self._get_page_from_request(self.object)
+        page = self._get_page_from_request(self.object)
+        if page is None:
+            messages.error(
+                request,
+                "Diese Frage ist aktuell keiner Seite zugeordnet. Bitte ordne sie zuerst einer Seite zu."
+            )
+            return self._redirect_to_attach(request, self.object)
+
+
 
         form = self.get_form()
         ao_formset = AnswerOptionFormSet(request.POST, prefix=self.AO_PREFIX)
@@ -311,15 +357,20 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return self._preserve_querystring(url)
 
     def get(self, request, *args, **kwargs):
-        # Wenn page fehlt, lieber sauberer Hinweis als stilles Fehlverhalten
-        if not request.GET.get("page"):
-            messages.error(request, "Fehlender Seitenkontext. Bitte öffne die Frage aus einer Seite heraus.")
-            # falls es eine Question-Detail-Seite gibt:
-            try:
-                return redirect(reverse("questions:question_detail", kwargs={"pk": kwargs["pk"]}))
-            except Exception:
-                raise Http404("Fehlender Seitenkontext (page).")
+        self.object = self.get_object()
+        page = self._get_page_from_request(self.object)
+
+        # Orphan: keine Seitenverknüpfung → Attach-View
+        if page is None:
+            messages.error(
+                request,
+                "Diese Frage ist aktuell keiner Seite zugeordnet. Bitte ordne sie zuerst einer Seite zu."
+            )
+            return self._redirect_to_attach(request, self.object)
         return super().get(request, *args, **kwargs)
+
+
+
     
 
 
@@ -360,3 +411,72 @@ class KeywordCreateView(EditorRequiredMixin, View):
 
         kw = Keyword.objects.create(name=name)
         return JsonResponse({"value": kw.id, "text": kw.name})
+    
+
+
+# View zum Anhängen einer Frage an eine Seite
+class QuestionAttachPageView(EditorRequiredMixin, View):
+    template_name = "questions/question_attach_page.html"
+    http_method_names = ["get", "post"]
+
+    def get(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(Question, pk=pk)
+
+        next_url = request.GET.get("next", "")
+        # Wenn Nutzer schon wave im Query hat, preselect
+        wave_id = request.GET.get("wave")
+        selected_wave = None
+        if wave_id:
+            selected_wave = Wave.objects.filter(pk=wave_id, is_locked=False).first()
+
+        form = AttachWavePageForm(selected_wave=selected_wave, initial={"wave": selected_wave} if selected_wave else None)
+
+        return render(request, self.template_name, {
+            "question": question,
+            "form": form,
+            "next": next_url,
+        })
+
+    def post(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(Question, pk=pk)
+
+        next_url = request.POST.get("next", "")
+        if next_url and not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            next_url = ""
+
+        # Phase 1: Wave wurde gewählt → Formular neu rendern mit Pages dieser Wave
+        wave_id = request.POST.get("wave") or None
+        selected_wave = None
+        if wave_id:
+            selected_wave = Wave.objects.filter(pk=wave_id, is_locked=False).first()
+
+        form = AttachWavePageForm(request.POST, selected_wave=selected_wave)
+
+        # Wenn wave_page fehlt, interpretieren wir das als "nur Wave gewählt" (Reload)
+        if selected_wave and not request.POST.get("wave_page"):
+            return render(request, self.template_name, {
+                "question": question,
+                "form": form,
+                "next": next_url,
+            })
+
+        if not form.is_valid():
+            return render(request, self.template_name, {
+                "question": question,
+                "form": form,
+                "next": next_url,
+            })
+
+        wave = form.cleaned_data["wave"]           # garantiert unlocked
+        page = form.cleaned_data["wave_page"]      # Seite dieser wave, und keine locked-wave enthalten
+
+        with transaction.atomic():
+            WavePageQuestion.objects.get_or_create(wave_page=page, question=question)
+            WaveQuestion.objects.get_or_create(wave=wave, question=question)
+
+        messages.success(request, f"Seite '{page}' wurde zugeordnet.")
+
+        # Danach zurück zur Edit-View, deterministisch mit wave+page
+        target = next_url or reverse("questions:question_edit", kwargs={"pk": question.pk})
+        sep = "&" if "?" in target else "?"
+        return redirect(f"{target}{sep}page={page.pk}&wave={wave.pk}")

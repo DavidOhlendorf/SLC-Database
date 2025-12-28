@@ -3,6 +3,8 @@ from django import forms
 from django.forms import formset_factory, BaseFormSet
 
 from .models import Question, Keyword, Construct
+from pages.models import WavePage
+from waves.models import Wave
 
 
 
@@ -180,3 +182,35 @@ ItemFormSet = formset_factory(
     can_delete=True,
     extra=0,
 )
+
+# Formular zum Anhängen einer Frage an eine Seite
+class AttachWavePageForm(forms.Form):
+    wave = forms.ModelChoiceField(
+        label="Befragung",
+        queryset=Wave.objects.filter(is_locked=False).order_by("cycle", "instrument", "id"),
+        widget=forms.Select(attrs={"class": "form-select", "onchange": "this.form.submit();"}),
+        empty_label="Bitte auswählen …",
+        required=True,
+    )
+
+    wave_page = forms.ModelChoiceField(
+        label="Seite",
+        queryset=WavePage.objects.none(),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        empty_label="Bitte zuerst eine Befragung wählen …",
+        required=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        selected_wave = kwargs.pop("selected_wave", None)
+        super().__init__(*args, **kwargs)
+
+        if selected_wave:
+            # Seiten der ausgewählten Gruppe, aber harte Sperre: sobald Page irgendwo locked ist → raus
+            self.fields["wave_page"].queryset = (
+                WavePage.objects
+                .filter(waves=selected_wave)
+                .exclude(waves__is_locked=True)
+                .order_by("pagename")
+                .distinct()
+            )
