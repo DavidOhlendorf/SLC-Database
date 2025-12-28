@@ -110,11 +110,44 @@
               </div>
             </div>
 
-          <div class="d-flex justify-content-end">
-            <button class="btn btn-primary" type="submit">
-              Speichern
-            </button>
-          </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button class="btn btn-primary" type="submit">Speichern</button>
+
+              <button type="button"
+                      class="btn btn-outline-danger"
+                      {% if not can_delete %}disabled{% endif %}
+                      data-bs-toggle="modal"
+                      data-bs-target="#confirmDeleteModal">
+                Löschen
+              </button>
+            </div>
+
+            <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Frage löschen?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                  </div>
+                  <div class="modal-body">
+                    Wirklich löschen? Das entfernt die Frage aus sämtlichen Befragungen und Seiten-Verknüpfungen.
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                      Abbrechen
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-danger"
+                            form="delete-question-form">
+                      Ja, löschen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
 
           <!-- Formset für Antwortoptionen -->
           <hr class="my-4">
@@ -284,7 +317,7 @@
                       </div>
 
                       <button type="button"
-                              class="btn btn-link text-danger px-2 ao-delete-row"
+                              class="btn btn-link text-danger px-2 it-delete-row"
                               title="Zeile löschen">
                               <i class="fa-solid fa-trash"></i>
                       </button>
@@ -320,9 +353,13 @@
             </tr>
           </template>
 
+        </form>
 
 
-
+        <form id="delete-question-form"
+              method="post"
+              action="{% url 'questions:question_delete' question.id %}">
+          {% csrf_token %}
         </form>
       </div>
     </div>

@@ -286,6 +286,9 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         ctx["page"] = self._get_page_from_request(question)
         ctx["active_wave_id"] = self.request.GET.get("wave")
 
+        # Löschrechte: keine, wenn irgendeine verknüpfte Befragung locked ist
+        ctx["can_delete"] = not self.object.waves.filter(is_locked=True).exists()
+
 
         if "answeroption_formset" not in ctx:
             if self.request.method == "POST":
@@ -480,3 +483,24 @@ class QuestionAttachPageView(EditorRequiredMixin, View):
         target = next_url or reverse("questions:question_edit", kwargs={"pk": question.pk})
         sep = "&" if "?" in target else "?"
         return redirect(f"{target}{sep}page={page.pk}&wave={wave.pk}")
+    
+
+# View zum Löschen einer Frage
+class QuestionDeleteView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        question = get_object_or_404(Question, pk=pk)
+
+        # Schutz: keine Löschung, wenn irgendeine verknüpfte Befragung locked ist
+        if question.waves.filter(is_locked=True).exists():
+            messages.error(
+                request,
+                "Diese Frage ist mit mindestens einer gesperrten Befragung verknüpft und kann nicht gelöscht werden.",
+            )
+            return redirect("questions:question_edit", pk=question.pk)
+
+        question.delete()
+        messages.success(request, "Frage wurde gelöscht.")
+        return redirect("waves:survey_list")
