@@ -373,6 +373,7 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         ctx["answeroption_formset"] = ao_formset
         ctx["item_formset"] = it_formset
 
+        # Flags für sichtbare Errors in Formsets
         ctx["ao_has_visible_errors"] = self._formset_has_visible_errors(ao_formset)
         ctx["it_has_visible_errors"] = self._formset_has_visible_errors(it_formset)
 

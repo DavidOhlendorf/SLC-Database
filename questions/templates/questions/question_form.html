@@ -12,6 +12,7 @@
   <script src="{% static 'js/builder/question_keywords.js' %}"></script>
   <script src="{% static 'js/builder/answeroptions_formset.js' %}"></script>
   <script src="{% static 'js/builder/item_formset.js' %}"></script>
+  <script src="{% static 'js/builder/question_type_other.js' %}"></script>
   <script src="{% static 'js/ui/tooltips.js' %}"></script>
   <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
   <script src="{% static 'js/ui/required_badge.js' %}"></script>
@@ -57,8 +58,29 @@
       <!-- Fragetyp -->
       <div class="card shadow-sm mb-4" data-required-field="question_type">
         <div class="card-body">
-          <h5 class="card-title mb-3">Fragetyp <span data-required-badge class="ms-2"></span></h5>
-          {{ form.question_type }}
+          <h5 class="card-title mb-3">
+            Fragetyp <span data-required-badge class="ms-2"></span>
+          </h5>
+
+          <div class="row g-3 align-items-start">
+            <div class="col-12 col-lg-6">
+              <label for="id_question_type" class="form-label">Fragetyp (qt)</label>
+              {{ form.question_type }}
+            </div>
+            <div class="col-12 col-lg-6" id="qt-other-wrap">
+              <label for="id_question_type_other" class="form-label">Sonstiger Fragetyp:</label>
+              {{ form.question_type_other }}
+
+              {% if form.question_type_other.errors %}
+                <div class="invalid-feedback d-block mt-2">
+                  {{ form.question_type_other.errors|striptags }}
+                </div>
+              {% endif %}
+              <div class="form-text">
+                Nur benötigt, wenn "Sonstiger Fragetyp" ausgewählt ist.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

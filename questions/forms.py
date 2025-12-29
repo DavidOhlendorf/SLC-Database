@@ -13,10 +13,11 @@ class QuestionEditForm(forms.ModelForm):
 
     class Meta:
         model = Question
-        fields = ["questiontext", "question_type", "instruction", "item_stem", "missing_values", "top_categories", "construct", "keywords" ]
+        fields = ["questiontext", "question_type", "question_type_other", "instruction", "item_stem", "missing_values", "top_categories", "construct", "keywords" ]
         widgets = {
             "questiontext": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
             "question_type": forms.Select(attrs={"class": "form-select"}),
+            "question_type_other": forms.TextInput(attrs={"class": "form-control"}),
             "instruction": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "item_stem": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "missing_values": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
@@ -39,15 +40,29 @@ class QuestionEditForm(forms.ModelForm):
         self.fields["keywords"].queryset = Keyword.objects.order_by("name")
 
 
-        # Validierung: muss alle Keywords kennen
-        self.fields["keywords"].queryset = Keyword.objects.all()
-
         # Rendering: nur selected options ausgeben (verhindert lokale Suche ab 1 Zeichen)
         selected = []
         if self.instance and self.instance.pk:
             selected = list(self.instance.keywords.order_by("name").values_list("pk", "name"))
 
         self.fields["keywords"].choices = selected
+
+
+    def clean(self):
+        cleaned = super().clean()
+
+        qt = cleaned.get("question_type")
+        other = (cleaned.get("question_type_other") or "").strip()
+
+        # Validierung: wenn OTHER, dann muss question_type_other ausgefüllt sein
+        if qt == Question.QuestionType.OTHER and not other:
+            self.add_error("question_type_other", "Bitte gib einen sonstigen Fragetyp an.")
+
+        # Feld leeren, wenn nicht OTHER
+        if qt != Question.QuestionType.OTHER:
+            cleaned["question_type_other"] = ""
+
+        return cleaned
 
 
 # Formular für einzelne Antwortoptionen

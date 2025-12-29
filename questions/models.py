@@ -65,7 +65,7 @@ class Question(models.Model):
         MATRIX_SINGLE = "matrix_single", "Einfachauswahl-Matrix"
         MATRIX_MULTI = "matrix_multi", "Mehrfachauswahl-Matrix"
         SEMANTIC_DIFF = "semantic_diff", "Semantisches Differenzial"
-        OTHER = "other", "Sonstiger Fragetyp"
+        OTHER = "other", "Sonstiger Fragetyp / Mischtypen"
 
     # Fragetyp (qt)
     question_type = models.CharField(
@@ -74,6 +74,14 @@ class Question(models.Model):
         blank=True,
         help_text="Fragetyp (qt).",
     )
+
+    # Freitext nur wenn question_type == OTHER
+    question_type_other = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Freitext, falls 'Sonstiger Fragetyp'.",
+    )
+
 
     # Instruktionstext (is)
     instruction = models.TextField(
@@ -113,7 +121,6 @@ class Question(models.Model):
     help_text="Antwortoptionen der Frage als Liste von Objekten, z.B. [{'uid': 'ao1', 'value': '1', 'label': 'sehr gut'}].",
     
     )
-
 
     # Zugeordnete Wellen
     waves = models.ManyToManyField(
