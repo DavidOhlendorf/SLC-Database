@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
   // ---------------------------------
-  // A) Formset zu azsgewählten Fragen: Add/Remove von Zeilen
+  // A) Formset zu ausgewählten Fragen: Add/Remove von Zeilen
   // ---------------------------------
   const container = document.getElementById("qfs-container");
   const addBtn = document.getElementById("qfs-add");
@@ -106,66 +106,109 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 
-  // ---------------------------------
-  // D) Basis-Form: Toggle Edit/Save/Cancel
-  // ---------------------------------
-  const baseForm = document.getElementById("base-form");
-  const baseFields = document.getElementById("base-fields");
+/// ---------------------------------
+// D) Basis-Form: Toggle Edit/Save/Cancel
+// ---------------------------------
+const baseForm = document.getElementById("base-form");
+const baseFields = document.getElementById("base-fields");
 
-  const editBtn = document.getElementById("base-edit-btn");
-  const saveBtn = document.getElementById("base-save-btn");
-  const cancelBtn = document.getElementById("base-cancel-btn");
+const editBtn = document.getElementById("base-edit-btn");
+const saveBtn = document.getElementById("base-save-btn");
+const cancelBtn = document.getElementById("base-cancel-btn");
 
-  if (baseForm && baseFields && editBtn && saveBtn && cancelBtn) {
-    const baseInputs = Array.from(baseFields.querySelectorAll("input, select, textarea"));
+// Content-Form Lock
+const contentForm = document.getElementById("content-form");
+const contentSaveBtn = contentForm?.querySelector('button[type="submit"]');
 
-    const setEnabled = (enabled) => {
-      baseInputs.forEach((el) => { el.disabled = !enabled; });
+function setContentLocked(locked) {
+  if (!contentForm) return;
 
-      editBtn.classList.toggle("d-none", enabled);
-      saveBtn.classList.toggle("d-none", !enabled);
-      cancelBtn.classList.toggle("d-none", !enabled);
+  // optional: alles sperren (außer z.B. Links)
+  contentForm.querySelectorAll("input, select, textarea, button").forEach((el) => {
+    el.disabled = locked;
+  });
 
-      // nach Sperren/Entsperren einmal syncen
-      syncQuestionWaveOptions();
-    };
+  // rein visuell:
+  contentForm.classList.toggle("opacity-75", locked);
+  contentForm.classList.toggle("pe-none", locked); // verhindert Klicks auch auf Wrapper-Ebene
+}
 
-    const snapshot = () => baseInputs.map((el) => {
+// Snapshot/Restore für Question-Waves
+function snapshotQuestionWaves() {
+  const qWaveInputs = Array.from(document.querySelectorAll('input[name^="qfs-"][name$="-waves"]'));
+  return qWaveInputs.map((el) => ({
+    id: el.id,
+    checked: el.checked,
+    disabled: el.disabled,
+  }));
+}
+
+function restoreQuestionWaves(snap) {
+  const byId = new Map(snap.map((x) => [x.id, x]));
+  const qWaveInputs = Array.from(document.querySelectorAll('input[name^="qfs-"][name$="-waves"]'));
+
+  qWaveInputs.forEach((el) => {
+    const s = byId.get(el.id);
+    if (!s) return;
+    el.checked = !!s.checked;
+    el.disabled = !!s.disabled;
+  });
+}
+
+if (baseForm && baseFields && editBtn && saveBtn && cancelBtn) {
+  const baseInputs = Array.from(baseFields.querySelectorAll("input, select, textarea"));
+
+  const setEnabled = (enabled) => {
+    baseInputs.forEach((el) => { el.disabled = !enabled; });
+
+    editBtn.classList.toggle("d-none", enabled);
+    saveBtn.classList.toggle("d-none", !enabled);
+    cancelBtn.classList.toggle("d-none", !enabled);
+
+    // Content während Base-Edit sperren
+    setContentLocked(enabled);
+
+  };
+
+  const snapshotBase = () => baseInputs.map((el) => {
+    if (el.type === "checkbox" || el.type === "radio") {
+      return { id: el.id, type: el.type, checked: el.checked };
+    }
+    return { id: el.id, type: el.type, value: el.value };
+  });
+
+  const restoreBase = (snap) => {
+    const byId = new Map(snap.map((x) => [x.id, x]));
+    baseInputs.forEach((el) => {
+      const s = byId.get(el.id);
+      if (!s) return;
+
       if (el.type === "checkbox" || el.type === "radio") {
-        return { id: el.id, type: el.type, checked: el.checked };
+        el.checked = !!s.checked;
+      } else {
+        el.value = s.value ?? "";
       }
-      return { id: el.id, type: el.type, value: el.value };
     });
+  };
 
-    const restore = (snap) => {
-      const byId = new Map(snap.map((x) => [x.id, x]));
-      baseInputs.forEach((el) => {
-        const s = byId.get(el.id);
-        if (!s) return;
+  let baseSnap = snapshotBase();
+  let qWaveSnap = snapshotQuestionWaves();
 
-        if (el.type === "checkbox" || el.type === "radio") {
-          el.checked = !!s.checked;
-        } else {
-          el.value = s.value ?? "";
-        }
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-    };
+  // Start: gesperrt
+  setEnabled(false);
 
-    let snap = snapshot();
+  editBtn.addEventListener("click", () => {
+    baseSnap = snapshotBase();
+    qWaveSnap = snapshotQuestionWaves(); // Zustand unten merken
+    setEnabled(true);
+  });
 
-    // Start: gesperrt
+  cancelBtn.addEventListener("click", () => {
+    restoreBase(baseSnap);
+    restoreQuestionWaves(qWaveSnap); // Zustand unten zurücksetzen
     setEnabled(false);
+  });
+}
 
-    editBtn.addEventListener("click", () => {
-      snap = snapshot();
-      setEnabled(true);
-    });
-
-    cancelBtn.addEventListener("click", () => {
-      restore(snap);
-      setEnabled(false);
-    });
-  }
 
 });
