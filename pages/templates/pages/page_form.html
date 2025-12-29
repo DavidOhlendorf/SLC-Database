@@ -339,7 +339,7 @@
             <!-- Zusatzfelder 2 -->
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Logik & Hinweise</h5>
+                    <h5 class="card-title mb-3">Seitenübergänge</h5>
 
                     <div class="accordion" id="accordionPageLogic">
 
@@ -368,6 +368,200 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Zusatzfelder 2 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Sonstige Seitenangaben</h5>
+
+                    <div class="accordion" id="accordionPageLogic">
+
+                        <!-- Einblendbedingungen (vc) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-vc">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-vc">
+                                    Einblendbedingungen (vc)
+                                    {% if content_form.visibility_conditions.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-vc"
+                                class="accordion-collapse collapse {% if content_form.visibility_conditions.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.visibility_conditions }}
+                                    {% if content_form.visibility_conditions.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.visibility_conditions.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Antwortvalidierung (av) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-av">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-av">
+                                    Antwortvalidierung (av)
+                                    {% if content_form.answer_validation.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-av"
+                                class="accordion-collapse collapse {% if content_form.answer_validation.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.answer_validation }}
+                                    {% if content_form.answer_validation.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.answer_validation.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Korrekturhinweis (kh) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-kh">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-kh">
+                                    Korrekturhinweis (kh)
+                                    {% if content_form.correction_note.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-kh"
+                                class="accordion-collapse collapse {% if content_form.correction_note.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.correction_note }}
+                                    {% if content_form.correction_note.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.correction_note.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Forcierungsvariablen (fv) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-fv">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-fv">
+                                    Forcierungsvariablen (fv)
+                                    {% if content_form.forcing_variables.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-fv"
+                                class="accordion-collapse collapse {% if content_form.forcing_variables.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.forcing_variables }}
+                                    {% if content_form.forcing_variables.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.forcing_variables.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hilfsvariablen (hv) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-hv">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-hv">
+                                    Hilfsvariablen (hv)
+                                    {% if content_form.helper_variables.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-hv"
+                                class="accordion-collapse collapse {% if content_form.helper_variables.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.helper_variables }}
+                                    {% if content_form.helper_variables.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.helper_variables.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Steuerungsvariablen (sv) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-sv">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-sv">
+                                    Steuerungsvariablen (sv)
+                                    {% if content_form.control_variables.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-sv"
+                                class="accordion-collapse collapse {% if content_form.control_variables.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.control_variables }}
+                                    {% if content_form.control_variables.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.control_variables.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formatierung (fo) -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="hdr-fo">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-fo">
+                                    Formatierung (fo)
+                                    {% if content_form.formatting.value %}
+                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="col-fo"
+                                class="accordion-collapse collapse {% if content_form.formatting.errors %}show{% endif %}">
+                                <div class="accordion-body">
+                                    {{ content_form.formatting }}
+                                    {% if content_form.formatting.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ content_form.formatting.errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Programmierhinweise (hi) -->
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="hdr-hi">

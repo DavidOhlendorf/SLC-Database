@@ -171,6 +171,13 @@ class WavePageContentForm(forms.ModelForm):
             "introduction",
             "transition_control",
             "transitions",
+            "visibility_conditions",
+            "answer_validations",
+            "correction_notes",
+            "forcing_variables",
+            "helper_variables",
+            "control_variables",
+            "formatting",
             "page_programming_notes",
         ]
 
@@ -183,6 +190,13 @@ class WavePageContentForm(forms.ModelForm):
             "introduction": 5,
             "transition_control": 5,
             "transitions": 5,
+            "visibility_conditions": 5,
+            "answer_validations": 5,
+            "correction_notes": 5,
+            "forcing_variables": 5,
+            "helper_variables": 5,
+            "control_variables": 5,
+            "formatting": 5,
             "page_programming_notes": 5,
         }
 
