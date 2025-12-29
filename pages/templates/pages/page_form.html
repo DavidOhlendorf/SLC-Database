@@ -6,6 +6,7 @@
 {% block extra_js %}
     <script src="{% static 'js/builder/page_question_formset.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
+    <script src="{% static 'js/ui/accordeon_features.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -149,80 +150,57 @@
 
                     <div class="accordion" id="accordionPageHeader">
 
-                        <!-- Überschrift (hl) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-hl">
+                        <!-- Überschrift auf der Seite (hl) -->
+                        <div class="accordion-item" data-acc-open-when-filled="page_heading">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-hl">
-                                    Überschrift (hl)
-                                    {% if content_form.page_heading.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
+                                    Überschrift auf der Seite (hl)
                                 </button>
                             </h2>
                             <div id="col-hl"
                                 class="accordion-collapse collapse {% if content_form.page_heading.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.page_heading }}
-                                    {% if content_form.page_heading.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.page_heading.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Einleitung (in) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-in">
-                            <button class="accordion-button collapsed"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#col-in">
-                                Einleitung (in)
-                                {% if content_form.introduction.value %}
-                                <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                {% endif %}
-                            </button>
+                        <!-- Einleitung auf der Seite (in) -->
+                        <div class="accordion-item" data-acc-open-when-filled="introduction">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#col-in">
+                                    Einleitung auf der Seite (in)
+                                </button>
                             </h2>
                             <div id="col-in"
                                 class="accordion-collapse collapse {% if content_form.introduction.errors %}show{% endif %}">
-                            <div class="accordion-body">
-                                {{ content_form.introduction }}
-                                {% if content_form.introduction.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ content_form.introduction.errors|striptags }}
+                                <div class="accordion-body">
+                                    {{ content_form.introduction }}
                                 </div>
-                                {% endif %}
-                            </div>
                             </div>
                         </div>
 
                         <!-- Transitionskontrolle (tc) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-tc">
+                        <div class="accordion-item" data-acc-open-when-filled="transition_control" data-acc-required-field="transition_control">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-tc">
                                     Transitionskontrolle (tc)
-                                    {% if content_form.transition_control.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
+                                    <span data-required-badge class="ms-2"></span>
                                 </button>
                             </h2>
                             <div id="col-tc"
                                 class="accordion-collapse collapse {% if content_form.transition_control.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.transition_control }}
-                                    {% if content_form.transition_control.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.transition_control.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -343,28 +321,21 @@
 
                     <div class="accordion" id="accordionPageLogic">
 
-                        <!-- Filter / Transitions (tr) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-tr">
+                        <!-- Filter (tr) -->
+                        <div class="accordion-item" data-acc-open-when-filled="transitions" data-acc-required-field="transitions">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-tr">
                                     Filter / Transitions (tr)
-                                    {% if content_form.transitions.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
+                                    <span data-required-badge class="ms-2"></span>
                                 </button>
                             </h2>
                             <div id="col-tr"
                                 class="accordion-collapse collapse {% if content_form.transitions.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.transitions }}
-                                    {% if content_form.transitions.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.transitions.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -380,210 +351,146 @@
 
                     <div class="accordion" id="accordionPageLogic">
 
-                        <!-- Einblendbedingungen (vc) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-vc">
+                        <!-- visibility conditions (vc)-->
+                        <div class="accordion-item" data-acc-open-when-filled="visibility_conditions">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-vc">
                                     Einblendbedingungen (vc)
-                                    {% if content_form.visibility_conditions.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
                                 </button>
                             </h2>
                             <div id="col-vc"
                                 class="accordion-collapse collapse {% if content_form.visibility_conditions.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.visibility_conditions }}
-                                    {% if content_form.visibility_conditions.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.visibility_conditions.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Antwortvalidierung (av) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-av">
+                        <div class="accordion-item" data-acc-open-when-filled="answer_validations">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-av">
-                                    Antwortvalidierung (av)
-                                    {% if content_form.answer_validation.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
+                                    Antwortvalidierungen (av)
                                 </button>
                             </h2>
                             <div id="col-av"
-                                class="accordion-collapse collapse {% if content_form.answer_validation.errors %}show{% endif %}">
+                                class="accordion-collapse collapse {% if content_form.answer_validations.errors %}show{% endif %}">
                                 <div class="accordion-body">
-                                    {{ content_form.answer_validation }}
-                                    {% if content_form.answer_validation.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.answer_validation.errors|striptags }}
-                                        </div>
-                                    {% endif %}
+                                    {{ content_form.answer_validations }}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Korrekturhinweis (kh) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-kh">
+                        <div class="accordion-item" data-acc-open-when-filled="correction_note">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-kh">
-                                    Korrekturhinweis (kh)
-                                    {% if content_form.correction_note.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
+                                    Korrekturhinweise (kh)
                                 </button>
                             </h2>
                             <div id="col-kh"
                                 class="accordion-collapse collapse {% if content_form.correction_note.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.correction_note }}
-                                    {% if content_form.correction_note.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.correction_note.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Forcierungsvariablen (fv) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-fv">
+                        <div class="accordion-item" data-acc-open-when-filled="forcing_variables">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-fv">
                                     Forcierungsvariablen (fv)
-                                    {% if content_form.forcing_variables.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
                                 </button>
                             </h2>
                             <div id="col-fv"
                                 class="accordion-collapse collapse {% if content_form.forcing_variables.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.forcing_variables }}
-                                    {% if content_form.forcing_variables.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.forcing_variables.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Hilfsvariablen (hv) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-hv">
+                        <div class="accordion-item" data-acc-open-when-filled="helper_variables">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-hv">
                                     Hilfsvariablen (hv)
-                                    {% if content_form.helper_variables.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
                                 </button>
                             </h2>
                             <div id="col-hv"
                                 class="accordion-collapse collapse {% if content_form.helper_variables.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.helper_variables }}
-                                    {% if content_form.helper_variables.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.helper_variables.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Steuerungsvariablen (sv) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-sv">
+                        <div class="accordion-item" data-acc-open-when-filled="control_variables">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-sv">
                                     Steuerungsvariablen (sv)
-                                    {% if content_form.control_variables.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
                                 </button>
                             </h2>
                             <div id="col-sv"
                                 class="accordion-collapse collapse {% if content_form.control_variables.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.control_variables }}
-                                    {% if content_form.control_variables.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.control_variables.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Formatierung (fo) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-fo">
+                        <div class="accordion-item" data-acc-open-when-filled="form">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-fo">
-                                    Formatierung (fo)
-                                    {% if content_form.formatting.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
+                                    Formatierungen (fo)
                                 </button>
                             </h2>
                             <div id="col-fo"
                                 class="accordion-collapse collapse {% if content_form.formatting.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.formatting }}
-                                    {% if content_form.formatting.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.formatting.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Programmierhinweise (hi) -->
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="hdr-hi">
+                        <div class="accordion-item" data-acc-open-when-filled="page_programming_notes">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-hi">
                                     Programmierhinweise (hi)
-                                    {% if content_form.page_programming_notes.value %}
-                                        <span class="badge text-bg-secondary ms-2">gefüllt</span>
-                                    {% endif %}
                                 </button>
                             </h2>
                             <div id="col-hi"
                                 class="accordion-collapse collapse {% if content_form.page_programming_notes.errors %}show{% endif %}">
                                 <div class="accordion-body">
                                     {{ content_form.page_programming_notes }}
-                                    {% if content_form.page_programming_notes.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ content_form.page_programming_notes.errors|striptags }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>

@@ -186,18 +186,18 @@ class WavePageContentForm(forms.ModelForm):
 
         # Größe der Textfelder anpassen
         row_map = {
-            "page_heading": 5,
-            "introduction": 5,
-            "transition_control": 5,
+            "page_heading": 3,
+            "introduction": 3,
+            "transition_control": 3,
             "transitions": 5,
-            "visibility_conditions": 5,
-            "answer_validations": 5,
-            "correction_notes": 5,
-            "forcing_variables": 5,
-            "helper_variables": 5,
-            "control_variables": 5,
-            "formatting": 5,
-            "page_programming_notes": 5,
+            "visibility_conditions": 3,
+            "answer_validations": 3,
+            "correction_notes": 3,
+            "forcing_variables": 3,
+            "helper_variables": 3,
+            "control_variables": 3,
+            "formatting": 3,
+            "page_programming_notes": 3,
         }
 
 
