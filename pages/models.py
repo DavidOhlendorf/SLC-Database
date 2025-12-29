@@ -38,6 +38,48 @@ class WavePage(models.Model):
         help_text="Transitionskontrolle in Textform (tc).",
     )
 
+    # Einblendbedingungen (vc)
+    visibility_conditions = models.TextField(
+        blank=True,
+        help_text="Einblendbedingungen (vc).",
+    )
+
+    # Antwortvalidierungen (av)
+    answer_validations = models.TextField(
+        blank=True,
+        help_text="Antwortvalidierungen (av).",
+    )
+
+    # Korrekturhinweise (kh)
+    correction_notes = models.TextField(
+        blank=True,
+        help_text="Korrekturhinweise (kh).",
+    )
+
+    # Forcierungsvariablen (fv)
+    forcing_variables = models.TextField(
+        blank=True,
+        help_text="Forcierungsvariablen (fv).",
+    )
+
+    # Hilfsvariablen (hv)
+    helper_variables = models.TextField(    
+        blank=True,
+        help_text="Hilfsvariablen (hv).",
+    )
+
+    # Steuerungsvariablen (sv)
+    control_variables = models.TextField(
+        blank=True,
+        help_text="Steuerungsvariablen (sv).",
+    )
+
+    # Formatierung (fo)
+    formatting = models.TextField(
+        blank=True,
+        help_text="Formatierung (fo).",
+    )
+
     # Seitenübergänge (tr)
     transitions = models.TextField(
         blank=True,
