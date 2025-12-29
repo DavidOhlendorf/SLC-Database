@@ -6,7 +6,7 @@
     <!-- Seitentitel -->
     <header class="mb-3">
       <h1 class="h3">
-        Seite: {{ page.pagename }}
+        Fragebogenseite: {{ page.pagename }}
       </h1>
     </header>
 
@@ -44,7 +44,7 @@
         {% if perms.accounts.can_edit_slc %}
           <a class="btn btn-sm btn-outline-secondary"
             href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
-            <i class="fa-solid fa-pen-to-square me-1"></i> Bearbeiten
+            <i class="fa-solid fa-pen-to-square me-1"></i> Fagebogenseite bearbeiten
           </a>
         {% endif %}
       </div>
@@ -53,26 +53,6 @@
 
 
     <!-- Fragen auf der Seite -->
-    {% if perms.accounts.can_edit_slc %}
-      <div class="d-flex justify-content-end px-3 pt-3">
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-primary"
-          data-bs-toggle="modal"
-          data-bs-target="#modalAddQuestionToPage"
-          {% if page_is_locked %}disabled{% endif %}
-          {% if page_is_locked %}
-            title="Keine neuen Fragen möglich, weil die Seite mit einer abgeschlossenen Befragung verknüpft ist."
-          {% endif %}
-        >
-          <i class="fa-solid fa-circle-plus me-1"></i> Neue Frage
-        </button>
-      </div>
-    {% endif %}
-
-
-
-
     <div class="accordion mb-3" id="questionsAccordion-{{ page.id }}">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingQuestions-{{ page.id }}">
@@ -101,17 +81,32 @@
               {% if page_questions %}
                 <div class="list-group list-group-flush">
                   {% for pq in page_questions %}
-                    <a class="list-group-item list-group-item-action"
-                       href="{% url 'questions:question_detail' pq.question.id %}?wave={{ active_wave.id }}">
-                      <div class="fw-semibold">
-                        {{ pq.question }}
-                      </div>
-                      {% if pq.question.questiontext %}
+                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">
+                          {{ pq.question }}
+                        </div>
+                        {% if pq.question.questiontext %}
                         <div class="text-muted small text-truncate">
                           {{ pq.question.questiontext }}
                         </div>
-                      {% endif %}
-                    </a>
+                        {% endif %}
+                      </div>
+                      <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
+                        <a class="btn btn-link px-2 icon-action"
+                          title="Details anzeigen"
+                          href="{% url 'questions:question_detail' pq.question.id %}?wave={{ active_wave.id }}">
+                          <i class="fa-regular fa-eye"></i>
+                        </a>
+                        {% if perms.accounts.can_edit_slc %}
+                          <a class="btn btn-link px-2 icon-action"
+                            title="Seite bearbeiten"
+                            href="{% url 'questions:question_edit' pq.question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </a>
+                        {% endif %}
+                      </div>
+                    </div>
                   {% endfor %}
                 </div>
               {% else %}
@@ -120,15 +115,34 @@
                 </p>
               {% endif %}
             {% endwith %}
-
           </div>
         </div>
       </div>
     </div>
 
+    {% if perms.accounts.can_edit_slc %}
+      <div class="d-flex">
+        <button
+          type="button"
+          class="btn btn-sm btn-dark"
+          data-bs-toggle="modal"
+          data-bs-target="#modalAddQuestionToPage"
+          {% if page_is_locked %}disabled{% endif %}
+          {% if page_is_locked %}
+            title="Keine neuen Fragen möglich, weil die Seite mit einer abgeschlossenen Befragung verknüpft ist."
+          {% endif %}
+        >
+          <i class="fa-solid fa-circle-plus me-1"></i> Neue Frage
+        </button>
+      </div>
+    {% endif %}
+
+    
+
     <!-- Screenshots -->
     {% with page.screenshots.all as screenshots %}
       {% if screenshots %}
+        <hr class="my-4">
         <h2 class="h6 mb-2 fw-semibold">Screenshots</h2>
 
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">

@@ -10,7 +10,7 @@
   <h1> {{ survey.name }} </h1>
 
   {% if waves %}
-    <ul class="nav nav-pills flex-wrap gap-2 mb-3">
+    <ul class="nav nav-pills flex-wrap gap-2 mb-2">
         <li class="nav-item">
           <a class="nav-link {% if is_all_mode %}active{% endif %}"
             href="?wave=all">
@@ -30,6 +30,17 @@
       {% endfor %}
     </ul>
   {% endif %}
+
+  <div class="mb-5">
+    <a href="{% url 'waves:survey_list' %}"
+      class="text-muted small text-decoration-none opacity-75">
+      ← Zurück zur Befragungsübersicht
+    </a>
+  </div>
+
+
+
+
 
   <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
     <div class="text-muted small">
@@ -60,7 +71,7 @@
           </button>
         {% endif %}
       {% endif %} 
-      </div>
+    </div>
   </div>
 
   <!-- Seiten-Anzeige für die gesamte Befragung-->
