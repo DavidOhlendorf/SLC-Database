@@ -276,6 +276,26 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
 
     def _it_to_json(self, formset) -> list[dict]:
         return self._formset_to_json(formset, ["uid", "variable", "label"])
+    
+
+    # Helper: Prüft, ob ein Formset sichtbare Errors hat
+    def _formset_has_visible_errors(self, formset) -> bool:
+        """
+        True, wenn es in einem nicht-gelöschten Form Errors gibt.
+        (DELETE-Forms werden für die UI ignoriert.)
+        """
+        for f in formset.forms:
+            # DELETE kommt bei ungültigen Forms evtl. nicht in cleaned_data,
+            # daher aus raw POST lesen:
+            is_deleted = f.data.get(f"{f.prefix}-DELETE") in ("on", "true", "True", "1")
+            if is_deleted:
+                continue
+            if f.errors:
+                return True
+        return False
+
+
+
 
     # ---- View-Methoden -------------------------------------------
     def get_context_data(self, **kwargs):
@@ -352,6 +372,10 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         ctx = self.get_context_data(form=form)
         ctx["answeroption_formset"] = ao_formset
         ctx["item_formset"] = it_formset
+
+        ctx["ao_has_visible_errors"] = self._formset_has_visible_errors(ao_formset)
+        ctx["it_has_visible_errors"] = self._formset_has_visible_errors(it_formset)
+
         return self.render_to_response(ctx)
     
 

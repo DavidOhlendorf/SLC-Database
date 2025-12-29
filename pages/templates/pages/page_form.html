@@ -6,7 +6,8 @@
 {% block extra_js %}
     <script src="{% static 'js/builder/page_question_formset.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
-    <script src="{% static 'js/ui/accordeon_features.js' %}"></script>
+    <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
+    <script src="{% static 'js/ui/required_badge.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -129,6 +130,7 @@
         </div>
 
 
+
         <!--- Inhaltsdaten der Seite--->
         {% url "pages:page-edit-content" page.id as content_action %}
         <form method="post"
@@ -187,7 +189,7 @@
                         </div>
 
                         <!-- Transitionskontrolle (tc) -->
-                        <div class="accordion-item" data-acc-open-when-filled="transition_control" data-acc-required-field="transition_control">
+                        <div class="accordion-item" data-acc-open-when-filled="transition_control" data-required-field="transition_control">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
@@ -322,7 +324,7 @@
                     <div class="accordion" id="accordionPageLogic">
 
                         <!-- Filter (tr) -->
-                        <div class="accordion-item" data-acc-open-when-filled="transitions" data-acc-required-field="transitions">
+                        <div class="accordion-item" data-acc-open-when-filled="transitions" data-required-field="transitions">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
@@ -344,12 +346,12 @@
             </div>
 
 
-            <!-- Zusatzfelder 2 -->
+            <!-- Zusatzfelder 3 -->
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Sonstige Seitenangaben</h5>
 
-                    <div class="accordion" id="accordionPageLogic">
+                    <div class="accordion" id="accordionAdditionalPageFields">
 
                         <!-- visibility conditions (vc)-->
                         <div class="accordion-item" data-acc-open-when-filled="visibility_conditions">
