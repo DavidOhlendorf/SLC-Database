@@ -1,5 +1,6 @@
 # questions/views.py
 
+from urllib import request
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -21,6 +22,8 @@ from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion 
 
 from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet, AttachWavePageForm
+
+from .utils import create_question_for_page
 
 
 
@@ -96,9 +99,11 @@ class QuestionDetail(DetailView):
     
 # View zum Anlegen einer neuen Frage 
 class QuestionCreateFromPageView(EditorRequiredMixin, View):
+
     http_method_names = ["post"]
 
     def post(self, request, page_id, *args, **kwargs):
+
         page = get_object_or_404(WavePage, pk=page_id)
 
         # Harte Sperre: wenn Seite an locked-wave hängt → kein Neuanlegen
@@ -108,7 +113,7 @@ class QuestionCreateFromPageView(EditorRequiredMixin, View):
                 "Auf dieser Seite können keine neuen Fragen angelegt werden, "
                 "weil sie mit einer abgeschlossenen Befragung verknüpft ist."
             )
-            url = reverse("pages:page_detail", kwargs={"pk": page.pk})
+            url = reverse("pages:page-detail", kwargs={"pk": page.pk})
             wave = request.GET.get("wave")
             if wave:
                 url = f"{url}?wave={wave}"
@@ -118,28 +123,23 @@ class QuestionCreateFromPageView(EditorRequiredMixin, View):
         allowed_waves_qs = page.waves.filter(is_locked=False)
 
         # vom Modal: waves=<id>&waves=<id>...
-        selected_ids = request.POST.getlist("waves")
+        selected_ids = request.POST.getlist("waves") or request.POST.getlist("wave_ids")
+
         # defensive: nur IDs zulassen, die in allowed_waves liegen
         selected_waves = list(allowed_waves_qs.filter(id__in=selected_ids))
 
         if not selected_waves:
             messages.error(request, "Bitte wähle mindestens eine Befragungsgruppe aus.")
-            url = reverse("pages:page_detail", kwargs={"pk": page.pk})
-            wave = request.GET.get("wave")
-            if wave:
-                url = f"{url}?wave={wave}"
-            return redirect(url)
+            return redirect(request.META.get("HTTP_REFERER", "/"))
 
-        with transaction.atomic():
-            q = Question.objects.create(questiontext="")
 
-            WavePageQuestion.objects.create(
-                wave_page=page,
-                question=q,
+        # Frage anlegen und verknüpfen mit Helferfunktion
+        result = create_question_for_page(
+                page=page,
+                questiontext="",  # ANPASSEN FALLS WIR DEN QT HIER MITGEBEN WOLLEN
+                wave_ids=[w.id for w in selected_waves],
             )
-
-            for w in selected_waves:
-                WaveQuestion.objects.get_or_create(wave=w, question=q)
+        q = result.question
 
         # Redirect auf Edit-View
         base = reverse("questions:question_edit", kwargs={"pk": q.pk})
@@ -529,3 +529,57 @@ class QuestionDeleteView(EditorRequiredMixin, View):
         question.delete()
         messages.success(request, "Frage wurde gelöscht.")
         return redirect("waves:survey_list")
+    
+# AJAX-View zum Anlegen einer Frage auf einer Seite
+# Rückgabe JSON mit Erfolg oder Fehler
+class QuestionQuickCreateForPageAjaxView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, page_id, *args, **kwargs):
+        page = get_object_or_404(WavePage, pk=page_id)
+
+        # Harte Sperre: wenn Seite locked → kein Neuanlegen
+        if page.waves.filter(is_locked=True).exists():
+            return JsonResponse({
+                "ok": False,
+                "error": "Auf dieser Seite können keine neuen Fragen angelegt werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist."
+            }, status=400)
+
+        allowed_waves_qs = page.waves.filter(is_locked=False)
+        allowed_ids = set(allowed_waves_qs.values_list("id", flat=True))
+
+        questiontext = (request.POST.get("questiontext") or "").strip()
+        wave_ids_raw = request.POST.getlist("wave_ids")
+
+        if not questiontext:
+            return JsonResponse({"ok": False, "error": "Bitte gib einen Fragetext ein."}, status=400)
+
+        if not wave_ids_raw:
+            return JsonResponse({"ok": False, "error": "Bitte wähle mindestens eine Befragungsgruppe aus."}, status=400)
+
+        try:
+            wave_ids = [int(x) for x in wave_ids_raw]
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Ungültige Wave-Auswahl."}, status=400)
+
+        if not set(wave_ids).issubset(allowed_ids):
+            return JsonResponse({
+                "ok": False,
+                "error": "Mindestens eine ausgewählte Befragungsgruppe ist nicht zulässig (ggf. locked)."
+            }, status=400)
+
+        result = create_question_for_page(
+            page=page,
+            questiontext=questiontext,
+            wave_ids=wave_ids,
+        )
+
+        q = result.question
+
+        return JsonResponse({
+            "ok": True,
+            "question": {
+                "id": q.id,
+                "label": q.questiontext[:200],
+            },
+        })

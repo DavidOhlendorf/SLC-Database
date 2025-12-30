@@ -13,5 +13,8 @@ urlpatterns = [
     # Keywords
     path("keywords/search/", views.KeywordSearchView.as_view(), name="keyword_search"),
     path("keywords/create/", views.KeywordCreateView.as_view(), name="keyword_create"),
+    
+    # AJAX-Endpoint zum schnellen Anlegen einer Frage bei der Seitenbearbeitung
+    path("pages/<int:page_id>/questions/quick-create/",views.QuestionQuickCreateForPageAjaxView.as_view(),name="question-quick-create-for-page-ajax",)
 
 ]

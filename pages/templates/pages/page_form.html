@@ -593,8 +593,9 @@
     </div>
 
     <!-- Modal: Frage Quickcreate -->
-    {% url "pages:page-question-quick-create" page.id as qc_post_url %}
+    {% url "questions:question-quick-create-for-page-ajax" page.id as qc_post_url %}
     {% include "pages/_question_quickcreate_modal.html" with qc_mode="ajax" qc_post_url=qc_post_url %}
+
 
 
 {% endblock %}

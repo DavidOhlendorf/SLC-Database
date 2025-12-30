@@ -126,7 +126,7 @@
           type="button"
           class="btn btn-sm btn-dark"
           data-bs-toggle="modal"
-          data-bs-target="#modalAddQuestionToPage"
+          data-bs-target="#qcModal"
           {% if page_is_locked %}disabled{% endif %}
           {% if page_is_locked %}
             title="Keine neuen Fragen möglich, weil die Seite mit einer abgeschlossenen Befragung verknüpft ist."
@@ -136,8 +136,6 @@
         </button>
       </div>
     {% endif %}
-
-    
 
     <!-- Screenshots -->
     {% with page.screenshots.all as screenshots %}
@@ -178,62 +176,9 @@
       {% endif %}
     {% endwith %}
 
-    <!-- Modal: Neue Frage anlegen -->
-    <div class="modal fade" id="modalAddQuestionToPage" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
+    {% url "questions:question_create_from_page" page.id as qc_post_url %}
+    {% include "pages/_question_quickcreate_modal.html" with qc_mode="redirect" qc_post_url=qc_post_url %}
 
-          <div class="modal-header">
-            <h5 class="modal-title">Neue Frage anlegen</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-          </div>
-
-          <form method="post"
-                action="{% url 'questions:question_create_from_page' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
-            {% csrf_token %}
-
-            <div class="modal-body">
-              {% if page_is_locked %}
-                <div class="alert alert-warning mb-0">
-                  Diese Seite ist Teil einer abgeschlossenen Befragung. Neue Fragen können hier nicht angelegt werden.
-                </div>
-              {% else %}
-                <p class="text-muted small mb-2">
-                  Wähle die Befragungsgruppen aus, in denen diese Frage vorkommen soll.
-                </p>
-
-                {% for w in edit_question_allowed_waves %}
-                  <div class="form-check">
-                    <input class="form-check-input"
-                          type="checkbox"
-                          name="waves"
-                          value="{{ w.id }}"
-                          id="qwave-{{ w.id }}"
-                          {% if active_wave and w.id == active_wave.id %}checked{% endif %}>
-                    <label class="form-check-label" for="qwave-{{ w.id }}">
-                      {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
-                    </label>
-                  </div>
-                {% empty %}
-                  <div class="alert alert-info mb-0">
-                    Diese Seite ist aktuell keiner (bearbeitbaren) Befragungsgruppe zugeordnet.
-                  </div>
-                {% endfor %}
-              {% endif %}
-            </div>
-
-            <div class="modal-footer">
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-              <button type="submit" class="btn btn-primary" {% if page_is_locked %}disabled{% endif %}>
-                Anlegen
-              </button>
-            </div>
-
-          </form>
-
-        </div>
-      </div>
-    </div>
 
 
 

@@ -96,6 +96,13 @@
       }
 
       targetSelect.value = qid;
+      const row = targetSelect.closest(".qfs-form");
+        if (row) {
+            const waveSet = new Set(waveIds.map(String));
+            row.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = waveSet.has(String(cb.value));
+            });
+        }
       targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
 
       bsModal.hide();

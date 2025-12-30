@@ -3,44 +3,61 @@
 <div class="modal fade" id="qcModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Neue Frage anlegen</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-      </div>
+      <form method="post" action="{{ qc_post_url }}">
+        {% csrf_token %}
 
-      <div class="modal-body">
-        <div id="qcError" class="alert alert-danger d-none"></div>
-
-        <div class="mb-3">
-          <label for="qcQuestiontext" class="form-label">Fragetext</label>
-          <textarea id="qcQuestiontext" class="form-control" rows="3" required></textarea>
+        <div class="modal-header">
+          <h5 class="modal-title">Neue Frage anlegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
         </div>
 
-        <div class="mb-2">
-          <div class="form-label">Befragtengruppe(n)</div>
-          <div class="vstack gap-1">
-            {% for w in page.waves.all %}
-              {% if not w.is_locked %}
-                <label class="form-check">
-                  <input class="form-check-input qc-wave" type="checkbox" value="{{ w.id }}">
-                  <span class="form-check-label">{{ w }}</span>
-                </label>
-              {% endif %}
-            {% endfor %}
+        <div class="modal-body">
+          <div id="qcError" class="alert alert-danger d-none"></div>
+
+          <div class="mb-3">
+            <label for="qcQuestiontext" class="form-label">Fragetext</label>
+            <textarea
+              id="qcQuestiontext"
+              name="questiontext"
+              class="form-control"
+              rows="3"
+              required></textarea>
           </div>
-          <div class="form-text">Nur nicht abgeschlossene Befragtengruppen sind auswählbar.</div>
+
+          <div class="mb-2">
+            <div class="form-label">Befragtengruppe(n)</div>
+            <div class="vstack gap-1">
+              {% for w in page.waves.all %}
+                {% if not w.is_locked %}
+                  <label class="form-check">
+                    <input class="form-check-input qc-wave"
+                          type="checkbox"
+                          value="{{ w.id }}"
+                          {% if qc_mode != "ajax" %}name="waves"{% endif %}>
+                    <span class="form-check-label">{{ w }}</span>
+                  </label>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <div class="form-text">Nur nicht abgeschlossene Befragtengruppen sind auswählbar.</div>
+          </div>
+
+          <input type="hidden" id="qcMode" value="{{ qc_mode|default:'ajax' }}">
+          <input type="hidden" id="qcPostUrl" value="{{ qc_post_url }}">
+          <input type="hidden" id="qcTargetSelectId" value="">
         </div>
 
-        {# Diese hidden-Felder steuern das Verhalten (Variante A) #}
-        <input type="hidden" id="qcMode" value="{{ qc_mode|default:'ajax' }}">
-        <input type="hidden" id="qcPostUrl" value="{{ qc_post_url }}">
-        <input type="hidden" id="qcTargetSelectId" value="">
-      </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          {% if qc_mode == "ajax" %}
+            <button type="button" class="btn btn-primary" id="qcSubmit">Anlegen</button>
+          {% else %}
+            <button type="submit" class="btn btn-primary">Anlegen</button>
+          {% endif %}
+        </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-        <button type="button" class="btn btn-primary" id="qcSubmit">Anlegen</button>
-      </div>
+      </form>
     </div>
+
   </div>
 </div>

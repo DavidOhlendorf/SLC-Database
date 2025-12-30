@@ -112,3 +112,10 @@ class WavePageScreenshotAdmin(admin.ModelAdmin):
     list_filter = ("language", "device")
     search_fields = ("wave_page__pagename", "image_path")
     list_select_related = ("wave_page",)
+
+
+@admin.register(WavePageQuestion)
+class WavePageQuestionAdmin(admin.ModelAdmin):
+    list_display = ("wave_page", "question")
+    search_fields = ("wave_page__pagename", "question__questiontext")
+    list_select_related = ("wave_page", "question")

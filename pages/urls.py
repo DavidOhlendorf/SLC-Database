@@ -18,7 +18,4 @@ urlpatterns = [
     # Ein POST-Endpunkt zum Löschen einer Seite
     path("<int:pk>/delete/", views.WavePageDeleteView.as_view(), name="page-delete"),
 
-    # Ein POST-Endpunkt zum Hinzufügen einer neuen Frage zu einer Seite
-    path("<int:pk>/questions/quick-create/", views.WavePageQuestionQuickCreateView.as_view(), name="page-question-quick-create"),
-
 ]
