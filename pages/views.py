@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, UpdateView, TemplateView
 from django.urls import reverse
+from django.http import JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.contrib import messages
 
@@ -490,3 +491,54 @@ class OrphanQuestionsReviewView(EditorRequiredMixin, View):
 
         request.session.pop(ORPHAN_REVIEW_SESSION_KEY, None)
         return redirect(return_url or "waves:survey_list")
+
+
+class WavePageQuestionQuickCreateView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, pk, *args, **kwargs):
+        page = get_object_or_404(WavePage, pk=pk)
+
+        # Nur Waves erlauben, die auf dieser Page liegen und nicht locked sind
+        allowed_waves = page.waves.filter(is_locked=False)
+        allowed_wave_ids = set(allowed_waves.values_list("id", flat=True))
+
+        questiontext = (request.POST.get("questiontext") or "").strip()
+        wave_ids = request.POST.getlist("wave_ids")
+
+        # Validierung
+        if not questiontext:
+            return JsonResponse({"ok": False, "error": "Bitte gib einen Fragetext ein."}, status=400)
+
+        if not wave_ids:
+            return JsonResponse({"ok": False, "error": "Bitte wähle mindestens eine Befragtengruppe aus."}, status=400)
+
+        try:
+            wave_ids_int = [int(w) for w in wave_ids]
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Ungültige Wave-Auswahl."}, status=400)
+
+        if not set(wave_ids_int).issubset(allowed_wave_ids):
+            return JsonResponse(
+                {"ok": False, "error": "Mindestens eine ausgewählte Befragtengruppe ist nicht zulässig."},
+                status=400
+            )
+
+        # Anlage: Question + Links (WaveQuestion + WavePageQuestion)
+        with transaction.atomic():
+            q = Question.objects.create(questiontext=questiontext)
+
+            WaveQuestion.objects.bulk_create(
+                [WaveQuestion(wave_id=wid, question=q) for wid in wave_ids_int]
+            )
+
+            WavePageQuestion.objects.create(wave_page=page, question=q)
+
+        # JSON für Frontend: minimal
+        return JsonResponse({
+            "ok": True,
+            "question": {
+                "id": q.id,
+                "label": q.questiontext[:200],
+            },
+        })

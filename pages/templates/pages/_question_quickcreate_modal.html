@@ -1,0 +1,46 @@
+{# pages/_question_quickcreate_modal.html #}
+
+<div class="modal fade" id="qcModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Neue Frage anlegen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="qcError" class="alert alert-danger d-none"></div>
+
+        <div class="mb-3">
+          <label for="qcQuestiontext" class="form-label">Fragetext</label>
+          <textarea id="qcQuestiontext" class="form-control" rows="3" required></textarea>
+        </div>
+
+        <div class="mb-2">
+          <div class="form-label">Befragtengruppe(n)</div>
+          <div class="vstack gap-1">
+            {% for w in page.waves.all %}
+              {% if not w.is_locked %}
+                <label class="form-check">
+                  <input class="form-check-input qc-wave" type="checkbox" value="{{ w.id }}">
+                  <span class="form-check-label">{{ w }}</span>
+                </label>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div class="form-text">Nur nicht abgeschlossene Befragtengruppen sind auswählbar.</div>
+        </div>
+
+        {# Diese hidden-Felder steuern das Verhalten (Variante A) #}
+        <input type="hidden" id="qcMode" value="{{ qc_mode|default:'ajax' }}">
+        <input type="hidden" id="qcPostUrl" value="{{ qc_post_url }}">
+        <input type="hidden" id="qcTargetSelectId" value="">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="button" class="btn btn-primary" id="qcSubmit">Anlegen</button>
+      </div>
+    </div>
+  </div>
+</div>

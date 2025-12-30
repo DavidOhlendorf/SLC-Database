@@ -8,6 +8,7 @@
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
     <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
     <script src="{% static 'js/ui/required_badge.js' %}"></script>
+    <script src="{% static 'js/builder/page_question_create.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -234,7 +235,15 @@
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-6">
                                         <label class="form-label">Frage</label>
-                                        {{ qf.question }}
+                                        <div class="d-flex gap-2 align-items-start">
+                                            <div class="flex-grow-1">
+                                                {{ qf.question }}
+                                            </div>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm qc-open">
+                                                + Neu
+                                            </button>
+                                        </div>
+
                                         {% if qf.question.errors %}
                                             <div class="invalid-feedback d-block">
                                                 {{ qf.question.errors|striptags }}
@@ -285,7 +294,14 @@
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-6">
                                     <label class="form-label">Frage</label>
-                                    {{ question_formset.empty_form.question }}
+                                    <div class="d-flex gap-2 align-items-start">
+                                        <div class="flex-grow-1">
+                                            {{ question_formset.empty_form.question }}
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm qc-open">
+                                            + Neu
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div class="col-md-5">
@@ -575,5 +591,10 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Frage Quickcreate -->
+    {% url "pages:page-question-quick-create" page.id as qc_post_url %}
+    {% include "pages/_question_quickcreate_modal.html" with qc_mode="ajax" qc_post_url=qc_post_url %}
+
 
 {% endblock %}
