@@ -211,10 +211,22 @@
                 </div>
             </div>
 
+
             <!-- Fragen auf dieser Seite -->
             <div class="card shadow-sm mb-4" id="questions">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Fragen auf dieser Seite</h5>
+                    <div class="d-flex align-items-start justify-content-between">
+                        <h5 class="card-title mb-3">Fragen auf dieser Seite</h5>
+
+                        <button type="button"
+                            class="btn btn-sm"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Hier kannst du bestimmen, welche Fragen auf dieser Seite erscheinen sollen. Du kannst neue Fragen erstellen oder bestehende Fragen auswählen.
+                            Wenn die Seite für mehrere Gruppen sichtbar ist, kannst du festlegen, welche Gruppen eine Frage sehen sollen.">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </button>
+                    </div>
 
                     {% if question_formset.non_form_errors %}
                         <div class="alert alert-danger">
@@ -235,13 +247,15 @@
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-6">
                                         <label class="form-label">Frage</label>
-                                        <div class="d-flex gap-2 align-items-start">
-                                            <div class="flex-grow-1">
-                                                {{ qf.question }}
-                                            </div>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm qc-open">
-                                                + Neu
-                                            </button>
+                                        <div class="input-group">
+                                        {{ qf.question }}
+                                        <button type="button" class="btn btn-outline-secondary qc-search" title="Frage suchen" disabled>
+                                            <i class="fa-solid fa-magnifying-glass"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success qc-open" title="Neue Frage anlegen">
+                                            <i class="fa-solid fa-plus"></i>
+                                            <span class="d-none d-lg-inline ms-1">Neu</span>
+                                        </button>
                                         </div>
 
                                         {% if qf.question.errors %}
@@ -301,6 +315,14 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm qc-open">
                                             + Neu
                                         </button>
+
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm qfs-remove"
+                                            title="Frage entfernen">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+
+
                                     </div>
                                 </div>
 

@@ -2,7 +2,7 @@
 {% block content %}
   <h1>Verwaiste Fragen</h1>
   <p class="text-muted">
-    Durch das Entfernen/Löschen der Seite sind Fragen entstanden, die in keiner Befragungsgruppe mehr vorkommen.
+    Durch das Entfernen/Löschen der Seite sind Fragen entstanden, die in keiner Befragung mehr vorkommen.
     Was soll mit diesen Fragen geschehen?
   </p>
 
@@ -21,10 +21,10 @@
   <form method="post" class="d-flex gap-2">
     {% csrf_token %}
     <button class="btn btn-danger" name="action" value="delete" type="submit">
-      Orphans löschen
+      Frage(n) löschen
     </button>
     <button class="btn btn-outline-secondary" name="action" value="keep" type="submit">
-      Orphans behalten
+      Frage(n) behalten
     </button>
 
     {% if return_url %}
