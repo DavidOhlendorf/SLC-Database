@@ -1,0 +1,41 @@
+{# pages/_question_picker_modal.html #}
+
+<div class="modal fade" id="qpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Frage suchen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="qpError" class="alert alert-danger d-none"></div>
+
+        <div class="row g-3 align-items-end mb-2">
+          <div class="col-md-8">
+            <label class="form-label" for="qpQuery">Suchbegriff</label>
+            <input type="text" class="form-control" id="qpQuery" placeholder="z. B. Studium, Religion, …">
+            <div class="form-text">Mindestens 2 Zeichen.</div>
+          </div>
+        </div>
+
+        <div class="small text-muted mb-2" id="qpMeta"></div>
+
+        <div class="list-group" id="qpResults">
+          <div class="text-muted small">Bitte tippen, um Ergebnisse zu sehen.</div>
+        </div>
+
+        {# JS braucht das Ziel-Select #}
+        <input type="hidden" id="qpTargetSelectId" value="">
+        <input type="hidden" id="qpSearchUrl" value="">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="button" class="btn btn-primary" id="qpApply" disabled>Übernehmen</button>
+      </div>
+
+    </div>
+  </div>
+</div>

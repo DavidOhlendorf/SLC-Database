@@ -1,8 +1,12 @@
 import re
 from django.conf import settings
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+
 from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
+
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector
 from collections import defaultdict
@@ -467,3 +471,84 @@ def search(request):
 
     # Rendern
     return render(request, "search/search.html", ctx)
+
+
+# API-Endpunkt für kleinen Frage-Picker (Verwendung im Page-Editor)
+@require_GET
+def search_questions_api(request):
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({"ok": True, "results": []})
+
+    q_lower = q.lower()
+
+    # waves Filter (aktuell nicht genutzt im JS, aber vorbereitet)
+    wave_ids = []
+    try:
+        wave_ids = [int(x) for x in request.GET.getlist("waves") if x.strip().isdigit()]
+    except Exception:
+        wave_ids = []
+
+    base_qs_q = Question.objects.all()
+    if wave_ids:
+        base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
+
+    # 1) Volltext (TS)
+    ts_query = SearchQuery(q, config="german", search_type="websearch")
+    ts_rows = (
+        base_qs_q
+        .annotate(sv=SearchVector("questiontext", weight="A", config="german"))
+        .filter(sv=ts_query)  # <-- das ist bei euch der wichtige Teil
+        .annotate(ts_rank=SearchRank(F("sv"), ts_query, normalization=32))
+        .values("id", "ts_rank")
+    )
+    ts_map = {r["id"]: float(r["ts_rank"] or 0.0) for r in ts_rows}
+
+    # 2) Trigram (TG) für Tippfehler/Teilstrings
+    tg_rows = (
+        base_qs_q
+        .annotate(qt=Lower("questiontext"))
+        .annotate(sim=TrigramSimilarity(F("qt"), q_lower))
+        .filter(sim__gt=0.25)
+        .values("id", "sim")
+    )
+    tg_map = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows}
+
+    # 3) Wortgrenzen-Boost
+    word_boundary = rf"\m{re.escape(q_lower)}\M"
+    wb_ids = set(
+        base_qs_q
+        .annotate(qt=Lower("questiontext"))
+        .filter(qt__iregex=word_boundary)
+        .values_list("id", flat=True)
+    )
+
+    # 4) Final score (wie bei bei großer Suche aber ohne Keywords)
+    candidate_ids = set(ts_map) | set(tg_map) | wb_ids
+    if not candidate_ids:
+        return JsonResponse({"ok": True, "results": []})
+
+    final_score_map = {}
+    for qid in candidate_ids:
+        ts = ts_map.get(qid, 0.0)
+        tg = tg_map.get(qid, 0.0) * 0.6
+        wb = 0.95 if qid in wb_ids else 0.0
+        relevance = max(ts, tg, wb)
+        final_score_map[qid] = relevance
+
+    # 5) Materialisieren + sortieren + top 20
+    questions_found = list(
+        base_qs_q
+        .filter(id__in=final_score_map.keys())
+        .only("id", "questiontext")
+        .distinct()
+    )
+
+    questions_sorted = sorted(
+        questions_found,
+        key=lambda obj: final_score_map.get(obj.id, 0.0),
+        reverse=True,
+    )[:20]
+
+    results = [{"id": obj.id, "label": (obj.questiontext or "")[:200]} for obj in questions_sorted]
+    return JsonResponse({"ok": True, "results": results})

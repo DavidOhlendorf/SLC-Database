@@ -9,6 +9,7 @@
     <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
     <script src="{% static 'js/ui/required_badge.js' %}"></script>
     <script src="{% static 'js/builder/page_question_create.js' %}"></script>
+    <script src="{% static 'js/builder/page_question_picker.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -248,14 +249,19 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Frage</label>
                                         <div class="input-group">
-                                        {{ qf.question }}
-                                        <button type="button" class="btn btn-outline-secondary qc-search" title="Frage suchen" disabled>
+                                            {{ qf.question }}
+                                            <button
+                                            type="button"
+                                            class="btn btn-outline-secondary qc-search"
+                                            title="Frage suchen"
+                                            data-search-url="{% url 'search:search_questions_api' %}">
                                             <i class="fa-solid fa-magnifying-glass"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-success qc-open" title="Neue Frage anlegen">
-                                            <i class="fa-solid fa-plus"></i>
-                                            <span class="d-none d-lg-inline ms-1">Neu</span>
-                                        </button>
+                                            </button>
+
+                                            <button type="button" class="btn btn-outline-success qc-open" title="Neue Frage anlegen">
+                                                <i class="fa-solid fa-plus"></i>
+                                                <span class="d-none d-lg-inline ms-1">Neu</span>
+                                            </button>
                                         </div>
 
                                         {% if qf.question.errors %}
@@ -308,21 +314,20 @@
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-6">
                                     <label class="form-label">Frage</label>
-                                    <div class="d-flex gap-2 align-items-start">
-                                        <div class="flex-grow-1">
-                                            {{ question_formset.empty_form.question }}
-                                        </div>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm qc-open">
-                                            + Neu
+                                    <div class="input-group">
+                                        {{ question_formset.empty_form.question }}
+                                        <button
+                                        type="button"
+                                        class="btn btn-outline-secondary qc-search"
+                                        title="Frage suchen"
+                                        data-search-url="{% url 'search:search_questions_api' %}">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
                                         </button>
 
-                                    <button type="button"
-                                            class="btn btn-outline-danger btn-sm qfs-remove"
-                                            title="Frage entfernen">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-
-
+                                        <button type="button" class="btn btn-outline-success qc-open" title="Neue Frage anlegen">
+                                            <i class="fa-solid fa-plus"></i>
+                                            <span class="d-none d-lg-inline ms-1">Neu</span>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -617,6 +622,10 @@
     <!-- Modal: Frage Quickcreate -->
     {% url "questions:question-quick-create-for-page-ajax" page.id as qc_post_url %}
     {% include "pages/_question_quickcreate_modal.html" with qc_mode="ajax" qc_post_url=qc_post_url %}
+
+    <!-- Modal: Frage Picker -->
+    {% include "pages/_question_picker_modal.html" %}
+
 
 
 
