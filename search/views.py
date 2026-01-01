@@ -71,8 +71,8 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
             Keyword.objects
             .annotate(nl=Lower("name"))
             .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.95))
-            .values("id", "sim")[:50]
+            .filter(Q(nl__istartswith=q_lower) | Q(sim__gt=0.6))
+            .values("id", "sim")[:15]
         )
         kw_id_to_score = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows}
 
@@ -100,7 +100,7 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
     #       - Wortgrenzen-Bonus (WB), fester Wert 0.95 --> bei direktem Worttreffer im Fragetext wird geboostet
     #     Keyword-Score (KW) = bestes Keyword * 0.8
     #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Fragetext-Relevanz höher gewichtet wird
-    #     Finaler Score = Höherer Wert aus Textscore vs. Keyword-Score
+    #     Finaler Score = Textscore + Keyword-Score * 0.15 (wenn Textscore > 0) bzw. + Keyword-Score * 0.10 (wenn kein Textscore)
     #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
 
     candidate_ids = set(ts_map) | set(tg_map) | wb_ids | (set(kw_map) if include_keywords else set())
@@ -117,7 +117,10 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
         if include_keywords:
             kw_score = kw_map.get(qid, 0.0) * 0.8
             both = (text_score > 0.0 and kw_score > 0.0)
-            relevance = max(text_score, kw_score)
+            if text_score > 0:
+                relevance = text_score + 0.15 * kw_score
+            else:
+                relevance = 0.10 * kw_score 
             if both:
                 relevance = min(1.2, relevance + 0.15)
         else:
@@ -321,8 +324,8 @@ def search(request):
             Keyword.objects
             .annotate(nl=Lower("name"))
             .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.4))
-            .values("id", "sim")[:50]
+            .filter(Q(nl__istartswith=q_lower) | Q(sim__gt=0.6))
+            .values("id", "sim")[:15]
         )
         kw_id_to_score_v = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows_v}
 
@@ -352,7 +355,7 @@ def search(request):
         #       - Varname-Prefix-Bonus (VN), fester Wert 1.0 bzw. 1.05 bei exaktem Treffer
         #     Keyword-Score (KW) = bestes Keyword * 0.8
         #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Varlabel-Relevanz höher gewichtet wird
-        #     Finaler Score = Höherer Wert aus Textscore vs. Keyword-Score
+        #     Finaler Score = Textscore + Keyword-Score * 0.15 (wenn Textscore > 0) bzw. + Keyword-Score * 0.10 (wenn kein Textscore)
         #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
 
         candidate_ids_v = set(ts_map_v) | set(tg_map_v) | wb_ids_v | set(vn_map) | set(kw_map_v)
@@ -367,7 +370,11 @@ def search(request):
             kw_score = kw_map_v.get(vid, 0.0) * 0.8
             both = (text_score > 0.0 and kw_score > 0.0)
 
-            relevance = max(text_score, kw_score)
+            if text_score > 0:
+                relevance = text_score + 0.15 * kw_score
+            else:
+                relevance = 0.10 * kw_score 
+
             if both:
                 relevance = min(1.2, relevance + 0.15)
 
