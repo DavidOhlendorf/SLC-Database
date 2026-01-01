@@ -217,7 +217,7 @@ class PageQuestionLinkForm(forms.Form):
         queryset=Question.objects.all().order_by("id"),
         required=True,
         label="Frage",
-        widget=forms.Select(attrs={"class": "form-select"}),
+        widget=forms.Select(attrs={"class": "form-select qc-passive"}),
         error_messages={"required": "Bitte wähle eine Frage aus."},
     )
 

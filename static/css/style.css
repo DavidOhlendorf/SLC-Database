@@ -47,3 +47,13 @@ button.collapse-toggle[aria-expanded="false"] i {
 .icon-action--danger:hover i {
   color: var(--bs-danger-text-emphasis, #842029);
 }
+
+/* Stil für inaktive Select-Felder (ohne Dropdown-Pfeil) */
+select.qc-passive {
+  background-image: none;   /* entfernt den Dropdown-Pfeil (Bootstrap) */
+  padding-right: .75rem;    /* kompensiert den fehlenden Pfeilbereich */
+}
+
+select.qc-passive:focus {
+  box-shadow: none;
+}
