@@ -50,7 +50,7 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
     tg_rows = (
         base_qs_q
         .annotate(sim=TrigramWordSimilarity(q_lower, "questiontext"))
-        .filter(sim__gt=0.2)  # Startwert, ggf. 0.25 wenn zu noisy
+        .filter(sim__gt=0.6) # Mindestähnlichkeit
         .values("id", "sim")
     )
     tg_map = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows}
@@ -71,7 +71,7 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
             Keyword.objects
             .annotate(nl=Lower("name"))
             .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.25))
+            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.95))
             .values("id", "sim")[:50]
         )
         kw_id_to_score = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows}
@@ -283,12 +283,12 @@ def search(request):
         # ---- 2) Trigram (Fuzzy) auf varlab (Tippfehler/Teilstrings)
         tg_rows_v = (
             base_qs_v
-            .annotate(vl=Lower("varlab"))
-            .annotate(sim=TrigramSimilarity(F("vl"), q_lower))
-            .filter(sim__gt=0.25)
+            .annotate(sim=TrigramWordSimilarity(q_lower, "varlab"))
+            .filter(sim__gt=0.6)
             .values("id", "sim")
         )
         tg_map_v = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows_v}
+
 
         # ---- 3) Wortgrenzen-Boost auf varlab
         word_boundary = rf"\m{re.escape(q_lower)}\M"
@@ -321,7 +321,7 @@ def search(request):
             Keyword.objects
             .annotate(nl=Lower("name"))
             .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.25))
+            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.4))
             .values("id", "sim")[:50]
         )
         kw_id_to_score_v = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows_v}

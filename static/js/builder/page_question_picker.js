@@ -48,11 +48,31 @@
       const id = String(r.id);
       const label = (r.label || "").trim();
       const safeLabel = label.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      const detailTemplate = modalEl.getAttribute("data-detail-template") || "";
+
+      function detailUrlFor(id) {
+        // ersetzt die letzte "/0/" durch "/<id>/"
+        return detailTemplate.replace(/\/0\/?$/, `/${id}/`);
+      }
+
+      const detailUrl = detailTemplate ? detailUrlFor(id) : null;
+
       return `
         <label class="list-group-item d-flex gap-2 align-items-start">
           <input class="form-check-input mt-1 qp-radio" type="radio" name="qpPick" value="${id}">
           <div class="flex-grow-1">
-            <div class="fw-semibold">#${id}</div>
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="fw-semibold">#${id}</div>
+              ${detailUrl ? `
+                <a class="btn btn-sm"
+                  href="${detailUrl}"
+                  target="_blank"
+                  rel="noopener"
+                  title="Detailansicht in neuem Tab öffnen">
+                  <i class="fa-regular fa-eye"></i>
+                </a>
+              ` : ""}
+            </div>
             <div class="text-muted small">${safeLabel}</div>
           </div>
         </label>
