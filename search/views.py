@@ -7,7 +7,7 @@ from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector
 from collections import defaultdict
 from questions.models import Question, Keyword
-from variables.models import Variable
+from variables.models import Variable, QuestionVariableWave
 from waves.models import Wave, Survey
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
@@ -302,18 +302,22 @@ def search(request):
 
         if kw_id_to_score_v:
             var_kw_links = (
-                base_qs_v
-                .filter(questions__keywords__in=list(kw_id_to_score_v.keys()))
-                .values("id", "questions__keywords__id")
+                QuestionVariableWave.objects
+                .filter(
+                    variable__in=base_qs_v,
+                    question__keywords__in=list(kw_id_to_score_v.keys()),
+                )
+                .values("variable_id", "question__keywords__id")
                 .distinct()
             )
         else:
             var_kw_links = []
 
+
         kw_map_v = {}
         for r in var_kw_links:
-            vid = r["id"]
-            kwid = r["questions__keywords__id"]
+            vid = r["variable_id"]
+            kwid = r["question__keywords__id"]
             kw_score = kw_id_to_score_v.get(kwid, 0.0)
             kw_map_v[vid] = max(kw_map_v.get(vid, 0.0), kw_score)
 
