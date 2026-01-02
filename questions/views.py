@@ -41,10 +41,11 @@ class QuestionDetail(DetailView):
         if active_wave:
             # Variablen in aktiver Welle
             variables = (
-                Variable.objects
-                .filter(question=question, waves=active_wave)
+                question.variables
+                .filter(waves=active_wave)
                 .only("id", "varname", "varlab")
                 .order_by("varname")
+                .distinct()
             )
 
             # Seite der aktiven Welle

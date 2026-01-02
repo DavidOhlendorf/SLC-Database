@@ -303,8 +303,8 @@ def search(request):
         if kw_id_to_score_v:
             var_kw_links = (
                 base_qs_v
-                .filter(question__keywords__in=list(kw_id_to_score_v.keys()))
-                .values("id", "question__keywords__id")
+                .filter(questions__keywords__in=list(kw_id_to_score_v.keys()))
+                .values("id", "questions__keywords__id")
                 .distinct()
             )
         else:
@@ -312,7 +312,8 @@ def search(request):
 
         kw_map_v = {}
         for r in var_kw_links:
-            vid = r["id"]; kwid = r["question__keywords__id"]
+            vid = r["id"]
+            kwid = r["questions__keywords__id"]
             kw_score = kw_id_to_score_v.get(kwid, 0.0)
             kw_map_v[vid] = max(kw_map_v.get(vid, 0.0), kw_score)
 
