@@ -4,7 +4,14 @@ from django.utils.safestring import mark_safe
 from import_export.admin import ImportExportModelAdmin
 from .resources import ValLabResource, VariableResource
 
-from .models import ValLab, Variable
+from django.db.models import Prefetch
+from .models import ValLab, Variable, QuestionVariable
+
+
+class QuestionVariableInline(admin.TabularInline):
+    model = QuestionVariable
+    extra = 0
+    autocomplete_fields = ("question",)
 
 @admin.register(Variable)
 class VariableAdmin(ImportExportModelAdmin):
@@ -13,7 +20,6 @@ class VariableAdmin(ImportExportModelAdmin):
     list_display = (
         "varname",
         "varlab",
-        "question",
         "vallab",
         "ver",
         "gen",
@@ -25,6 +31,27 @@ class VariableAdmin(ImportExportModelAdmin):
     ordering = ("varname",)
 
     filter_horizontal = ("waves",)
+
+    inlines = [QuestionVariableInline]
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Prefetch für schnelle Anzeige in list_display
+        return qs.prefetch_related(
+            Prefetch(
+                "questions",
+                queryset=Variable.questions.rel.model.objects.only("id"),
+            )
+        )
+    
+    @admin.display(description="Fragen")
+    def questions_preview(self, obj):
+        qs = list(obj.questions.all()[:5])
+        if not qs:
+            return "—"
+        more = obj.questions.count() - len(qs)
+        txt = ", ".join(str(q) for q in qs)
+        return f"{txt}" + (f" (+{more})" if more > 0 else "")
 
 
 @admin.register(ValLab)

@@ -66,21 +66,13 @@ class Variable(models.Model):
     varlab = models.CharField("Variablenblabel", max_length=255,)
     vallab = models.ForeignKey(ValLab,on_delete=models.SET_NULL,null=True,blank=True,related_name="variables",)
 
-
-    # ALT: Direkte Beziehung zu Question (Many-to-One) für Übergang
-    question = models.ForeignKey("questions.Question",on_delete=models.CASCADE,related_name="variables",)
-
-    # NEU: Many-to-Many Beziehung zu Question über ein Through-Modell
+    # Many-to-Many Beziehung zu Question über ein Through-Modell (für Episodes erforderlich)
     questions = models.ManyToManyField(
         "questions.Question",
         through="variables.QuestionVariable",
-        related_name="variables_m2m",   # <— temporär!
+        related_name="variables",
         blank=True,
     )
-
-
-
-
 
     waves = models.ManyToManyField("waves.Wave",related_name="variables",)
 
