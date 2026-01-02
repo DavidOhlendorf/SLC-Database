@@ -100,8 +100,50 @@ class Variable(models.Model):
     
     def get_absolute_url(self):
         return reverse("variables:variable_detail", args=[self.pk])
-    
-# Through-Modell für Many-to-Many Beziehung zwischen Question und Variable 
+
+# NEU: Through-Modell für triadische Beziehung zwischen Question, Variable und Wave    
+class QuestionVariableWave(models.Model):
+
+    question = models.ForeignKey(
+        "questions.Question",
+        on_delete=models.CASCADE,
+        related_name="question_variable_wave_links",
+    )
+    variable = models.ForeignKey(
+        "variables.Variable",
+        on_delete=models.CASCADE,
+        related_name="question_variable_wave_links",
+    )
+    wave = models.ForeignKey(
+        "waves.Wave",
+        on_delete=models.CASCADE,
+        related_name="question_variable_wave_links",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["question", "variable", "wave"],
+                name="uq_question_variable_wave",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["question", "wave"], name="idx_qvw_question_wave"),
+            models.Index(fields=["variable", "wave"], name="idx_qvw_variable_wave"),
+        ]
+
+    def __str__(self):
+        return f"Q{self.question_id} ↔ V{self.variable_id} @ W{self.wave_id}"
+
+
+
+
+
+
+
+# ALT: Through-Modell für Many-to-Many Beziehung zwischen Question und Variable 
 class QuestionVariable(models.Model):
     question = models.ForeignKey(
         "questions.Question",
