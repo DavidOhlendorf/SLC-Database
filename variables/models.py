@@ -65,7 +65,23 @@ class Variable(models.Model):
     varname = models.CharField(max_length=50, unique=True)
     varlab = models.CharField("Variablenblabel", max_length=255,)
     vallab = models.ForeignKey(ValLab,on_delete=models.SET_NULL,null=True,blank=True,related_name="variables",)
+
+
+    # ALT: Direkte Beziehung zu Question (Many-to-One) für Übergang
     question = models.ForeignKey("questions.Question",on_delete=models.CASCADE,related_name="variables",)
+
+    # NEU: Many-to-Many Beziehung zu Question über ein Through-Modell
+    questions = models.ManyToManyField(
+        "questions.Question",
+        through="variables.QuestionVariable",
+        related_name="variables_m2m",   # <— temporär!
+        blank=True,
+    )
+
+
+
+
+
     waves = models.ManyToManyField("waves.Wave",related_name="variables",)
 
     ver = models.BooleanField("versioniert", default=False)
@@ -92,3 +108,28 @@ class Variable(models.Model):
     
     def get_absolute_url(self):
         return reverse("variables:variable_detail", args=[self.pk])
+    
+# Through-Modell für Many-to-Many Beziehung zwischen Question und Variable 
+class QuestionVariable(models.Model):
+    question = models.ForeignKey(
+        "questions.Question",
+        on_delete=models.CASCADE,
+        related_name="questionvariable_links",
+    )
+    variable = models.ForeignKey(
+        "variables.Variable",
+        on_delete=models.CASCADE,
+        related_name="questionvariable_links",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["question", "variable"],
+                name="uq_question_variable",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.question_id} ↔ {self.variable_id}"
+
