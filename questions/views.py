@@ -3,7 +3,7 @@ from django.views.generic import DetailView
 from django.db.models import Prefetch
 
 from .models import Question
-from variables.models import Variable
+from variables.models import QuestionVariableWave, Variable
 from waves.models import Wave
 from pages.models import WavePage 
 
@@ -28,7 +28,7 @@ class QuestionDetail(DetailView):
         ctx = super().get_context_data(**kwargs)
         question = self.object
 
-        waves = list(question.waves.all())
+        waves = list(question.waves.all().order_by("-id"))
         wave_param = self.request.GET.get("wave")
 
         active_wave = None
@@ -38,14 +38,21 @@ class QuestionDetail(DetailView):
             else:
                 active_wave = waves[0]
 
+        triad_qs = QuestionVariableWave.objects.none()
+
         if active_wave:
-            # Variablen in aktiver Welle
+            triad_qs = (
+                QuestionVariableWave.objects
+                .filter(question=question, wave=active_wave)
+                .select_related("variable")
+            )
+    
+            # Eindeutige Variablen für die aktive Welle
             variables = (
-                question.variables
-                .filter(waves=active_wave)
-                .only("id", "varname", "varlab")
-                .order_by("varname")
+                Variable.objects
+                .filter(id__in=triad_qs.values_list("variable_id", flat=True))
                 .distinct()
+                .order_by("varname")
             )
 
             # Seite der aktiven Welle
@@ -71,6 +78,7 @@ class QuestionDetail(DetailView):
             "waves": waves,
             "active_wave": active_wave,
             "variables": variables,
+            "question_variable_wave_links": triad_qs,
             "page": page, 
             "screenshots": screenshots,
         })
