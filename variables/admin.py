@@ -5,13 +5,14 @@ from import_export.admin import ImportExportModelAdmin
 from .resources import ValLabResource, VariableResource
 
 from django.db.models import Prefetch
-from .models import ValLab, Variable, QuestionVariable
+from .models import ValLab, Variable, QuestionVariableWave
 
 
-class QuestionVariableInline(admin.TabularInline):
-    model = QuestionVariable
+class QuestionVariableWaveInline(admin.TabularInline):
+    model = QuestionVariableWave
     extra = 0
-    autocomplete_fields = ("question",)
+    autocomplete_fields = ("question", "wave")
+    fields = ("question", "wave")
 
 @admin.register(Variable)
 class VariableAdmin(ImportExportModelAdmin):
@@ -21,6 +22,7 @@ class VariableAdmin(ImportExportModelAdmin):
         "varname",
         "varlab",
         "vallab",
+        "questions_preview",
         "ver",
         "gen",
         "plausi",
@@ -32,26 +34,44 @@ class VariableAdmin(ImportExportModelAdmin):
 
     filter_horizontal = ("waves",)
 
-    inlines = [QuestionVariableInline]
+    inlines = [QuestionVariableWaveInline]
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        # Prefetch für schnelle Anzeige in list_display
         return qs.prefetch_related(
             Prefetch(
-                "questions",
-                queryset=Variable.questions.rel.model.objects.only("id"),
+                "question_variable_wave_links",
+                queryset=QuestionVariableWave.objects.select_related("question").only(
+                    "id", "variable_id", "question_id", "wave_id",
+                    "question__id", "question__questiontext",
+                ),
             )
         )
     
     @admin.display(description="Fragen")
     def questions_preview(self, obj):
-        qs = list(obj.questions.all()[:5])
-        if not qs:
+        links = list(getattr(obj, "question_variable_wave_links").all())
+        if not links:
             return "—"
-        more = obj.questions.count() - len(qs)
+
+        # unique questions in Reihenfolge des Auftretens
+        seen = set()
+        qs = []
+        for l in links:
+            q = l.question
+            if q.id not in seen:
+                seen.add(q.id)
+                qs.append(q)
+            if len(qs) >= 5:
+                break
+
+        # total unique questions
+        total = len({l.question_id for l in links})
+        more = total - len(qs)
+
         txt = ", ".join(str(q) for q in qs)
-        return f"{txt}" + (f" (+{more})" if more > 0 else "")
+        return txt + (f" (+{more})" if more > 0 else "")
+
 
 
 @admin.register(ValLab)
