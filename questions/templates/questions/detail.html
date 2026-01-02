@@ -21,7 +21,12 @@
 
     {% if perms.accounts.can_edit_slc %}
       <div class="d-flex justify-content-end mb-3">
-        {% if active_wave %}
+        
+        <a class="btn btn-outline-secondary btn-sm"
+          href="{% url 'questions:question_variables' question.id %}?back={{ request.get_full_path|urlencode }}{% if active_wave %}&wave={{ active_wave.id }}{% endif %}">
+          Variablen zuordnen
+        </a>
+          {% if active_wave %}
           <a class="btn btn-primary btn-sm"
             href="{% url 'questions:question_edit' question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
             <i class="fa-solid fa-pen-to-square me-1"></i>

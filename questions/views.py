@@ -13,7 +13,7 @@ from django.views.generic import DetailView, UpdateView
 
 from accounts.mixins import EditorRequiredMixin
 
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.db import transaction
 
 from .models import Question, Keyword
@@ -21,10 +21,59 @@ from variables.models import Variable, QuestionVariableWave
 from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion
 
-from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet, AttachWavePageForm
+from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet, AttachWavePageForm, QuestionVariableLinkFormSet
 
 from .utils import create_question_for_page
 
+
+# ---- Allgemeine Helper-Funktionen ---------------------------------------
+
+# Helper: Baut das QuestionVariableLinkFormSet
+def _build_question_variable_formset(*, question, allowed_waves, method, post_data=None):
+    """
+    Baut das QuestionVariableLinkFormSet:
+    - GET: initial aus Triad (QuestionVariableWave)
+    - POST: gebundenes Formset
+    """
+    allowed_waves = allowed_waves.order_by("cycle", "instrument", "id")
+
+    if method == "POST":
+        return QuestionVariableLinkFormSet(
+            post_data,
+            prefix="vfs",
+            form_kwargs={"allowed_waves": allowed_waves},
+        )
+
+    # GET: initial aus Triad
+    links = (
+        QuestionVariableWave.objects
+        .filter(question=question, wave__in=allowed_waves)
+        .select_related("variable", "wave")
+        .order_by("variable_id", "wave_id")
+    )
+
+    wave_map = {}  # variable_id -> [wave, ...]
+    var_ids = []
+    for l in links:
+        wave_map.setdefault(l.variable_id, []).append(l.wave)
+
+    var_ids = list(wave_map.keys())
+    variables = list(
+        Variable.objects
+        .filter(id__in=var_ids)
+        .order_by("varname")
+    )
+
+    initial = [{"variable": v, "waves": wave_map.get(v.id, [])} for v in variables]
+
+    return QuestionVariableLinkFormSet(
+        prefix="vfs",
+        initial=initial,
+        form_kwargs={"allowed_waves": allowed_waves},
+    )
+
+
+# ---- VIEWS ------------------------------------------------------------
 
 
 # View für Detailanzeige einer Frage
@@ -592,3 +641,126 @@ class QuestionQuickCreateForPageAjaxView(EditorRequiredMixin, View):
                 "label": q.questiontext[:200],
             },
         })
+    
+# View zum Zuweisen von Variablen zu einer Frage in bestimmten Waves
+class QuestionVariableAssignView(EditorRequiredMixin, View):
+    template_name = "questions/question_variables_form.html"
+    http_method_names = ["get", "post"]
+
+    def get(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(Question, pk=pk)
+
+        waves_qs = question.waves.all().order_by("cycle", "instrument", "id")
+        allowed_waves = waves_qs.filter(is_locked=False)
+
+        # active wave (nur UI)
+        active_wave = None
+        wave_param = request.GET.get("wave")
+        if waves_qs.exists():
+            if wave_param and waves_qs.filter(id=wave_param).exists():
+                active_wave = waves_qs.get(id=wave_param)
+            else:
+                active_wave = waves_qs.order_by("-id").first()
+
+        formset = _build_question_variable_formset(
+            question=question,
+            allowed_waves=allowed_waves,
+            method="GET",
+        )
+
+        return render(request, self.template_name, {
+            "question": question,
+            "waves": waves_qs,
+            "allowed_waves": allowed_waves,
+            "active_wave": active_wave,
+            "formset": formset,
+            "question_is_locked": waves_qs.filter(is_locked=True).exists(),
+            "back_url": request.GET.get("back", ""),
+        })
+
+    def post(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(Question, pk=pk)
+
+        waves_qs = question.waves.all().order_by("cycle", "instrument", "id")
+        allowed_waves = waves_qs.filter(is_locked=False)
+
+        # locked-waves harte Sperre: keine Änderung möglich, wenn die Frage irgendwo locked ist
+        # (oder: nur locked waves schützen – das wäre später feiner. Für Start: simpel & sicher.)
+        if waves_qs.filter(is_locked=True).exists():
+            messages.error(request, "Diese Frage ist mit einer abgeschlossenen Befragung verknüpft. Variablen können hier nicht mehr geändert werden.")
+            return redirect(reverse("questions:question_detail", kwargs={"pk": question.pk}))
+
+        formset = _build_question_variable_formset(
+            question=question,
+            allowed_waves=allowed_waves,
+            method="POST",
+            post_data=request.POST,
+        )
+
+        if not formset.is_valid():
+            return render(request, self.template_name, {
+                "question": question,
+                "waves": waves_qs,
+                "allowed_waves": allowed_waves,
+                "active_wave": None,
+                "formset": formset,
+                "question_is_locked": False,
+                "back_url": request.POST.get("back_url", ""),
+            })
+
+        # Zielmenge (desired triples) bauen
+        desired = set()  # (variable_id, wave_id)
+        used_var_ids = set()
+        used_wave_ids = set()
+
+        for cd in formset.cleaned_data:
+            if not cd or cd.get("DELETE"):
+                continue
+            var = cd.get("variable")
+            if not var:
+                continue
+            wlist = cd.get("waves") or []
+            for w in wlist:
+                desired.add((var.id, w.id))
+                used_var_ids.add(var.id)
+                used_wave_ids.add(w.id)
+
+        existing_qs = QuestionVariableWave.objects.filter(question=question)
+        existing = set(existing_qs.values_list("variable_id", "wave_id"))
+
+        to_add = desired - existing
+        to_remove = existing - desired
+
+        with transaction.atomic():
+            # delete
+            if to_remove:
+                q = Q()
+                for v_id, w_id in to_remove:
+                    q |= Q(variable_id=v_id, wave_id=w_id)
+                QuestionVariableWave.objects.filter(question=question).filter(q).delete()
+
+            # create
+            if to_add:
+                QuestionVariableWave.objects.bulk_create(
+                    [QuestionVariableWave(question=question, variable_id=v, wave_id=w) for v, w in to_add],
+                    ignore_conflicts=True,
+                )
+
+                # Konsistenz: Triad ⇒ wavevar (Existenz) sicherstellen
+                # effizient über Through-Tabelle von Variable.waves
+                WavesThrough = Variable._meta.get_field("waves").remote_field.through
+                through_rows = []
+                for v, w in to_add:
+                    through_rows.append(WavesThrough(variable_id=v, wave_id=w))
+                WavesThrough.objects.bulk_create(through_rows, ignore_conflicts=True)
+
+        messages.success(request, "Variablen-Zuordnung wurde gespeichert.")
+        back = request.POST.get("back_url") or ""
+        if back:
+            return redirect(back)
+
+        url = reverse("questions:question_detail", kwargs={"pk": question.pk})
+        wave = request.GET.get("wave")
+        if wave:
+            url = f"{url}?wave={wave}"
+        return redirect(url)

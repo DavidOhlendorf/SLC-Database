@@ -5,7 +5,7 @@ from django.forms import formset_factory, BaseFormSet
 from .models import Question, Keyword, Construct
 from pages.models import WavePage
 from waves.models import Wave
-
+from variables.models import Variable
 
 
 # Formular zur Bearbeitung von Fragen
@@ -229,3 +229,38 @@ class AttachWavePageForm(forms.Form):
                 .order_by("pagename")
                 .distinct()
             )
+
+# Formular für einzelne Variable-Verknüpfungen
+class QuestionVariableLinkForm(forms.Form):
+    variable = forms.ModelChoiceField(
+        queryset=Variable.objects.all().order_by("varname"),
+        required=True,
+        label="Variable",
+        widget=forms.Select(attrs={"class": "form-select"}),
+        error_messages={"required": "Bitte wähle eine Variable aus."},
+    )
+
+    waves = forms.ModelMultipleChoiceField(
+        queryset=Wave.objects.none(),
+        required=False,
+        label="Befragungen",
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    DELETE = forms.BooleanField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        allowed_waves = kwargs.pop("allowed_waves", Wave.objects.none())
+        super().__init__(*args, **kwargs)
+
+        allowed_waves = allowed_waves.order_by("cycle", "instrument", "id")
+        self.fields["waves"].queryset = allowed_waves
+
+        self.fields["waves"].widget.attrs.update({"class": "d-flex flex-wrap gap-2"})
+
+
+QuestionVariableLinkFormSet = formset_factory(
+    QuestionVariableLinkForm,
+    extra=1,
+    can_delete=True,
+)

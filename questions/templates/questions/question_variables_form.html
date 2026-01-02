@@ -1,0 +1,168 @@
+{% extends "main.html" %}
+{% load static %}
+
+{% block extra_js %}
+  <script src="{% static 'js/builder/questions_variables_formset.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h4 mb-1">Variablen zuordnen</h1>
+      <div class="text-muted">
+        Frage #{{ question.id }} – {{ question.questiontext|truncatechars:120 }}
+      </div>
+
+      {% if active_wave %}
+        <div class="mt-2">
+          <span class="badge text-bg-light border">Aktive Welle: {{ active_wave }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary"
+         href="{{ back_url|default:question.get_absolute_url }}">
+        Zurück
+      </a>
+    </div>
+  </div>
+
+  {% if question_is_locked %}
+    <div class="alert alert-warning">
+      Diese Frage ist mit einer abgeschlossenen Befragung verknüpft. Änderungen sind gesperrt.
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="back_url" value="{{ back_url }}">
+
+    {# Management form #}
+    {{ formset.management_form }}
+
+    {# Fehler-Hinweis (für Scroll) #}
+    {% if formset.non_form_errors or formset.total_error_count %}
+      <div id="vfs-has-errors" class="alert alert-danger">
+        Bitte korrigiere die markierten Felder.
+      </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Variablen</div>
+        <button type="button" id="vfs-add" class="btn btn-sm btn-outline-primary">
+          + Zeile hinzufügen
+        </button>
+      </div>
+
+      <div class="card-body p-0">
+        <div id="vfs-container" class="vstack gap-3 p-3" data-formset-prefix="{{ formset.prefix|default:'vfs' }}">
+
+          {% for f in formset.forms %}
+            <div class="border rounded p-3 vfs-form {% if f.errors %}border-danger{% endif %}">
+              <div class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                  <label class="form-label">Variable</label>
+                  {{ f.variable }}
+                  {% if f.variable.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ f.variable.errors|striptags }}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <div class="col-lg-6">
+                  <label class="form-label">Wellen</label>
+
+                  <div class="d-flex flex-wrap gap-2">
+                    {% for cb in f.waves %}
+                      <div class="form-check form-check-inline">
+                        {{ cb.tag }}
+                        <label class="form-check-label" for="{{ cb.id_for_label }}">
+                          {{ cb.choice_label }}
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  {% if f.waves.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ f.waves.errors|striptags }}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <div class="col-lg-1 text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger vfs-remove" title="Zeile entfernen">
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {# DELETE-Feld (can_delete=True) – wird im JS gesetzt #}
+              <div class="d-none">
+                {{ f.DELETE }}
+              </div>
+            </div>
+          {% endfor %}
+
+        </div>
+      </div>
+
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <div class="text-muted small">
+          Hinweis: Änderungen betreffen nur die Zuordnung dieser Variable zu dieser Frage (pro Welle).
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary"
+             href="{{ back_url|default:question.get_absolute_url }}">
+            Abbrechen
+          </a>
+          <button type="submit" class="btn btn-primary" {% if question_is_locked %}disabled{% endif %}>
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# Empty-Form Template #}
+    <template id="vfs-empty-form-template">
+      <div class="border rounded p-3 vfs-form">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-5">
+            <label class="form-label">Variable</label>
+            {{ formset.empty_form.variable }}
+          </div>
+
+          <div class="col-lg-6">
+            <label class="form-label">Wellen</label>
+            <div class="d-flex flex-wrap gap-2">
+              {% for cb in formset.empty_form.waves %}
+                <div class="form-check form-check-inline">
+                  {{ cb.tag }}
+                  <label class="form-check-label" for="{{ cb.id_for_label }}">
+                    {{ cb.choice_label }}
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-lg-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger vfs-remove" title="Zeile entfernen">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div class="d-none">
+          {{ formset.empty_form.DELETE }}
+        </div>
+      </div>
+    </template>
+
+  </form>
+
+{% endblock %}
