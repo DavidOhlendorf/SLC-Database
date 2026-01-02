@@ -28,21 +28,44 @@
         <div class="accordion-body">
 
           <div class="mb-3">
-            <strong class="d-block mb-1">Frage</strong>
-            {% if object.question %}
+            <strong class="d-block mb-1">Fragen</strong>
+
+            {% if questions_count == 0 %}
+              <span class="text-muted">–</span>
+
+            {% elif single_question %}
               <div class="card clickable-card border-0 shadow-sm small position-relative">
                 <div class="card-body py-2 px-3">
                   <div class="fw-semibold mb-1">
-                    {{ object.question.questiontext|truncatechars:160 }}
+                    {{ single_question.questiontext|truncatechars:160 }}
                   </div>
-                  <a href="{% url 'questions:question_detail' object.question.pk %}"
-                    class="stretched-link text-decoration-none text-primary">
-                  </a>
+                  <a href="{% url 'questions:question_detail' single_question.pk %}"
+                    class="stretched-link text-decoration-none text-primary"></a>
                 </div>
               </div>
+
             {% else %}
-              <span class="text-muted">–</span>
+              <div class="vstack gap-2">
+                {% for q in questions_preview %}
+                  <div class="card clickable-card border-0 shadow-sm small position-relative">
+                    <div class="card-body py-2 px-3">
+                      <div class="fw-semibold mb-1">
+                        {{ q.questiontext|truncatechars:160 }}
+                      </div>
+                      <a href="{% url 'questions:question_detail' q.pk %}"
+                        class="stretched-link text-decoration-none text-primary"></a>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                {% if questions_more_count > 0 %}
+                  <div class="text-muted small">
+                    +{{ questions_more_count }} weitere Frage(n)
+                  </div>
+                {% endif %}
+              </div>
             {% endif %}
+
           </div>
 
           <div>
@@ -113,7 +136,6 @@
   <!-- Eigenschaften: bis zu 4 Accordion-Cards, nur aktive Flags -->
   <div class="accordion" id="eigenschaftenAccordion-{{ object.pk }}">
     {% if flags_active %}
-      <div class="accordion mt-3" id="eigenschaftenAccordion-{{ object.pk }}">
         <div class="accordion-item">
           <h2 class="accordion-header" id="headingEigenschaften-{{ object.pk }}">
             <button class="accordion-button" type="button"
@@ -155,7 +177,6 @@
             </div>
           </div>
         </div>
-      </div>
     {% else %}
       <p class="text-muted mt-3"></p>
     {% endif %}
