@@ -66,14 +66,6 @@ class Variable(models.Model):
     varlab = models.CharField("Variablenblabel", max_length=255,)
     vallab = models.ForeignKey(ValLab,on_delete=models.SET_NULL,null=True,blank=True,related_name="variables",)
 
-    # Many-to-Many Beziehung zu Question über ein Through-Modell (für Episodes erforderlich)
-    questions = models.ManyToManyField(
-        "questions.Question",
-        through="variables.QuestionVariable",
-        related_name="variables",
-        blank=True,
-    )
-
     waves = models.ManyToManyField("waves.Wave",related_name="variables",)
 
     ver = models.BooleanField("versioniert", default=False)
@@ -100,28 +92,39 @@ class Variable(models.Model):
     
     def get_absolute_url(self):
         return reverse("variables:variable_detail", args=[self.pk])
-    
-# Through-Modell für Many-to-Many Beziehung zwischen Question und Variable 
-class QuestionVariable(models.Model):
+
+# Through-Modell für triadische Beziehung zwischen Question, Variable und Wave    
+class QuestionVariableWave(models.Model):
+
     question = models.ForeignKey(
         "questions.Question",
         on_delete=models.CASCADE,
-        related_name="questionvariable_links",
+        related_name="question_variable_wave_links",
     )
     variable = models.ForeignKey(
         "variables.Variable",
         on_delete=models.CASCADE,
-        related_name="questionvariable_links",
+        related_name="question_variable_wave_links",
     )
+    wave = models.ForeignKey(
+        "waves.Wave",
+        on_delete=models.CASCADE,
+        related_name="question_variable_wave_links",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["question", "variable"],
-                name="uq_question_variable",
+                fields=["question", "variable", "wave"],
+                name="uq_question_variable_wave",
             )
+        ]
+        indexes = [
+            models.Index(fields=["question", "wave"], name="idx_qvw_question_wave"),
+            models.Index(fields=["variable", "wave"], name="idx_qvw_variable_wave"),
         ]
 
     def __str__(self):
-        return f"{self.question_id} ↔ {self.variable_id}"
-
+        return f"Q{self.question_id} ↔ V{self.variable_id} @ W{self.wave_id}"
