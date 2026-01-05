@@ -726,27 +726,48 @@ class QuestionVariableAssignView(EditorRequiredMixin, View):
         to_remove = existing - desired
 
         with transaction.atomic():
-            # delete
+            # delete QuestionVariableWave-Einträge
             if to_remove:
                 q = Q()
                 for v_id, w_id in to_remove:
                     q |= Q(variable_id=v_id, wave_id=w_id)
                 QuestionVariableWave.objects.filter(question=question).filter(q).delete()
 
-            # create
+            # create QuestionVariableWave-Einträge & Konsistenz QuestionVariableWave ⇒ WaveVar
             if to_add:
                 QuestionVariableWave.objects.bulk_create(
                     [QuestionVariableWave(question=question, variable_id=v, wave_id=w) for v, w in to_add],
                     ignore_conflicts=True,
                 )
 
-                # Konsistenz: Triad ⇒ wavevar (Existenz) sicherstellen
-                # effizient über Through-Tabelle von Variable.waves
                 WavesThrough = Variable._meta.get_field("waves").remote_field.through
-                through_rows = []
-                for v, w in to_add:
-                    through_rows.append(WavesThrough(variable_id=v, wave_id=w))
+                through_rows = [WavesThrough(variable_id=v, wave_id=w) for v, w in to_add]
                 WavesThrough.objects.bulk_create(through_rows, ignore_conflicts=True)
+
+
+            if to_remove:
+                candidate_pairs = set(to_remove)
+
+                # Welche Variablen-Befragungs-Paare existieren weiterhin QuestionVariableWave (über alle Fragen)?
+                q = Q()
+                for v_id, w_id in candidate_pairs:
+                    q |= Q(variable_id=v_id, wave_id=w_id)
+
+                still_used_pairs = set(
+                    QuestionVariableWave.objects
+                    .filter(q)
+                    .values_list("variable_id", "wave_id")
+                )
+
+                # Nur die Paare, die nirgendwo mehr im QuestionVariableWave vorkommen, aus WaveVar entfernen
+                cleanup_pairs = candidate_pairs - still_used_pairs
+                if cleanup_pairs:
+                    WavesThrough = Variable._meta.get_field("waves").remote_field.through
+                    q = Q()
+                    for v_id, w_id in cleanup_pairs:
+                        q |= Q(variable_id=v_id, wave_id=w_id)
+                    WavesThrough.objects.filter(q).delete()
+
 
         messages.success(request, "Variablen-Zuordnung wurde gespeichert.")
         back = request.POST.get("back_url") or ""
