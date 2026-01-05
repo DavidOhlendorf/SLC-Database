@@ -1,8 +1,15 @@
 {% extends "main.html" %}
 {% load static %}
 
+{% block extra_css %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+{% endblock %}
+
+
 {% block extra_js %}
   <script src="{% static 'js/builder/questions_variables_formset.js' %}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script src="{% static 'js/builder/question_variables_tomselect.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -64,7 +71,9 @@
               <div class="row g-3 align-items-end">
                 <div class="col-lg-5">
                   <label class="form-label">Variable</label>
-                  {{ f.variable }}
+                    <div class="variable-widget" data-search-url="{% url 'variables:variable_suggest' %}">
+                      {{ f.variable }}
+                    </div>
                   {% if f.variable.errors %}
                     <div class="invalid-feedback d-block">
                       {{ f.variable.errors|striptags }}
@@ -133,7 +142,9 @@
         <div class="row g-3 align-items-end">
           <div class="col-lg-5">
             <label class="form-label">Variable</label>
-            {{ formset.empty_form.variable }}
+            <div class="variable-widget" data-search-url="{% url 'variables:variable_suggest' %}">
+              {{ formset.empty_form.variable }}
+            </div>
           </div>
 
           <div class="col-lg-6">

@@ -2,7 +2,10 @@ from django.views.generic import DetailView
 
 from questions.models import Question
 from .models import Variable, QuestionVariableWave
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
+
+from django.http import JsonResponse
+from django.views import View
 
 
 class VariableDetail(DetailView):
@@ -87,3 +90,39 @@ class VariableDetail(DetailView):
             ctx["back_url"] = self.request.GET.get("back")
 
             return ctx
+
+# AJAX-Endpoint für Variable-Vorschläge
+# Liefert schnelle Vorschläge für strukturierte Variablennamen
+class VariableSuggestView(View):
+
+    def get(self, request, *args, **kwargs):
+        q = (request.GET.get("q") or "").strip().lower()
+
+        if len(q) < 2:
+            return JsonResponse([], safe=False)
+
+        qs = (
+            Variable.objects
+            .filter(
+                Q(varname__istartswith=q) |
+                Q(varname__icontains=q)   # optional (Performance noch testen)
+            )
+            .order_by("varname")
+            .only("id", "varname", "varlab")[:30]
+        )
+
+        results = []
+        for v in qs:
+            label = v.varname
+            if v.varlab:
+                lab = v.varlab.strip()
+                if len(lab) > 80:
+                    lab = lab[:77] + "…"
+                label = f"{v.varname} — {lab}"
+
+            results.append({
+                "value": v.id,
+                "text": label,
+            })
+
+        return JsonResponse(results, safe=False)

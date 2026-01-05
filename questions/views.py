@@ -684,12 +684,6 @@ class QuestionVariableAssignView(EditorRequiredMixin, View):
         waves_qs = question.waves.all().order_by("cycle", "instrument", "id")
         allowed_waves = waves_qs.filter(is_locked=False)
 
-        # locked-waves harte Sperre: keine Änderung möglich, wenn die Frage irgendwo locked ist
-        # (oder: nur locked waves schützen – das wäre später feiner. Für Start: simpel & sicher.)
-        if waves_qs.filter(is_locked=True).exists():
-            messages.error(request, "Diese Frage ist mit einer abgeschlossenen Befragung verknüpft. Variablen können hier nicht mehr geändert werden.")
-            return redirect(reverse("questions:question_detail", kwargs={"pk": question.pk}))
-
         formset = _build_question_variable_formset(
             question=question,
             allowed_waves=allowed_waves,

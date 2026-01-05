@@ -19,6 +19,7 @@ urlpatterns = [
 
     # Variablen zuweisen
     path("<int:pk>/variables/", views.QuestionVariableAssignView.as_view(), name="question_variables"),
+    
 
 
 ]
