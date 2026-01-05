@@ -91,8 +91,8 @@ class VariableDetail(DetailView):
 
             return ctx
 
-# AJAX-Endpoint für Variable-Vorschläge
-# Liefert schnelle Vorschläge für strukturierte Variablennamen
+# AJAX-Endpoint für Variablen-Vorschläge
+# Liefert schnelle Vorschläge für den Variablen-Connector
 class VariableSuggestView(View):
 
     def get(self, request, *args, **kwargs):
@@ -103,6 +103,7 @@ class VariableSuggestView(View):
 
         qs = (
             Variable.objects
+            .filter(is_technical=False) # technische Variablen für den var-connector ausschließen
             .filter(
                 Q(varname__istartswith=q) |
                 Q(varname__icontains=q)   # optional (Performance noch testen)

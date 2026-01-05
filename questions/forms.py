@@ -267,6 +267,22 @@ class QuestionVariableLinkForm(forms.Form):
             else:
                 self.fields["variable"].queryset = Variable.objects.none()
 
+    # Absicherung: technische Variablen nicht erlaubt (sollte eigentlich im Select ohnehin nicht auftauchen)
+    def clean_variable(self):
+        var = self.cleaned_data.get("variable")
+        if not var:
+            return var
+
+        # Falls die Zeile gelöscht wird, nicht blocken
+        if self.cleaned_data.get("DELETE"):
+            return var
+
+        if getattr(var, "is_technical", False):
+            raise forms.ValidationError(
+                "Technische Variablen können keiner Frage zugeordnet werden."
+            )
+        return var
+
 QuestionVariableLinkFormSet = formset_factory(
     QuestionVariableLinkForm,
     extra=1,
