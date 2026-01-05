@@ -77,6 +77,8 @@ class Variable(models.Model):
     reason_plausi = models.TextField("Grund (plausibilisiert)", blank=True, null=True)
     reason_flag = models.TextField("Grund (flag)", blank=True, null=True)
 
+    is_technical = models.BooleanField("technische Variable", default=False)
+
     comment = models.TextField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
