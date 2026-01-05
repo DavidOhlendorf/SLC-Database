@@ -250,13 +250,11 @@ class QuestionVariableLinkForm(forms.Form):
     DELETE = forms.BooleanField(required=False)
 
     def __init__(self, *args, **kwargs):
-            allowed_waves = kwargs.pop("allowed_waves", Wave.objects.none())
+            question_waves = kwargs.pop("question_waves", Wave.objects.none())
             super().__init__(*args, **kwargs)
 
-            self.fields["waves"].queryset = allowed_waves.order_by("cycle", "instrument", "id")
+            self.fields["waves"].queryset = question_waves.order_by("cycle", "instrument", "id")
 
-            # --- TEST: Variable-Dropdown massiv verkleinern ---
-            # Wenn die Form bereits eine Variable gesetzt hat: nur diese eine Option rendern.
             var_id = None
             if self.is_bound:
                 var_id = self.data.get(self.add_prefix("variable"))

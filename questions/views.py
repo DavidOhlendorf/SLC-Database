@@ -29,25 +29,25 @@ from .utils import create_question_for_page
 # ---- Allgemeine Helper-Funktionen ---------------------------------------
 
 # Helper: Baut das QuestionVariableLinkFormSet
-def _build_question_variable_formset(*, question, allowed_waves, method, post_data=None):
+def _build_question_variable_formset(*, question, question_waves, method, post_data=None):
     """
     Baut das QuestionVariableLinkFormSet:
     - GET: initial aus Triad (QuestionVariableWave)
     - POST: gebundenes Formset
     """
-    allowed_waves = allowed_waves.order_by("cycle", "instrument", "id")
+    question_waves = question_waves.order_by("cycle", "instrument", "id")
 
     if method == "POST":
         return QuestionVariableLinkFormSet(
             post_data,
             prefix="vfs",
-            form_kwargs={"allowed_waves": allowed_waves},
+            form_kwargs={"question_waves": question_waves},
         )
 
     # GET: initial aus Triad
     links = (
         QuestionVariableWave.objects
-        .filter(question=question, wave__in=allowed_waves)
+        .filter(question=question, wave__in=question_waves)
         .select_related("variable", "wave")
         .order_by("variable_id", "wave_id")
     )
@@ -69,7 +69,7 @@ def _build_question_variable_formset(*, question, allowed_waves, method, post_da
     return QuestionVariableLinkFormSet(
         prefix="vfs",
         initial=initial,
-        form_kwargs={"allowed_waves": allowed_waves},
+        form_kwargs={"question_waves": question_waves},
     )
 
 
@@ -651,7 +651,7 @@ class QuestionVariableAssignView(EditorRequiredMixin, View):
         question = get_object_or_404(Question, pk=pk)
 
         waves_qs = question.waves.all().order_by("cycle", "instrument", "id")
-        allowed_waves = waves_qs.filter(is_locked=False)
+        locked_wave_ids = list(waves_qs.filter(is_locked=True).values_list("id", flat=True))
 
         # active wave (nur UI)
         active_wave = None
@@ -664,14 +664,14 @@ class QuestionVariableAssignView(EditorRequiredMixin, View):
 
         formset = _build_question_variable_formset(
             question=question,
-            allowed_waves=allowed_waves,
+            question_waves=waves_qs,
             method="GET",
         )
 
         return render(request, self.template_name, {
             "question": question,
             "waves": waves_qs,
-            "allowed_waves": allowed_waves,
+            "locked_wave_ids": locked_wave_ids,
             "active_wave": active_wave,
             "formset": formset,
             "question_is_locked": waves_qs.filter(is_locked=True).exists(),
@@ -682,11 +682,11 @@ class QuestionVariableAssignView(EditorRequiredMixin, View):
         question = get_object_or_404(Question, pk=pk)
 
         waves_qs = question.waves.all().order_by("cycle", "instrument", "id")
-        allowed_waves = waves_qs.filter(is_locked=False)
+        locked_wave_ids = list(waves_qs.filter(is_locked=True).values_list("id", flat=True))
 
         formset = _build_question_variable_formset(
             question=question,
-            allowed_waves=allowed_waves,
+            question_waves=waves_qs,
             method="POST",
             post_data=request.POST,
         )
@@ -695,7 +695,7 @@ class QuestionVariableAssignView(EditorRequiredMixin, View):
             return render(request, self.template_name, {
                 "question": question,
                 "waves": waves_qs,
-                "allowed_waves": allowed_waves,
+                "locked_wave_ids": locked_wave_ids,
                 "active_wave": None,
                 "formset": formset,
                 "question_is_locked": False,

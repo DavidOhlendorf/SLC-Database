@@ -35,12 +35,6 @@
     </div>
   </div>
 
-  {% if question_is_locked %}
-    <div class="alert alert-warning">
-      Diese Frage ist mit einer abgeschlossenen Befragung verknüpft. Änderungen sind gesperrt.
-    </div>
-  {% endif %}
-
   <form method="post" novalidate>
     {% csrf_token %}
     <input type="hidden" name="back_url" value="{{ back_url }}">
@@ -64,7 +58,10 @@
       </div>
 
       <div class="card-body p-0">
-        <div id="vfs-container" class="vstack gap-3 p-3" data-formset-prefix="{{ formset.prefix|default:'vfs' }}">
+        <div id="vfs-container"
+            class="vstack gap-3 p-3"
+            data-formset-prefix="{{ formset.prefix|default:'vfs' }}"
+            data-locked-wave-ids="{{ locked_wave_ids|join:',' }}">
 
           {% for f in formset.forms %}
             <div class="border rounded p-3 vfs-form {% if f.errors %}border-danger{% endif %}">
@@ -129,7 +126,7 @@
              href="{{ back_url|default:question.get_absolute_url }}">
             Abbrechen
           </a>
-          <button type="submit" class="btn btn-primary" {% if question_is_locked %}disabled{% endif %}>
+          <button type="submit" class="btn btn-primary">
             Speichern
           </button>
         </div>
@@ -173,6 +170,31 @@
         </div>
       </div>
     </template>
+
+    <div class="modal fade" id="confirmLockedWavesModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Änderung in abgeschlossener Befragung</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+          <div class="modal-body">
+            Du hast Zuordnungen für mindestens eine abgeschlossene Befragung geändert.<br>
+            Möchtest du trotzdem speichern?
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              Abbrechen
+            </button>
+            <button type="button" class="btn btn-primary" id="confirmLockedWavesYes">
+              Trotzdem speichern
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
 
   </form>
 

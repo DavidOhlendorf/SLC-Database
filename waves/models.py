@@ -1,3 +1,5 @@
+# waves/models.py
+
 from django.db import models
 from questions.models import Question
 
