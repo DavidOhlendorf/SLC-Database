@@ -87,3 +87,25 @@ select.qc-passive:focus {
   border-radius: .25rem;
 
 }
+
+/* Input-Gruppe für Variable-Auswahl mit Button (bricht sonst unschön um) */
+.variable-input-group {
+  flex-wrap: nowrap;
+}
+
+.variable-input-group .ts-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.variable-input-group .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.variable-input-group .ts-control {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

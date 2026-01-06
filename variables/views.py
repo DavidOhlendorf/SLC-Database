@@ -197,5 +197,5 @@ class VariableQuickCreateView(View):
             "ok": True,
             "id": v.id,
             "varname": v.varname,
-            "text": v.varname, 
+            "text": f"{v.varname} — {v.varlab}",
         })

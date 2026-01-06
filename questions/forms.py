@@ -242,9 +242,10 @@ class QuestionVariableLinkForm(forms.Form):
 
     waves = forms.ModelMultipleChoiceField(
         queryset=Wave.objects.none(),
-        required=False,
+        required=True,
         label="Befragungen",
         widget=forms.CheckboxSelectMultiple,
+        error_messages={"required": "Bitte wähle mindestens eine Befragung aus."},
     )
 
     DELETE = forms.BooleanField(required=False)
