@@ -7,6 +7,13 @@ urlpatterns = [
     path('<int:pk>/', views.VariableDetail.as_view(), name='variable_detail'),
 
     # AJAX-Endpoint für Variable-Vorschläge
-    path("api/suggest/", views.VariableSuggestView.as_view(), name="variable_suggest"),
+    path("suggest/", views.VariableSuggestView.as_view(), name="variable_suggest"),
+
+    # AJAX-Endpoint für Variablenname-Prüfung
+    path("varname-check/", views.VariableVarnameCheckView.as_view(), name="variable_varname_check"),
+
+    # AJAX-Endpoint für Variable-Schnellerstellung
+    path("quickcreate/", views.VariableQuickCreateView.as_view(), name="variable_quickcreate"),
+
 ]
 

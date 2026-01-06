@@ -10,6 +10,7 @@
   <script src="{% static 'js/builder/questions_variables_formset.js' %}"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script src="{% static 'js/builder/question_variables_tomselect.js' %}"></script>
+  <script src="{% static 'js/builder/question_variables_quickcreate.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -62,9 +63,19 @@
               <div class="row g-3 align-items-end">
                 <div class="col-lg-5">
                   <label class="form-label">Variable</label>
-                    <div class="variable-widget" data-search-url="{% url 'variables:variable_suggest' %}">
+
+                  <div class="input-group">
+                    <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
                       {{ f.variable }}
                     </div>
+                      <button type="button" class="btn btn-outline-success vfs-quickcreate"
+                              title="Neue Variable anlegen"
+                              data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
+                              <i class="fa-solid fa-plus"></i>
+                             <span class="d-none d-lg-inline ms-1">Neu</span>
+                      </button>
+                  </div>
+
                   {% if f.variable.errors %}
                     <div class="invalid-feedback d-block">
                       {{ f.variable.errors|striptags }}
@@ -133,9 +144,18 @@
         <div class="row g-3 align-items-end">
           <div class="col-lg-5">
             <label class="form-label">Variable</label>
-            <div class="variable-widget" data-search-url="{% url 'variables:variable_suggest' %}">
-              {{ formset.empty_form.variable }}
-            </div>
+
+                  <div class="input-group">
+                    <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
+                      {{ formset.empty_form.variable }}
+                    </div>
+                      <button type="button" class="btn btn-outline-success vfs-quickcreate"
+                              title="Neue Variable anlegen"
+                              data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
+                              <i class="fa-solid fa-plus"></i>
+                             <span class="d-none d-lg-inline ms-1">Neu</span>
+                      </button>
+                  </div>
           </div>
 
           <div class="col-lg-6">
@@ -187,6 +207,42 @@
         </div>
       </div>
     </div>
+
+    <div class="modal fade" id="quickCreateVariableModal" data-varname-check-url="{% url 'variables:variable_varname_check' %}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Neue Variable anlegen</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="mb-2">
+              <label class="form-label">Variablenname</label>
+              <input type="text" class="form-control" id="qc-varname" autocomplete="off">
+              <div class="form-text">Mindestens 2 Zeichen.</div>
+            </div>
+
+            <div class="mt-2" id="qc-name-status"></div>
+            <ul class="list-group mt-2 d-none" id="qc-suggestions"></ul>
+
+
+            <div class="mb-2">
+              <label class="form-label">Variablenlabel</label>
+              <input type="text" class="form-control" id="qc-varlab" autocomplete="off">
+            </div>
+
+            <div class="alert alert-danger d-none mb-0" id="qc-error"></div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            <button type="button" class="btn btn-primary" id="qc-save">Anlegen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
 
 

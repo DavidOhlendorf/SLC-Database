@@ -1,11 +1,16 @@
-from django.views.generic import DetailView
+# variables/views.py
 
-from questions.models import Question
+from django.views import View
+from django.views.generic import DetailView
+from django.views.decorators.http import require_GET, require_POST
+
+from django.utils.decorators import method_decorator
+
 from .models import Variable, QuestionVariableWave
 from django.db.models import Prefetch, Q
 
 from django.http import JsonResponse
-from django.views import View
+
 
 
 class VariableDetail(DetailView):
@@ -127,3 +132,70 @@ class VariableSuggestView(View):
             })
 
         return JsonResponse(results, safe=False)
+    
+    
+# AJAX-Endpoint: Prüft, ob ein Variablenname bereits existiert (case-insensitive)
+@method_decorator(require_GET, name="dispatch")
+class VariableVarnameCheckView(View):
+
+    def get(self, request, *args, **kwargs):
+        q_raw = (request.GET.get("q") or "").strip()
+        q = q_raw.lower()
+
+        if len(q) < 2:
+            return JsonResponse({
+                "query": q_raw,
+                "normalized": q,
+                "is_valid_length": False,
+                "exists_exact": False,
+                "suggestions": [],
+            })
+
+        exists_exact = Variable.objects.filter(varname__iexact=q).exists()
+
+        suggestions_qs = (
+            Variable.objects
+            .filter(varname__istartswith=q)
+            .order_by("varname")
+            .values_list("varname", flat=True)[:12]
+        )
+
+        return JsonResponse({
+            "query": q_raw,
+            "normalized": q,
+            "is_valid_length": True,
+            "exists_exact": exists_exact,
+            "suggestions": list(suggestions_qs),
+        })
+
+
+# AJAX: Quickcreate für neue Variable (nur varname & varlab)
+@method_decorator(require_POST, name="dispatch")
+class VariableQuickCreateView(View):
+
+    def post(self, request, *args, **kwargs):
+        varname = (request.POST.get("varname") or "").strip()
+        varlab = (request.POST.get("varlab") or "").strip()
+
+        if len(varname) <2:
+            return JsonResponse({"ok": False, "error": "Der Variablenname muss mindestens 2 Zeichen haben."}, status=400)
+        
+        if not varlab:
+            return JsonResponse({"ok": False, "error": "Bitte gib ein Variablenlabel ein. Kann später angepasst werden."}, status=400)
+
+        # case-insensitive Duplikate verhindern
+        if Variable.objects.filter(varname__iexact=varname).exists():
+            return JsonResponse({"ok": False, "error": "Dieser Variablenname ist bereits vergeben."}, status=409)
+
+        v = Variable.objects.create(
+            varname=varname,
+            varlab= varlab,
+            is_technical=False,
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "id": v.id,
+            "varname": v.varname,
+            "text": v.varname, 
+        })
