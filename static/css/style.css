@@ -91,6 +91,7 @@ select.qc-passive:focus {
 /* Input-Gruppe für Variable-Auswahl mit Button (bricht sonst unschön um) */
 .variable-input-group {
   flex-wrap: nowrap;
+
 }
 
 .variable-input-group .ts-wrapper {
@@ -107,5 +108,6 @@ select.qc-passive:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
 }
 

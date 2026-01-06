@@ -236,7 +236,7 @@ class QuestionVariableLinkForm(forms.Form):
         queryset=Variable.objects.all().order_by("varname"),
         required=True,
         label="Variable",
-        widget=forms.Select(attrs={"class": "form-select"}),
+        widget=forms.Select(attrs={"class": "form-select qc-passive"}),
         error_messages={"required": "Bitte wähle eine Variable aus."},
     )
 
@@ -283,6 +283,29 @@ class QuestionVariableLinkForm(forms.Form):
                 "Technische Variablen können keiner Frage zugeordnet werden."
             )
         return var
+    
+    # Absicherung: bestehende Variable-Zuordnungen nicht überschreiben
+    def clean(self):
+        cleaned = super().clean()
+
+        if cleaned.get("DELETE"):
+            return cleaned
+
+        new_var = cleaned.get("variable")
+
+        # initial kann ein Variable-Objekt oder eine ID sein
+        initial_var = self.initial.get("variable")
+        initial_var_id = getattr(initial_var, "id", initial_var)
+
+        # Wenn initial gesetzt war, darf nicht "überschrieben" werden
+        if initial_var_id and new_var and str(new_var.id) != str(initial_var_id):
+            self.add_error(
+                "variable",
+                "Bestehende Variablenzuordnung kann nicht überschrieben werden. "
+                "Bitte Zeile löschen und eine neue Zeile hinzufügen."
+            )
+
+        return cleaned
 
 QuestionVariableLinkFormSet = formset_factory(
     QuestionVariableLinkForm,

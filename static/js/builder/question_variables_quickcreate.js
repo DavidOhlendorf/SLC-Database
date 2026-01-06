@@ -1,5 +1,21 @@
 // static/js/builder/question_variables_quickcreate.js
 
+// Beim Laden der Seite: Bereits zugewiesene Variablen nicht änderbar machen
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".vfs-form").forEach((row) => {
+    const hasInitialVar = !!row.querySelector('input[type="hidden"][name$="-variable"]');
+    if (!hasInitialVar) return;
+
+    const select = row.querySelector(".variable-widget select");
+    if (select && select.tomselect) {
+      select.tomselect.disable();   // verhindert Änderungen
+    } else if (select) {
+      select.disabled = true;       // fallback
+    }
+  });
+});
+
+
 (function () {
 
     // Hilfsfunktion, um den CSRF-Token aus den Cookies zu lesen

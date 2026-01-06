@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function initVariableTomSelect(selectEl) {
     if (!selectEl) return;
-    if (selectEl.tomselect) return; // schon initialisiert
+    if (selectEl.tomselect) return;
 
     const wrapper = selectEl.closest(".variable-widget");
     if (!wrapper) return;
@@ -11,12 +11,18 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!searchUrl) return;
 
     new TomSelect(selectEl, {
-      plugins: ["remove_button"],
+      maxItems: 1,
+      create: false,
       persist: false,
+
+      // wichtig für "Input"-Gefühl
+      placeholder: "Variable suchen…",
+      openOnFocus: true,
+      closeAfterSelect: true,
 
       valueField: "value",
       labelField: "text",
-      searchField: "text",
+      searchField: ["text"],
 
       shouldLoad: function (query) {
         return (query || "").trim().length >= 2;
@@ -32,6 +38,7 @@ document.addEventListener("DOMContentLoaded", function () {
           .catch(() => callback());
       },
     });
+
   }
 
   function initAll() {
@@ -42,7 +49,6 @@ document.addEventListener("DOMContentLoaded", function () {
   initAll();
 
   // wenn neue Formset-Zeile hinzugefügt wird: nach dem Append initialisieren
-  // -> wir hängen uns an den Add-Button aus deinem Formset-JS
   const addBtn = document.getElementById("vfs-add");
   if (addBtn) {
     addBtn.addEventListener("click", () => {

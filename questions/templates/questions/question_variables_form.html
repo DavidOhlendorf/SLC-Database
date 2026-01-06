@@ -7,9 +7,9 @@
 
 
 {% block extra_js %}
-  <script src="{% static 'js/builder/questions_variables_formset.js' %}"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script src="{% static 'js/builder/question_variables_tomselect.js' %}"></script>
+  <script src="{% static 'js/builder/questions_variables_formset.js' %}"></script>
   <script src="{% static 'js/builder/question_variables_quickcreate.js' %}"></script>
 {% endblock %}
 
@@ -60,18 +60,27 @@
               <div class="row g-3 align-items-end">
                 <div class="col-lg-5">
                   <label class="form-label">Variable</label>
+                  {% with var_val=f.variable.value %}
+                    <div class="input-group variable-input-group {% if var_val %}is-locked{% endif %}">
+                      <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
+                        {{ f.variable }}
+                      </div>
 
-                  <div class="input-group variable-input-group">
-                    <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
-                      {{ f.variable }}
-                    </div>
-                      <button type="button" class="btn btn-outline-success vfs-quickcreate"
+                      <button type="button"
+                              class="btn btn-outline-success vfs-quickcreate {% if var_val %}disabled{% endif %}"
+                              {% if var_val %}disabled aria-disabled="true"{% endif %}
                               title="Neue Variable anlegen"
                               data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
-                              <i class="fa-solid fa-plus"></i>
-                             <span class="d-none d-lg-inline ms-1">Neu</span>
+                        <i class="fa-solid fa-plus"></i>
+                        <span class="d-none d-lg-inline ms-1">Neu</span>
                       </button>
-                  </div>
+                    </div>
+
+                    {% if var_val %}
+                      <!-- Hidden field to ensure value is sent even if disabled -->
+                      <input type="hidden" name="{{ f.variable.html_name }}" value="{{ var_val }}">
+                    {% endif %}
+                  {% endwith %}
 
                   {% if f.variable.errors %}
                     <div class="invalid-feedback d-block">
