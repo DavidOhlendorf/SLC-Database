@@ -19,6 +19,7 @@ from django.core.exceptions import PermissionDenied
 from accounts.mixins import EditorRequiredMixin
 
 
+
 class SurveyListView(ListView):
     template_name = "waves/survey_list.html"
     context_object_name = "surveys"
@@ -104,6 +105,7 @@ class SurveyDetailView(TemplateView):
 
                 pages_qs = (
                     WavePage.objects
+                    .with_completeness()
                     .filter(waves__in=wlist)
                     .distinct()
                     .prefetch_related("waves")
@@ -142,6 +144,7 @@ class SurveyDetailView(TemplateView):
         # ------------------------------------------------------------
         pages_qs = (
             active_wave.pages
+            .with_completeness()
             .all()
             .order_by("pagename")
         )

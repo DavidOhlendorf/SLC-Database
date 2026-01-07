@@ -100,7 +100,18 @@
                   {% for p in g.pages %}
                     <div class="list-group-item d-flex justify-content-between align-items-start">
                       <div class="flex-grow-1">
-                        <div class="fw-semibold">{{ p.pagename }}</div>
+                        <div class="fw-semibold d-flex align-items-center gap-2">
+                          <span>{{ p.pagename }}</span>
+                          {% if perms.accounts.can_edit_slc %}
+                            {% if p.is_incomplete %}
+                              <span>
+                              <i class="fa-solid fa-circle-exclamation text-primary"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Seitenangaben unvollständig"></i>
+                              </span>
+                            {% endif %}
+                          {% endif %}
+                        </div>
 
                         <div class="mt-1 d-flex flex-wrap gap-1">
                           {% for w in g.page_wave_tags|get_item:p.id %}
@@ -233,7 +244,19 @@
                 {% for p in pages %}
                   <div class="list-group-item d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
-                      <div class="fw-semibold">{{ p.pagename }}</div>
+                      <div class="fw-semibold d-flex align-items-center gap-2">
+                        <span>{{ p.pagename }}</span>
+                          {% if perms.accounts.can_edit_slc %}
+                            {% if p.is_incomplete %}
+                              <span>
+                              <i class="fa-solid fa-circle-exclamation text-primary"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Seitenangaben unvollständig"></i>
+                              </span>
+                            {% endif %}
+                          {% endif %}
+                      </div>
+
 
                       <div class="text-muted small">
                         {% with page_question_counts|get_item:p.id as cnt %}

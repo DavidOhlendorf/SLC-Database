@@ -1,6 +1,39 @@
 from django.db import models
 from django.urls import reverse
 from django.db.models.functions import Lower 
+from django.db.models import BooleanField, Case, When, Value, Q, OuterRef, Exists
+from variables.models import QuestionVariableWave  
+
+
+# Completeness check for Question model
+class QuestionQuerySet(models.QuerySet):
+
+    def with_completeness(self):
+
+        # Triad: hat die Frage überhaupt Variablen?
+        triad_exists = QuestionVariableWave.objects.filter(question_id=OuterRef("pk"))
+
+        # Keywords Exists auf M2M-through
+        kw_through = Question.keywords.through
+        kw_exists = kw_through.objects.filter(question_id=OuterRef("pk"))
+
+        # Fehlende Kernelemente
+        missing_core = (
+            Q(questiontext__isnull=True) | Q(questiontext="") |
+            Q(question_type__isnull=True) | Q(question_type="") |
+            Q(answer_options__isnull=True) | Q(answer_options=[])
+        )
+
+        incomplete_expr = missing_core | ~Exists(triad_exists) | ~Exists(kw_exists)
+
+        return self.annotate(
+            is_incomplete=Case(
+                When(incomplete_expr, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            )
+        )
+
 
 class Keyword(models.Model):
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
@@ -42,6 +75,8 @@ class Construct(models.Model):
 
 
 class Question(models.Model):
+
+    objects = QuestionQuerySet.as_manager()
 
     # Ehemalige ID Access-Datenbank
     legacy_id = models.IntegerField(

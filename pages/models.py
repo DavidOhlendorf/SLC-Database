@@ -3,8 +3,12 @@ from django.db import models
 from waves.models import Wave
 from questions.models import Question
 
+from .querysets import WavePageQuerySet
+
 
 class WavePage(models.Model):
+
+    objects = WavePageQuerySet.as_manager()
     
     waves = models.ManyToManyField(
         Wave,
