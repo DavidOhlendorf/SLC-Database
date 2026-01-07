@@ -1,18 +1,27 @@
 # variables/views.py
 
+from django.contrib import messages
+from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import JsonResponse
+
+from accounts.mixins import EditorRequiredMixin
+
 from django.views import View
 from django.views.generic import DetailView
+from django.views.generic.edit import UpdateView
 from django.views.decorators.http import require_GET, require_POST
-
-from django.utils.decorators import method_decorator
 
 from .models import Variable, QuestionVariableWave
 from django.db.models import Prefetch, Q
 
-from django.http import JsonResponse
+from .forms import VariableForm
 
 
 
+
+# Detail-View für eine Variable
 class VariableDetail(DetailView):
     model = Variable
     template_name = "variables/detail.html"
@@ -95,6 +104,32 @@ class VariableDetail(DetailView):
             ctx["back_url"] = self.request.GET.get("back")
 
             return ctx
+    
+
+# View für das Erstellen und Bearbeiten von Variablen
+class VariableUpdateView(EditorRequiredMixin, UpdateView):
+    model = Variable
+    form_class = VariableForm
+    template_name = "variables/variable_form.html"
+    context_object_name = "variable"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["back_url"] = self.request.GET.get("back", "")
+        ctx["varname_check_url"] = reverse("variables:variable_varname_check")
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Variable gespeichert.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        back = self.request.GET.get("back") or self.request.POST.get("back_url") or ""
+        if back and url_has_allowed_host_and_scheme(back, allowed_hosts={self.request.get_host()}):
+            return back
+        return self.object.get_absolute_url()
+
+
 
 # AJAX-Endpoint für Variablen-Vorschläge
 # Liefert schnelle Vorschläge für den Variablen-Connector
@@ -169,7 +204,7 @@ class VariableVarnameCheckView(View):
         })
 
 
-# AJAX: Quickcreate für neue Variable (nur varname & varlab)
+# AJAX: Quickcreate für neue Variable (nur varname)
 @method_decorator(require_POST, name="dispatch")
 class VariableQuickCreateView(View):
 

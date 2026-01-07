@@ -1,3 +1,6 @@
+// static/js/builder/question_variables_tomselect.js
+// Frage-Variable-Auswahl mit TomSelect und AJAX-Suche
+
 document.addEventListener("DOMContentLoaded", function () {
 
   function initVariableTomSelect(selectEl) {

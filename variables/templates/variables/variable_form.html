@@ -1,0 +1,103 @@
+{% extends "main.html" %}
+{% load static %}
+
+{% block extra_js %}
+    <script src="{% static 'js/builder/variable_varname_livecheck.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h4 mb-1">Variable bearbeiten</h1>
+      <div class="text-muted">{{ variable.varname }}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary"
+         href="{{ back_url|default:variable.get_absolute_url }}">
+        Zurück
+      </a>
+    </div>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="back_url" value="{{ back_url }}">
+
+    <div class="card mb-3">
+      <div class="card-body">
+
+        <div class="mb-3">
+          <label class="form-label">Variablenname</label>
+          {{ form.varname }}
+          {% if form.varname.errors %}
+            <div class="invalid-feedback d-block">{{ form.varname.errors|striptags }}</div>
+          {% endif %}
+          <div class="form-text" id="varname-status"></div>
+          <div class="mt-2 d-none" id="varname-suggestions"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Variablenlabel</label>
+          {{ form.varlab }}
+          {% if form.varlab.errors %}
+            <div class="invalid-feedback d-block">{{ form.varlab.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Kommentar</label>
+          {{ form.comment }}
+        </div>
+
+        <hr class="my-4">
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.ver }} <label class="form-check-label">versioniert</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_ver }}
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.gen }} <label class="form-check-label">generiert</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_gen }}
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.plausi }} <label class="form-check-label">plausibilisiert</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_plausi }}
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.flag }} <label class="form-check-label">flag</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_flag }}
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <button type="submit" class="btn btn-primary">Speichern</button>
+        <a class="btn btn-outline-secondary"
+           href="{{ back_url|default:variable.get_absolute_url }}">
+          Abbrechen
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

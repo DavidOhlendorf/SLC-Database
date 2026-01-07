@@ -5,6 +5,7 @@ app_name = "variables"
 
 urlpatterns = [
     path('<int:pk>/', views.VariableDetail.as_view(), name='variable_detail'),
+    path("<int:pk>/edit/", views.VariableUpdateView.as_view(), name="variable_edit"),
 
     # AJAX-Endpoint für Variable-Vorschläge
     path("suggest/", views.VariableSuggestView.as_view(), name="variable_suggest"),

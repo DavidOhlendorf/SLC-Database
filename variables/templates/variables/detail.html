@@ -8,6 +8,20 @@
     <div class="text-muted ">{{ object.varlab }}</div>
   </header>
 
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary"
+      href="{{ back_url|default:'/' }}">
+      Zurück
+    </a>
+
+    {% if perms.accounts.can_edit_slc %}
+      <a class="btn btn-primary"
+        href="{% url 'variables:variable_edit' object.pk %}?back={{ request.get_full_path|urlencode }}">
+        Bearbeiten
+      </a>
+    {% endif %}
+  </div>
+
   <!-- Kontext: Accordion-Card, standardmäßig offen -->
   <div class="accordion mb-3" id="contextAccordion-{{ object.pk }}">
     <div class="accordion-item">
