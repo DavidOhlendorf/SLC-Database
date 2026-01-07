@@ -1,4 +1,10 @@
 {% extends "main.html" %}
+{% load static %}
+
+{% block extra_js %}
+    <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
+{% endblock %}
+
 
 {% block content %}
   <div class="container my-4">
@@ -105,6 +111,19 @@
       </div>
     </div>
 
+    {% if perms.accounts.can_edit_slc %}
+      <div class="mb-4">
+        <button type="button"
+                class="btn btn-outline-success"
+                data-bs-toggle="modal"
+                data-bs-target="#qcVarForQuestionModal">
+          <i class="fa-solid fa-plus"></i> Neue Variable
+        </button>
+      </div>
+    {% endif %}
+
+
+
     <!-- Seiten -->
     <div class="accordion mb-3" id="pageAccordion-{{ question.id }}">
       <div class="accordion-item">
@@ -177,7 +196,64 @@
       </div>
     {% endif %}
 
-
   </div>
+
+  <!-- Modal: Variable-Schnellerstellung für Question -->
+  <div class="modal fade"
+     id="qcVarForQuestionModal"
+     data-varname-check-url="{% url 'variables:variable_varname_check' %}"
+     data-create-url="{% url 'variables:variable_quickcreate_question' %}"
+     data-question-id="{{ question.id }}"
+     tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Neue Variable anlegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Variablenname</label>
+            <input type="text" class="form-control" id="qcq-varname" autocomplete="off">
+            <div class="form-text">Mindestens 2 Zeichen.</div>
+          </div>
+
+          <div class="mt-2" id="qcq-name-status"></div>
+          <div class="mt-2 d-none" id="qcq-suggestions"></div>
+
+          <hr class="my-3">
+
+          <label class="form-label">Befragungsgruppen</label>
+          <div class="d-flex flex-wrap gap-2" id="qcq-waves">
+            {% for w in waves %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input"
+                      type="checkbox"
+                      name="wave_ids"
+                      value="{{ w.id }}"
+                      id="qcq-wave-{{ w.id }}"
+                      {% if w.is_locked %}disabled{% endif %}
+                      {% if active_wave and w.id == active_wave.id %}checked{% endif %}>
+                <label class="form-check-label" for="qcq-wave-{{ w.id }}">
+                  {{ w.cycle }} {{ w.instrument }}
+                  {% if w.is_locked %}<span class="text-muted">(locked)</span>{% endif %}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="alert alert-danger d-none mt-3 mb-0" id="qcq-error"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="button" class="btn btn-outline-primary" id="qcq-later">Später vervollständigen</button>
+          <button type="button" class="btn btn-primary" id="qcq-complete">Angaben vervollständigen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 {% endblock %}
 

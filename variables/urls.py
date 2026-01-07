@@ -16,5 +16,8 @@ urlpatterns = [
     # AJAX-Endpoint für Variable-Schnellerstellung
     path("quickcreate/", views.VariableQuickCreateView.as_view(), name="variable_quickcreate"),
 
+    # AJAX-Endpoint für Variable-Schnellerstellung aus Question-Detail
+    path("quickcreate/question/", views.VariableQuickCreateForQuestionView.as_view(), name="variable_quickcreate_question"),
+
 ]
 

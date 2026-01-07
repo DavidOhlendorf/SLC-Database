@@ -1,6 +1,7 @@
 # variables/views.py
 
 from django.contrib import messages
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -14,7 +15,9 @@ from django.views.generic.edit import UpdateView
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import Variable, QuestionVariableWave
+from questions.models import Question
 from django.db.models import Prefetch, Q
+from django.db import transaction
 
 from .forms import VariableForm
 
@@ -113,6 +116,15 @@ class VariableUpdateView(EditorRequiredMixin, UpdateView):
     template_name = "variables/variable_form.html"
     context_object_name = "variable"
 
+    # Erweiterung des Formulars um Daten-Attribute für die JS-Validierung
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields["varname"].widget.attrs.update({
+            "data-check-url": reverse("variables:variable_varname_check"),
+            "data-initial-value": (self.object.varname or ""),
+        })
+        return form
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["back_url"] = self.request.GET.get("back", "")
@@ -204,7 +216,8 @@ class VariableVarnameCheckView(View):
         })
 
 
-# AJAX: Quickcreate für neue Variable (nur varname)
+# AJAX: Quickcreate für neue Variable (nur varname, ohne Verknüpfung mit Befragungen / Questions)
+# Minimalvariante für den Question-Variable-Connector
 @method_decorator(require_POST, name="dispatch")
 class VariableQuickCreateView(View):
 
@@ -214,7 +227,6 @@ class VariableQuickCreateView(View):
         if len(varname) <2:
             return JsonResponse({"ok": False, "error": "Der Variablenname muss mindestens 2 Zeichen haben."}, status=400)
         
-        # case-insensitive Duplikate verhindern
         if Variable.objects.filter(varname__iexact=varname).exists():
             return JsonResponse({"ok": False, "error": "Dieser Variablenname ist bereits vergeben."}, status=409)
 
@@ -228,4 +240,75 @@ class VariableQuickCreateView(View):
             "id": v.id,
             "varname": v.varname,
             "text": v.varname,
+        })
+    
+
+
+# AJAX: Quickcreate für neue Variable + Verknüpfung mit einer Question + Waves
+# Variante für den Start aus der Question-Detail-View
+@method_decorator(require_POST, name="dispatch")
+class VariableQuickCreateForQuestionView(EditorRequiredMixin, View):
+
+    def post(self, request, *args, **kwargs):
+        varname = (request.POST.get("varname") or "").strip()
+        mode = (request.POST.get("mode") or "later").strip()
+        question_id = request.POST.get("question_id")
+        wave_ids_raw = request.POST.getlist("wave_ids")
+
+        if len(varname) < 2:
+            return JsonResponse({"ok": False, "error": "Der Variablenname muss mindestens 2 Zeichen haben."}, status=400)
+
+        if Variable.objects.filter(varname__iexact=varname).exists():
+            return JsonResponse({"ok": False, "error": "Dieser Variablenname ist bereits vergeben."}, status=409)
+
+        if not question_id:
+            return JsonResponse({"ok": False, "error": "question_id fehlt."}, status=400)
+
+        question = get_object_or_404(Question, pk=question_id)
+
+        if not wave_ids_raw:
+            return JsonResponse({"ok": False, "error": "Bitte wähle mindestens eine Befragungsgruppe aus."}, status=400)
+
+        try:
+            wave_ids = [int(x) for x in wave_ids_raw]
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Ungültige Gruppen-Auswahl."}, status=400)
+
+        # nur Waves der Frage, die NICHT locked sind
+        allowed_waves_qs = question.waves.filter(is_locked=False)
+        allowed_ids = set(allowed_waves_qs.values_list("id", flat=True))
+
+        if not set(wave_ids).issubset(allowed_ids):
+            return JsonResponse(
+                {"ok": False, "error": "Mindestens eine ausgewählte Befragungsgruppe ist nicht zulässig (ggf. locked)."},
+                status=400
+            )
+
+        with transaction.atomic():
+            v = Variable.objects.create(varname=varname, is_technical=False)
+
+            # Triadisches Modell Question-Variable-Wave
+            QuestionVariableWave.objects.bulk_create(
+                [QuestionVariableWave(question=question, variable=v, wave_id=w) for w in wave_ids],
+                ignore_conflicts=True,
+            )
+
+            # M2M Variable-Waves
+            WavesThrough = Variable._meta.get_field("waves").remote_field.through
+            WavesThrough.objects.bulk_create(
+                [WavesThrough(variable_id=v.id, wave_id=w) for w in wave_ids],
+                ignore_conflicts=True,
+            )
+
+        # Redirect-URL je nach Modus ("complete"--> editform mit back-Parameter vs. "later"--> Question-Detail), 
+        if mode == "complete":
+            back = reverse("questions:question_detail", kwargs={"pk": question.id})
+            redirect_url = f"{reverse('variables:variable_edit', kwargs={'pk': v.id})}?back={back}"
+        else:
+            redirect_url = reverse("questions:question_detail", kwargs={"pk": question.id})
+
+        return JsonResponse({
+            "ok": True,
+            "variable": {"id": v.id, "varname": v.varname},
+            "redirect_url": redirect_url,
         })
