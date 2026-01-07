@@ -32,7 +32,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const modal = new bootstrap.Modal(modalEl);
     const inputName = document.getElementById("qc-varname");
-    const inputLabel = document.getElementById("qc-varlab");
     const btnSave = document.getElementById("qc-save");
     const errBox = document.getElementById("qc-error");
 
@@ -136,7 +135,6 @@ document.addEventListener("DOMContentLoaded", () => {
         activeCreateUrl = btn.getAttribute("data-quickcreate-url");
 
         inputName.value = "";
-        inputLabel.value = "";
         clearError();
 
         // Live UI initialisieren
@@ -161,16 +159,12 @@ document.addEventListener("DOMContentLoaded", () => {
         clearError();
 
         const varname = (inputName.value || "").trim();
-        const varlab = (inputLabel.value || "").trim();
 
         if (varname.length < 2) {
         showError("Mindestens 2 Zeichen.");
         return;
         }
-        if (!varlab) {
-        showError("Bitte gib ein Variablenlabel ein.");
-        return;
-        }
+
         if (!activeSelectEl || !activeCreateUrl) {
         showError("Interner Fehler: Ziel-Select nicht gefunden.");
         return;
@@ -181,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const formData = new FormData();
             formData.append("varname", varname);
-            formData.append("varlab", varlab);
 
             const res = await fetch(activeCreateUrl, {
                 method: "POST",

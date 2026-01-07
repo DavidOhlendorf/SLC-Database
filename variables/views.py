@@ -175,21 +175,16 @@ class VariableQuickCreateView(View):
 
     def post(self, request, *args, **kwargs):
         varname = (request.POST.get("varname") or "").strip()
-        varlab = (request.POST.get("varlab") or "").strip()
 
         if len(varname) <2:
             return JsonResponse({"ok": False, "error": "Der Variablenname muss mindestens 2 Zeichen haben."}, status=400)
         
-        if not varlab:
-            return JsonResponse({"ok": False, "error": "Bitte gib ein Variablenlabel ein. Kann später angepasst werden."}, status=400)
-
         # case-insensitive Duplikate verhindern
         if Variable.objects.filter(varname__iexact=varname).exists():
             return JsonResponse({"ok": False, "error": "Dieser Variablenname ist bereits vergeben."}, status=409)
 
         v = Variable.objects.create(
             varname=varname,
-            varlab= varlab,
             is_technical=False,
         )
 
@@ -197,5 +192,5 @@ class VariableQuickCreateView(View):
             "ok": True,
             "id": v.id,
             "varname": v.varname,
-            "text": f"{v.varname} — {v.varlab}",
+            "text": v.varname,
         })
