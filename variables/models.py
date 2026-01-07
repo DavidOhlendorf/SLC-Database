@@ -63,7 +63,7 @@ class ValLab(models.Model):
 class Variable(models.Model):
     legacy_id = models.PositiveIntegerField(null=True, blank=True, unique=True,)
     varname = models.CharField(max_length=50, unique=True)
-    varlab = models.CharField("Variablenblabel", max_length=255,)
+    varlab = models.CharField("Variablenblabel", max_length=255,blank=True, null=True,)
     vallab = models.ForeignKey(ValLab,on_delete=models.SET_NULL,null=True,blank=True,related_name="variables",)
 
     waves = models.ManyToManyField("waves.Wave",related_name="variables",)
