@@ -1,7 +1,7 @@
 # variables/views.py
 
 from django.contrib import messages
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -24,28 +24,28 @@ from .forms import VariableForm
 
 
 
-# Detail-View für eine Variable
+# Detail-View für die Anzeige einer Variable
 class VariableDetail(DetailView):
     model = Variable
     template_name = "variables/detail.html"
     queryset = (
-            Variable.objects
-            .select_related("vallab")
-            .prefetch_related(
-                "waves",  # (Existenz in Waves)
-                Prefetch(
-                    "question_variable_wave_links",  # Triad-Links: Question-Variable-Wave
-                    queryset=(
-                        QuestionVariableWave.objects
-                        .select_related("question", "wave")
-                        .only("id", "question_id", "variable_id", "wave_id",
-                            "question__id", "question__questiontext",
-                            "wave__id", "wave__cycle", "wave__instrument")
-                        .order_by("question_id", "-wave_id")
-                    ),
+        Variable.objects
+        .select_related("vallab")
+        .prefetch_related(
+            "waves",  # (Existenz in Waves)
+            Prefetch(
+                "question_variable_wave_links",  # Triad-Links: Question-Variable-Wave
+                queryset=(
+                    QuestionVariableWave.objects
+                    .select_related("question", "wave")
+                    .only("id", "question_id", "variable_id", "wave_id",
+                        "question__id", "question__questiontext",
+                        "wave__id", "wave__cycle", "wave__instrument")
+                    .order_by("question_id", "-wave_id")
                 ),
-            )
+            ),
         )
+    )
     
 
     def get_context_data(self, **kwargs):
@@ -129,6 +129,7 @@ class VariableUpdateView(EditorRequiredMixin, UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx["back_url"] = self.request.GET.get("back", "")
         ctx["varname_check_url"] = reverse("variables:variable_varname_check")
+        ctx["can_delete"] = not QuestionVariableWave.objects.filter(variable=self.object, wave__is_locked=True).exists()
         return ctx
 
     def form_valid(self, form):
@@ -140,6 +141,53 @@ class VariableUpdateView(EditorRequiredMixin, UpdateView):
         if back and url_has_allowed_host_and_scheme(back, allowed_hosts={self.request.get_host()}):
             return back
         return self.object.get_absolute_url()
+    
+
+# View zum Löschen einer Variable
+@method_decorator(require_POST, name="dispatch")
+class VariableDeleteView(EditorRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        v = get_object_or_404(Variable, pk=pk)
+
+        # prüfe in triadischem Modell, ob die Variable in einer locked Wave verwendet wird
+        locked_via_triad = QuestionVariableWave.objects.filter(
+            variable=v,
+            wave__is_locked=True,
+        ).exists()
+
+        # prüfe in M2M, ob die Variable in einer locked Wave verknüpft ist
+        locked_via_m2m = v.waves.filter(is_locked=True).exists()
+
+        # Verhinderung der Löschung, wenn in einer locked Wave verwendet (doppelt sicher über beide Relationen)
+        if locked_via_triad or locked_via_m2m:
+            messages.error(
+                request,
+                "Diese Variable kann nicht gelöscht werden, weil sie mit mindestens einer abgeschlossenen Befragung verknüpft ist."
+            )
+            return redirect(v.get_absolute_url())
+
+        # Rücksprungziel
+        # an welchen Fragen hängt die Variable?
+        qids = list(
+            QuestionVariableWave.objects
+            .filter(variable=v)
+            .values_list("question_id", flat=True)
+            .distinct()
+        )
+
+        # wenn nur eine Frage, dann dahin zurück, sonst zur Übrsicht
+        redirect_url = None
+        if len(qids) == 1:
+            redirect_url = reverse("questions:question_detail", kwargs={"pk": qids[0]})
+        else:
+            redirect_url = reverse("waves:survey_list")
+
+        varname = v.varname 
+
+        v.delete()
+
+        messages.success(request, f"Variable '{varname}' wurde gelöscht.")
+        return redirect(redirect_url)
 
 
 
