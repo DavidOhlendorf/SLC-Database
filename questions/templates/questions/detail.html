@@ -95,7 +95,18 @@
                 {% for v in variables %}
                   <a class="list-group-item list-group-item-action"
                     href="{% url 'variables:variable_detail' v.id %}">
-                    <div class="fw-semibold">{{ v.varname }}</div>
+                      <div class="fw-semibold d-flex align-items-center gap-2">
+                        <span>{{ v.varname }}</span>
+                          {% if perms.accounts.can_edit_slc %}
+                            {% if v.is_incomplete %}
+                              <span>
+                              <i class="fa-solid fa-circle-exclamation text-danger"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Variablenangaben unvollständig"></i>
+                              </span>
+                            {% endif %}
+                          {% endif %}
+                      </div>
                     {% if v.varlab %}
                       <div class="text-muted small text-truncate">{{ v.varlab }}</div>
                     {% endif %}

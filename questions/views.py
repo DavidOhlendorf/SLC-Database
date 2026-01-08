@@ -118,12 +118,18 @@ class QuestionDetail(DetailView):
             )
     
             # Eindeutige Variablen für die aktive Welle
+            can_edit = self.request.user.has_perm("accounts.can_edit_slc")
+
             variables = (
                 Variable.objects
                 .filter(id__in=triad_qs.values_list("variable_id", flat=True))
                 .distinct()
                 .order_by("varname")
             )
+
+            # Vollständigkeitsinfo ran hängen (nur für Editoren erforderlich)
+            if can_edit:
+                variables = variables.with_completeness()
 
             # Seite der aktiven Welle
             page = (

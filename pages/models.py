@@ -1,11 +1,26 @@
 from django.db import models
-
 from waves.models import Wave
 from questions.models import Question
+from django.db.models import Q, Case, When, Value, BooleanField
 
-from .querysets import WavePageQuerySet
 
+# QuerySet mit Annotations zur Vollständigkeitsprüfung von Seiten
+class WavePageQuerySet(models.QuerySet):
+    def with_completeness(self):
+        missing = (
+            Q(pagename__isnull=True) | Q(pagename="") |
+            Q(transition_control__isnull=True) | Q(transition_control="") |
+            Q(transitions__isnull=True) | Q(transitions="")
+        )
+        return self.annotate(
+            is_incomplete=Case(
+                When(missing, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            )
+        )
 
+# Modell für Befragungsseiten
 class WavePage(models.Model):
 
     objects = WavePageQuerySet.as_manager()
@@ -107,6 +122,8 @@ class WavePage(models.Model):
         return self.pagename
 
 
+
+# Modell für Fragen auf Befragungsseiten
 class WavePageQuestion(models.Model):
 
     wave_page = models.ForeignKey(
@@ -130,6 +147,8 @@ class WavePageQuestion(models.Model):
         return f"{self.wave_page} – {self.question}"
 
 
+
+# Modell für Screenshots von Befragungsseiten
 class WavePageScreenshot(models.Model):
 
     wave_page = models.ForeignKey(

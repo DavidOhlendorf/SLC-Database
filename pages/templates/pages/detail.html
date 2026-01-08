@@ -85,12 +85,15 @@
                       <div class="flex-grow-1">
                         <div class="fw-semibold d-flex align-items-center gap-2">
                           <span>{{ pq.question }}</span>
-
-                          {% if perms.accounts.can_edit_slc and pq.question_is_incomplete %}
-                            <i class="fa-solid fa-circle-exclamation text-primary opacity-75"
-                              data-bs-toggle="tooltip"
-                              data-bs-title="Unvollständig: Pflichtfelder fehlen oder keine Variablen verknüpft."></i>
-                          {% endif %}
+                            {% if perms.accounts.can_edit_slc %}
+                              {% if pq.question_is_incomplete %}
+                                <span>
+                                <i class="fa-solid fa-circle-exclamation text-danger"
+                                  data-bs-toggle="tooltip"
+                                  data-bs-title="Frage unvollständig: Pflichtfelder nicht gefüllt oder keine Variablen verknüpft."></i>
+                                </span>
+                              {% endif %}
+                            {% endif %}
                         </div>
                         {% if pq.question.questiontext %}
                         <div class="text-muted small text-truncate">
