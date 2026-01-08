@@ -3,15 +3,47 @@
 
 {% block extra_js %}
     <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
 
 {% block content %}
   <div class="container my-4">
 
-    <!-- Fragetext -->
+    <!-- Fragetitel etc. -->
     <header class="mb-3">
-      <h1 class="h4">{{ question.questiontext }}</h1>
+      <div class="d-flex justify-content-between">
+        <div class="d-flex align-items-start gap-2">
+          <h1 class="h3">
+            Detailansicht Frage
+          </h1>
+          {% if perms.accounts.can_edit_slc %}
+            {% if question.is_incomplete %}
+              <span>
+              <i class="fa-solid fa-circle-exclamation text-danger"
+                data-bs-toggle="tooltip"
+                data-bs-title="Fragenangaben unvollständig"></i>
+              </span>
+            {% endif %}
+          {% endif %}
+        </div>
+        <div>
+          {% if perms.accounts.can_edit_slc %}
+            {% if active_wave %}
+              <a class="btn btn-link btn-lg icon-action pe-0"
+                title="Frage bearbeiten"
+                href="{% url 'questions:question_edit' question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
+                <i class="fa-solid fa-pen-to-square"></i> 
+              </a>
+            {% else %}
+              <button class="btn btn-link btn-lg icon-action pe-0" disabled
+                      title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Welle einer Seite zugeordnet ist.">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
     </header>
 
     <!-- Konstrukt -->
@@ -25,28 +57,6 @@
       </div>
     {% endif %}
 
-    {% if perms.accounts.can_edit_slc %}
-      <div class="d-flex justify-content-end mb-3">
-        
-        <a class="btn btn-outline-secondary btn-sm"
-          href="{% url 'questions:question_variables' question.id %}?back={{ request.get_full_path|urlencode }}{% if active_wave %}&wave={{ active_wave.id }}{% endif %}">
-          Variablen zuordnen
-        </a>
-          {% if active_wave %}
-          <a class="btn btn-primary btn-sm"
-            href="{% url 'questions:question_edit' question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
-            <i class="fa-solid fa-pen-to-square me-1"></i>
-            Bearbeiten
-          </a>
-        {% else %}
-          <button class="btn btn-primary btn-sm" disabled
-                  title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Welle einer Seite zugeordnet ist.">
-            <i class="fa-solid fa-pen-to-square me-1"></i>
-            Bearbeiten
-          </button>
-        {% endif %}
-      </div>
-    {% endif %}
 
     <!-- Wellen-Pills -->
     {% if waves %}
@@ -123,12 +133,16 @@
     </div>
 
     {% if perms.accounts.can_edit_slc %}
-      <div class="mb-4">
+      <div class="d-flex align-items-start gap-2 mb-4">
+        <a class="btn btn-outline-secondary btn-sm"
+          href="{% url 'questions:question_variables' question.id %}?back={{ request.get_full_path|urlencode }}{% if active_wave %}&wave={{ active_wave.id }}{% endif %}">
+          Variablen zuordnen
+        </a>
         <button type="button"
-                class="btn btn-outline-success"
+                class="btn btn-outline-success btn-sm"
                 data-bs-toggle="modal"
                 data-bs-target="#qcVarForQuestionModal">
-          <i class="fa-solid fa-plus"></i> Neue Variable
+          <i class="fa-solid fa-plus"></i> Neu
         </button>
       </div>
     {% endif %}

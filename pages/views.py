@@ -95,6 +95,10 @@ class WavePageDetailView(DetailView):
     model = WavePage
     template_name = "pages/detail.html"
     context_object_name = "page"
+    
+    @property
+    def can_edit(self):
+        return self.request.user.has_perm("accounts.can_edit_slc")
 
     def get_queryset(self):
 
@@ -109,13 +113,20 @@ class WavePageDetailView(DetailView):
                 "screenshots", 
             )
         )
+
+        # Vollständigkeitsinfo ran hängen (nur für Editoren erforderlich)
+        if self.can_edit:
+            qs = qs.with_completeness()
+
         return qs
+    
+
 
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         page = self.object
-
+        
         waves_qs = page.waves.all().order_by("cycle", "instrument", "id")
 
         # active wave aus ?wave=
@@ -141,14 +152,11 @@ class WavePageDetailView(DetailView):
         # Gib die Info mit, ob die Seite mit einer gesperrten Befragung verknüpft ist
         page_is_locked = waves_qs.filter(is_locked=True).exists()    
 
+        question_ids = list(
+            page_questions_qs.values_list("question_id", flat=True).distinct()
+        )
 
-        question_ids = list(page_questions_qs.values_list("question_id", flat=True).distinct())
-
-        can_edit = self.request.user.has_perm("accounts.can_edit_slc")
-
-        if can_edit:
-            question_ids = list(page_questions_qs.values_list("question_id", flat=True).distinct())
-
+        if self.can_edit and question_ids:
             questions_by_id = {
                 q.id: q
                 for q in (
@@ -158,7 +166,7 @@ class WavePageDetailView(DetailView):
                     .only("id")
                 )
             }
-
+            
             for pq in page_questions_qs:
                 q = questions_by_id.get(pq.question_id)
                 pq.question_is_incomplete = bool(getattr(q, "is_incomplete", False))

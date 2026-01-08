@@ -82,8 +82,12 @@ class QuestionDetail(DetailView):
     template_name = "questions/detail.html"
     context_object_name = "question"
 
+    @property
+    def can_edit(self):
+        return self.request.user.has_perm("accounts.can_edit_slc")
+
     def get_queryset(self):
-        return (
+        qs = (
             Question.objects
             .select_related("construct")  
             .prefetch_related(
@@ -93,6 +97,14 @@ class QuestionDetail(DetailView):
                 )
             )
         )
+
+        # Vollständigkeitsinfo ran hängen (nur für Editoren erforderlich)
+        if self.can_edit:
+            qs = qs.with_completeness()
+
+        return qs
+
+
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -118,7 +130,6 @@ class QuestionDetail(DetailView):
             )
     
             # Eindeutige Variablen für die aktive Welle
-            can_edit = self.request.user.has_perm("accounts.can_edit_slc")
 
             variables = (
                 Variable.objects
@@ -128,7 +139,7 @@ class QuestionDetail(DetailView):
             )
 
             # Vollständigkeitsinfo ran hängen (nur für Editoren erforderlich)
-            if can_edit:
+            if self.can_edit:
                 variables = variables.with_completeness()
 
             # Seite der aktiven Welle

@@ -1,13 +1,41 @@
 {% extends "main.html" %}
 
+{% load static %}
+{% block extra_js %}
+      <script src="{% static 'js/ui/tooltips.js' %}"></script>
+{% endblock %}
+
+
 {% block content %}
   <div class="container my-4">
 
-    <!-- Seitentitel -->
+    <!-- Seitentitel etc. -->
     <header class="mb-3">
-      <h1 class="h3">
-        Fragebogenseite: {{ page.pagename }}
-      </h1>
+    <div class="d-flex justify-content-between">
+      <div class="d-flex align-items-start gap-2">
+        <h1 class="h3">
+          Fragebogenseite: {{ page.pagename }}
+        </h1>
+        {% if perms.accounts.can_edit_slc %}
+          {% if page.is_incomplete %}
+            <span>
+            <i class="fa-solid fa-circle-exclamation text-danger"
+              data-bs-toggle="tooltip"
+              data-bs-title="Seitenangaben unvollständig"></i>
+            </span>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div>
+        {% if perms.accounts.can_edit_slc %}
+          <a class="btn btn-link btn-lg icon-action pe-0"
+            title="Seite bearbeiten"
+            href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+            <i class="fa-solid fa-pen-to-square"></i> 
+          </a>
+        {% endif %}
+      </div>
+    </div>
     </header>
 
     <!-- Wellen-Pills -->
@@ -40,14 +68,6 @@
         {% endif %}
       </div>
 
-      <div>
-        {% if perms.accounts.can_edit_slc %}
-          <a class="btn btn-sm btn-outline-secondary"
-            href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
-            <i class="fa-solid fa-pen-to-square me-1"></i> Fagebogenseite bearbeiten
-          </a>
-        {% endif %}
-      </div>
     </div>
 
 
