@@ -10,37 +10,38 @@
   <div class="container my-4">
 
     <!-- Seitentitel etc. -->
-    <header class="mb-3">
-    <div class="d-flex justify-content-between">
-      <div class="d-flex align-items-start gap-2">
-        <h1 class="h3">
-          Fragebogenseite: {{ page.pagename }}
-        </h1>
-        {% if perms.accounts.can_edit_slc %}
-          {% if page.is_incomplete %}
-            <span>
-            <i class="fa-solid fa-circle-exclamation text-danger"
-              data-bs-toggle="tooltip"
-              data-bs-title="Seitenangaben unvollständig"></i>
-            </span>
+    <header>
+      <div class="d-flex align-items-start justify-content-between gap-3">
+        <div class="flex-grow-1 min-w-0">
+          <h1 class="h3 mb-0 text-break">
+             Fragebogenseite: {{ page.pagename }}
+            {% if perms.accounts.can_edit_slc and page.is_incomplete %}
+              <span>
+                <i class="fa-solid fa-circle-exclamation text-danger"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Seitenangaben unvollständig"></i>
+              </span>
+            {% endif %}
+          </h1>
+        </div>
+        <div class="flex-shrink-0">
+          {% if perms.accounts.can_edit_slc %}
+              <a class="btn btn-link btn-lg icon-action p-0"
+                title="Fragebogenseite bearbeiten"
+                href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </a>
           {% endif %}
-        {% endif %}
+        </div>
       </div>
-      <div>
-        {% if perms.accounts.can_edit_slc %}
-          <a class="btn btn-link btn-lg icon-action pe-0"
-            title="Seite bearbeiten"
-            href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
-            <i class="fa-solid fa-pen-to-square"></i> 
-          </a>
-        {% endif %}
-      </div>
-    </div>
     </header>
+
+    <hr class="my-2 mb-4">
+
 
     <!-- Wellen-Pills -->
     {% if waves %}
-      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small" style="white-space: nowrap;">
         {% for w in waves %}
           <li class="nav-item">
             <a class="nav-link rounded-pill py-1 px-2 border
@@ -58,7 +59,7 @@
     {% endif %}
 
 
-    <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
+    <div class="mb-4 d-flex align-items-start justify-content-between gap-2">
       <div>
         {% if survey and active_wave %}
           <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
@@ -73,7 +74,7 @@
 
 
     <!-- Fragen auf der Seite -->
-    <div class="accordion mb-3" id="questionsAccordion-{{ page.id }}">
+    <div class="accordion mb-1" id="questionsAccordion-{{ page.id }}">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingQuestions-{{ page.id }}">
           <button class="accordion-button" type="button"
@@ -105,15 +106,15 @@
                       <div class="flex-grow-1">
                         <div class="fw-semibold d-flex align-items-center gap-2">
                           <span>{{ pq.question }}</span>
-                            {% if perms.accounts.can_edit_slc %}
-                              {% if pq.question_is_incomplete %}
-                                <span>
-                                <i class="fa-solid fa-circle-exclamation text-danger"
-                                  data-bs-toggle="tooltip"
-                                  data-bs-title="Frage unvollständig: Pflichtfelder nicht gefüllt oder keine Variablen verknüpft."></i>
-                                </span>
-                              {% endif %}
+                          {% if perms.accounts.can_edit_slc %}
+                            {% if pq.question_is_incomplete %}
+                              <span>
+                              <i class="fa-solid fa-circle-exclamation text-danger"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Frage unvollständig: Pflichtfelder nicht gefüllt oder keine Variablen verknüpft."></i>
+                              </span>
                             {% endif %}
+                          {% endif %}
                         </div>
                         {% if pq.question.questiontext %}
                         <div class="text-muted small text-truncate">
@@ -149,22 +150,35 @@
       </div>
     </div>
 
+    <!-- Neue Frage anlegen Button -->
     {% if perms.accounts.can_edit_slc %}
-      <div class="d-flex">
-        <button
-          type="button"
-          class="btn btn-sm btn-dark"
-          data-bs-toggle="modal"
-          data-bs-target="#qcModal"
-          {% if page_is_locked %}disabled{% endif %}
-          {% if page_is_locked %}
-            title="Keine neuen Fragen möglich, weil die Seite mit einer abgeschlossenen Befragung verknüpft ist."
-          {% endif %}
-        >
-          <i class="fa-solid fa-circle-plus me-1"></i> Neue Frage
-        </button>
+      <div class="d-flex gap-2 mb-5">
+        {% if page_is_locked %}
+          <span class="d-inline-block"
+                tabindex="0"
+                data-bs-toggle="tooltip"
+                data-bs-title="Keine neuen Fragen möglich, weil die Seite mit einer abgeschlossenen Befragung verknüpft ist">
+            <button type="button"
+                    class="btn text-success link-success border-0"
+                    disabled>
+                    <i class="fa-solid fa-plus me-1"></i> Neue Frage anlegen
+            </button>
+          </span>
+        {% else %}
+          <button type="button"
+                  class="btn text-success link-success"
+                  data-bs-toggle="modal"
+                  data-bs-target="#qcModal">
+            <i class="fa-solid fa-plus me-1"></i> Neue Frage anlegen
+          </button>
+        {% endif %}
       </div>
+    {% else %}
+      <div class="mb-5"></div>
     {% endif %}
+
+
+
 
     <!-- Screenshots -->
     {% with page.screenshots.all as screenshots %}

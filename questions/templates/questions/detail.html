@@ -209,13 +209,13 @@
                     <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
                       <a class="btn btn-link px-2 icon-action"
                         title="Details anzeigen"
-                        href="{% url 'variables:variable_detail' v.id %}">
+                        href="{% url 'variables:variable_detail' v.id %}?back={{ request.get_full_path|urlencode }}">
                         <i class="fa-regular fa-eye"></i>
                       </a>
                       {% if perms.accounts.can_edit_slc %}
                         <a class="btn btn-link px-2 icon-action"
                           title="Variable bearbeiten"
-                          href="{% url 'variables:variable_edit' v.id %}">
+                          href="{% url 'variables:variable_edit' v.id %}?back={{ request.get_full_path|urlencode }}">
                           <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                       {% endif %}

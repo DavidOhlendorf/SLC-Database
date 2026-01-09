@@ -28,85 +28,102 @@ from .forms import VariableForm
 class VariableDetail(DetailView):
     model = Variable
     template_name = "variables/detail.html"
-    queryset = (
-        Variable.objects
-        .select_related("vallab")
-        .prefetch_related(
-            "waves",  # (Existenz in Waves)
-            Prefetch(
-                "question_variable_wave_links",  # Triad-Links: Question-Variable-Wave
-                queryset=(
-                    QuestionVariableWave.objects
-                    .select_related("question", "wave")
-                    .only("id", "question_id", "variable_id", "wave_id",
-                        "question__id", "question__questiontext",
-                        "wave__id", "wave__cycle", "wave__instrument")
-                    .order_by("question_id", "-wave_id")
+    context_object_name = "variable"
+
+    @property
+    def can_edit(self):
+        return self.request.user.has_perm("accounts.can_edit_slc")
+
+    def get_queryset(self):
+        qs = (
+            Variable.objects
+            .select_related("vallab")
+            .prefetch_related(
+                "waves",
+                Prefetch(
+                    "question_variable_wave_links",
+                    queryset=(
+                        QuestionVariableWave.objects
+                        .select_related("question", "wave")
+                        .only("id", "question_id", "variable_id", "wave_id",
+                            "question__id", "question__questiontext",
+                            "wave__id", "wave__cycle", "wave__instrument")
+                        .order_by("question_id", "-wave_id")
+                    ),
                 ),
-            ),
+            )
         )
-    )
+
+        # Vollständigkeit nur für Editoren
+        if self.can_edit:
+            qs = qs.with_completeness()
+
+        return qs
     
 
     def get_context_data(self, **kwargs):
-            ctx = super().get_context_data(**kwargs)
-            v = ctx["object"]
+        ctx = super().get_context_data(**kwargs)
+        v = self.object
+
+        links = list(v.question_variable_wave_links.all())
+
+        # --- Frage-IDs aus den Triad-Links ---
+        question_ids = {link.question_id for link in links}  # set => Reihenfolge egal
+
+        questions_qs = Question.objects.filter(id__in=question_ids).order_by("id")
+        if self.can_edit:
+            questions_qs = questions_qs.with_completeness()
+
+        questions = list(questions_qs)
+
+        # Mapping: Frage -> Waves, in denen die Variable bei dieser Frage genutzt wird
+        waves_by_qid = {}
+        for link in links:
+            waves_by_qid.setdefault(link.question_id, []).append(link.wave)
+
+        # optional: eindeutige "used waves" (nur aus Triad)
+        used_waves = []
+        seen_wids = set()
+        for link in links:
+            w = link.wave
+            if w.id not in seen_wids:
+                seen_wids.add(w.id)
+                used_waves.append(w)
 
 
-             # --- Triad: Verwendung der Variable in Fragen/Waves ---
-            links = list(getattr(v, "question_variable_wave_links").all())
+        # Fragen: vorbereitet fürs Template
+        ctx["triad_links"] = links
+        ctx["questions"] = questions
+        ctx["questions_count"] = len(questions)
+        ctx["single_question"] = questions[0] if len(questions) == 1 else None
+        ctx["questions_preview"] = questions[:5]
+        ctx["questions_more_count"] = max(len(questions) - 5, 0)
 
-            # eindeutige Fragen
-            questions = []
-            seen_qids = set()
-            for link in links:
-                q = link.question
-                if q.id not in seen_qids:
-                    seen_qids.add(q.id)
-                    questions.append(q)
+        ctx["waves_by_question_id"] = waves_by_qid
+        ctx["used_waves"] = used_waves  # Waves, in denen die Variable irgendwo genutzt wird
 
-            # Mapping: Frage -> Waves, in denen die Variable bei dieser Frage genutzt wird
-            waves_by_qid = {}
-            for link in links:
-                waves_by_qid.setdefault(link.question_id, []).append(link.wave)
+        vallab = v.vallab
+        ctx["vallab_values"] = (
+            sorted(vallab.values, key=lambda x: x.get("order", 0))
+            if (vallab and isinstance(vallab.values, list)) else []
+        )
 
-            # optional: eindeutige "used waves" (nur aus Triad)
-            used_waves = []
-            seen_wids = set()
-            for link in links:
-                w = link.wave
-                if w.id not in seen_wids:
-                    seen_wids.add(w.id)
-                    used_waves.append(w)
+        flags = [
+            {"key": "ver",    "label": "versioniert",     "active": v.ver,    "reason": v.reason_ver},
+            {"key": "gen",    "label": "generiert",       "active": v.gen,    "reason": v.reason_gen},
+            {"key": "plausi", "label": "plausibilisiert", "active": v.plausi, "reason": v.reason_plausi},
+            {"key": "flag",   "label": "flag",            "active": v.flag,   "reason": v.reason_flag},
+        ]
+        ctx["flags_active"] = [f for f in flags if f["active"]]
 
+        # Rücksprung-URL
+        back = self.request.GET.get("back")
+        if back and not url_has_allowed_host_and_scheme(back, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()):
+            back = None
 
-            # Fragen: vorbereitet fürs Template
-            ctx["triad_links"] = links
-            ctx["questions"] = questions
-            ctx["questions_count"] = len(questions)
-            ctx["single_question"] = questions[0] if len(questions) == 1 else None
-            ctx["questions_preview"] = questions[:5]
-            ctx["questions_more_count"] = max(len(questions) - 5, 0)
+        ctx["back_url"] = back or self.request.META.get("HTTP_REFERER") or reverse("search:search_landing")
 
-            ctx["waves_by_question_id"] = waves_by_qid
-            ctx["used_waves"] = used_waves  # Waves, in denen die Variable irgendwo genutzt wird
-
-            vallab = v.vallab
-            ctx["vallab_values"] = (
-                sorted(vallab.values, key=lambda x: x.get("order", 0))
-                if (vallab and isinstance(vallab.values, list)) else []
-            )
-
-            flags = [
-                {"key": "ver",    "label": "versioniert",     "active": v.ver,    "reason": v.reason_ver},
-                {"key": "gen",    "label": "generiert",       "active": v.gen,    "reason": v.reason_gen},
-                {"key": "plausi", "label": "plausibilisiert", "active": v.plausi, "reason": v.reason_plausi},
-                {"key": "flag",   "label": "flag",            "active": v.flag,   "reason": v.reason_flag},
-            ]
-            ctx["flags_active"] = [f for f in flags if f["active"]]
-            ctx["back_url"] = self.request.GET.get("back")
-
-            return ctx
+        return ctx
     
 
 # View für das Erstellen und Bearbeiten von Variablen
