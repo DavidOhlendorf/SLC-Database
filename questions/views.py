@@ -168,6 +168,7 @@ class QuestionDetail(DetailView):
  
 
         ctx.update({
+            "survey": active_wave.survey if active_wave and active_wave.survey_id else None,
             "waves": waves,
             "active_wave": active_wave,
             "variables": variables,
