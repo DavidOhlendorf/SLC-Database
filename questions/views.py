@@ -120,7 +120,12 @@ class QuestionDetail(DetailView):
             else:
                 active_wave = waves[0]
 
+        # Defaults
         triad_qs = QuestionVariableWave.objects.none()
+        variables = Variable.objects.none()
+        pages = []
+        active_page = None
+        screenshots = []
 
         if active_wave:
             triad_qs = (
@@ -130,7 +135,6 @@ class QuestionDetail(DetailView):
             )
     
             # Eindeutige Variablen für die aktive Welle
-
             variables = (
                 Variable.objects
                 .filter(id__in=triad_qs.values_list("variable_id", flat=True))
@@ -142,24 +146,25 @@ class QuestionDetail(DetailView):
             if self.can_edit:
                 variables = variables.with_completeness()
 
-            # Seite der aktiven Welle
-            page = (
-                WavePage.objects
-                .filter(
-                    page_questions__question=question,
-                    waves=active_wave,
-                )
-                .only("id", "pagename")
-                .first()
-            )
-        else:
-            variables = Variable.objects.none()
-            page = None
+            # Seite(n) der Frage der aktiven Wave
+            page_param = self.request.GET.get("page")
 
-        if page:
-            screenshots = list(page.screenshots.all())
-        else:
-            screenshots = []
+            pages = list(
+                WavePage.objects
+                .filter(page_questions__question=question, waves=active_wave)
+                .only("id", "pagename")
+                .distinct()
+                .order_by("id")
+            )
+
+            if pages:
+                if page_param and any(str(p.id) == page_param for p in pages):
+                    active_page = next(p for p in pages if str(p.id) == page_param)
+                else:
+                    active_page = pages[0]
+
+            if active_page:
+                screenshots = list(active_page.screenshots.all())
  
 
         ctx.update({
@@ -167,7 +172,8 @@ class QuestionDetail(DetailView):
             "active_wave": active_wave,
             "variables": variables,
             "question_variable_wave_links": triad_qs,
-            "page": page, 
+            "pages": pages,
+            "active_page": active_page, 
             "screenshots": screenshots,
         })
         return ctx

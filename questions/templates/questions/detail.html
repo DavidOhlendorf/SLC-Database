@@ -29,10 +29,10 @@
         </div>
         <div>
           {% if perms.accounts.can_edit_slc %}
-            {% if active_wave %}
+            {% if active_wave and active_page %}
               <a class="btn btn-link btn-lg icon-action pe-0"
                 title="Frage bearbeiten"
-                href="{% url 'questions:question_edit' question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
+                href="{% url 'questions:question_edit' question.id %}?page={{ active_page.id }}&wave={{ active_wave.id }}">
                 <i class="fa-solid fa-pen-to-square"></i> 
               </a>
             {% else %}
@@ -78,8 +78,36 @@
           </li>
         {% endfor %}
       </ul>
-
     {% endif %}
+
+    <!-- Seiten-Pills -->
+    {% if active_wave %}
+      {% if pages %}
+        <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+          {% for p in pages %}
+            <li class="nav-item">
+              {% if active_page and p.id == active_page.id %}
+                <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
+                  class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
+                  aria-current="page">
+                  {{ p.pagename }}
+                </a>
+              {% else %}
+                <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
+                  class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border">
+                  {{ p.pagename }}
+                </a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted small mb-3">Für diese Frage ist in {{ active_wave.name|default:active_wave }} noch keine Seite verknüpft.</p>
+      {% endif %}
+    {% endif %}
+
+
+
 
     <!-- Variablenliste -->
     <div class="accordion mb-3" id="variablenAccordion-{{ question.id }}">
@@ -148,44 +176,7 @@
     {% endif %}
 
 
-
-    <!-- Seiten -->
-    <div class="accordion mb-3" id="pageAccordion-{{ question.id }}">
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingPage-{{ question.id }}">
-          <button class="accordion-button" type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#collapsePage-{{ question.id }}"
-                  aria-expanded="true"
-                  aria-controls="collapsePage-{{ question.id }}">
-            Fragebogenseite in {{ active_wave.name|default:active_wave }}
-          </button>
-        </h2>
-
-        <div id="collapsePage-{{ question.id }}"
-            class="accordion-collapse collapse show"
-            aria-labelledby="headingPage-{{ question.id }}"
-            data-bs-parent="#pageAccordion-{{ question.id }}">
-          <div class="accordion-body p-0">
-
-            {% if page %}
-              <div class="list-group list-group-flush">
-                <a class="list-group-item list-group-item-action"
-                  href="{% url 'pages:page-detail' page.id %}?wave={{ active_wave.id }}">
-                  <div class="fw-semibold">
-                    Seite: {{ page.pagename }}
-                  </div>
-                </a>
-              </div>
-            {% else %}
-              <p class="text-muted px-3 py-2 mb-0">Für diese Frage ist hier noch keine Seite verknüpft.</p>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    
+    <!-- Screenshots -->
     {% if screenshots %}
       <h2 class="h6 mb-2 fw-semibold">Screenshots</h2>
 
@@ -197,7 +188,7 @@
               <a href="/{{ s.image_path }}"
                 class="glightbox"
                 data-gallery="question-{{ question.id }}"
-                data-title="Sprache: {{ s.language }} | Ansicht: {{ s.device }}{% if page %} | Seite: {{ page.pagename }}{% endif %}">
+                data-title="Sprache: {{ s.language }} | Ansicht: {{ s.device }}{% if active_page %} | Seite: {{ active_page.pagename }}{% endif %}">
 
                 <img
                   src="/{{ s.image_path }}"
