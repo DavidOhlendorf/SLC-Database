@@ -60,7 +60,8 @@ Core entities include:
 The system is designed to:
 - centralize question and variable documentation  
 - ensure traceability and versioning  
-- enable fast searching and filtering  
+- enable fast searching and filtering
+- create and edit pages / questions / variables of questionnaires
 - support internal and external research workflows  
 - serve as a long-term documentation and research platform  
 
