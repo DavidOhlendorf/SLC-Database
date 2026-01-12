@@ -28,14 +28,15 @@
       return;
     }
 
+    const rows = items.map(v => `<div class="qc-sugg-row">${v}</div>`).join("");
+
     suggEl.innerHTML =
-      "<div class='small text-muted mb-1'>Ähnliche vorhandene Variablen:</div>" +
-      "<div class='border rounded p-2 small'>" +
-      items.map(v => `<div>${v}</div>`).join("") +
-      "</div>";
+      `<div class="qc-sugg-header">Ähnliche, vorhandene Variablen:</div>` +
+      `<div class="qc-sugg-box p-2 small">${rows}</div>`;
 
     suggEl.classList.remove("d-none");
   }
+
 
   async function runCheck() {
     const q = (input.value || "").trim();

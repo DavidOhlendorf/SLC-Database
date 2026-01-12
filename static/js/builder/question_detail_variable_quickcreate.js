@@ -36,14 +36,21 @@
     errBox.classList.add("d-none");
   }
   function setStatus(html) { statusEl.innerHTML = html || ""; }
+  
   function clearSuggestions() { suggEl.innerHTML = ""; suggEl.classList.add("d-none"); }
+
   function renderSuggestions(items) {
     if (!items || !items.length) return clearSuggestions();
+
+    const rows = items.map(v => `<div class="qc-sugg-row">${v}</div>`).join("");
+
     suggEl.innerHTML =
       `<div class="qc-sugg-header">Ähnliche, vorhandene Variablen:</div>` +
-      `<div class="qc-sugg-box">${items.map(v => `<div class="qc-sugg-row">${v}</div>`).join("")}</div>`;
+      `<div class="qc-sugg-box p-2 small">${rows}</div>`;
+
     suggEl.classList.remove("d-none");
   }
+
 
   async function runVarnameCheck() {
     if (!checkUrl) return;

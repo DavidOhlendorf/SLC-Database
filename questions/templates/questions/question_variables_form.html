@@ -21,14 +21,15 @@
         Frage #{{ question.id }} – {{ question.questiontext|truncatechars:120 }}
       </div>
     </div>
-
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary"
-         href="{{ back_url|default:question.get_absolute_url }}">
-        Zurück
-      </a>
-    </div>
   </div>
+
+  <div class="mb-3">
+    <a href="{{ back_url|default:question.get_absolute_url }}"
+        class="text-muted small text-decoration-none opacity-75">
+        ← Zurück
+    </a>
+  </div>
+  
 
   <form method="post" novalidate>
     {% csrf_token %}

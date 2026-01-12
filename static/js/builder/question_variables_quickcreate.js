@@ -69,23 +69,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderSuggestions(items) {
-        if (!suggEl) return;
-        
-        if (!items || !items.length ) {
-            clearSuggestions();
-            return;
-        }
-    
-        const rows = items.map(v =>
-            `<div class="qc-sugg-row">${v}</div>`
-        ).join("");
+    if (!suggEl) return;
 
-        suggEl.innerHTML =
-            `<div class="qc-sugg-header">Ähnliche, vorhandene Variablen:</div>` +
-            `<div class="qc-sugg-box">${rows}</div>`;
-
-        suggEl.classList.remove("d-none");
+    if (!items || !items.length) {
+        clearSuggestions();
+        return;
     }
+
+    const rows = items.map(v => `<div class="qc-sugg-row">${v}</div>`).join("");
+
+    suggEl.innerHTML =
+        `<div class="qc-sugg-header">Ähnliche, vorhandene Variablen:</div>` +
+        `<div class="qc-sugg-box p-2 small">${rows}</div>`;
+
+    suggEl.classList.remove("d-none");
+    }
+
 
 
     // Live-Check bei Eingabe

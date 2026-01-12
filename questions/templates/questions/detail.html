@@ -1,6 +1,7 @@
 {% extends "main.html" %}
 {% load static %}
 
+
 {% block extra_js %}
     <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
@@ -286,7 +287,6 @@
         {% endfor %}
       </div>
     {% endif %}
-
   </div>
 
   <!-- Modal: Variable-Schnellerstellung für Question -->
@@ -300,7 +300,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Neue Variable anlegen</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
         </div>
 
         <div class="modal-body">
@@ -337,11 +337,24 @@
           <div class="alert alert-danger d-none mt-3 mb-0" id="qcq-error"></div>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="button" class="btn btn-outline-primary" id="qcq-later">Später vervollständigen</button>
-          <button type="button" class="btn btn-primary" id="qcq-complete">Angaben vervollständigen</button>
+        <div class="modal-footer justify-content-between">
+          <button type="button"
+                  class="btn btn-link text-decoration-none px-0"
+                  id="qcq-later"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Legt die Variable an, aber führt dich danach zurück – Details kannst du später ergänzen.">
+            Erstellen und zurück
+          </button>
+
+          <button type="button"
+                  class="btn btn-primary"
+                  id="qcq-complete"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Legt die Variable an und öffnet danach das Bearbeiten-Fenster der Variable.">
+            Erstellen und vervollständigen
+          </button>
         </div>
+
       </div>
     </div>
   </div>
