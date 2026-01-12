@@ -3,6 +3,7 @@
 
 {% block extra_js %}
     <script src="{% static 'js/builder/variable_varname_livecheck.js' %}"></script>
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -13,13 +14,15 @@
       <h1 class="h4 mb-1">Variable bearbeiten</h1>
       <div class="text-muted">{{ variable.varname }}</div>
     </div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary"
-         href="{{ back_url|default:variable.get_absolute_url }}">
-        Zurück
-      </a>
-    </div>
   </div>
+
+  <div class="mb-3">
+    <a href="{{ back_url|default:variable.get_absolute_url }}"
+      class="text-muted small text-decoration-none opacity-75">
+      ← Zurück
+    </a>
+  </div>
+  
 
   <form method="post" novalidate>
     {% csrf_token %}
