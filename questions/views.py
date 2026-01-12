@@ -607,8 +607,46 @@ class QuestionDeleteView(EditorRequiredMixin, View):
                 "Diese Frage ist mit mindestens einer gesperrten Befragung verknüpft und kann nicht gelöscht werden.",
             )
             return redirect("questions:question_edit", pk=question.pk)
+        
+        # --- für die korrekte Bereinigung der variablen: (variable, wave)-Paare merken ---
+        affected_pairs = set(
+            QuestionVariableWave.objects
+            .filter(question=question)
+            .values_list("variable_id", "wave_id")
+        )
 
         question.delete()
+
+        if affected_pairs:
+            # Hängen die von der Löschung betroffenen Variablen noch an irgendeiner anderen Frage in der gleichen Befragung?
+            q = Q()
+            for v_id, w_id in affected_pairs:
+                q |= Q(variable_id=v_id, wave_id=w_id)
+
+            still_used_pairs = set(
+                QuestionVariableWave.objects
+                .filter(q)
+                .values_list("variable_id", "wave_id")
+            )
+
+            cleanup_pairs = affected_pairs - still_used_pairs
+
+            if cleanup_pairs:
+                # technische Variablen schützen (Failsafe)
+                non_technical_pairs = [
+                    (v_id, w_id)
+                    for v_id, w_id in cleanup_pairs
+                    if not Variable.objects.filter(id=v_id, is_technical=True).exists()
+                ]
+
+                # Variablen, die durch die Löschung der Frage nicht mehr in der Befragung verwendet werden, aus WaveVar entfernen
+                if non_technical_pairs:
+                    WaveVarThrough = Variable.waves.through
+                    q = Q()
+                    for v_id, w_id in non_technical_pairs:
+                        q |= Q(variable_id=v_id, wave_id=w_id)
+                    WaveVarThrough.objects.filter(q).delete()
+
         messages.success(request, "Frage wurde gelöscht.")
         return redirect("waves:survey_list")
     
