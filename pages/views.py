@@ -1,5 +1,7 @@
 # pages/views.py
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template import Variable
+from django.template import Variable
 from django.views import View
 from django.views.generic import DetailView, UpdateView, TemplateView
 from django.urls import reverse
@@ -14,7 +16,8 @@ from django.db.models import Prefetch
 from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
 from waves.models import WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion
-from questions.models import Question
+from questions.models import Question, QuestionVariableWave
+from variables.models import Variable
 
 from .forms import WavePageBaseForm, WavePageContentForm, PageQuestionLinkFormSet
 
@@ -416,7 +419,7 @@ class WavePageDeleteView(EditorRequiredMixin, View):
     def post(self, request, pk, *args, **kwargs):
         page = get_object_or_404(WavePage, pk=pk)
 
-        # Schritt 3: Sperrlogik
+        # Schritt 1: Sperrlogik
         if page.waves.filter(is_locked=True).exists():
             messages.error(
                 request,
@@ -428,6 +431,7 @@ class WavePageDeleteView(EditorRequiredMixin, View):
                 url = f"{url}?wave={wave}"
             return redirect(url)
 
+        # Schritt 2: Rückweg bestimmen
         # Redirect-Ziel vorab bestimmen (nach delete ist M2M weg)
         wave_id = request.GET.get("wave")
         active_wave = page.waves.filter(pk=wave_id).select_related("survey").first() if wave_id else None
@@ -441,7 +445,8 @@ class WavePageDeleteView(EditorRequiredMixin, View):
         else:
             return_url = reverse("waves:survey_list")
 
-        # Schritt 1: WaveQuestion-Cleanup & Seite löschen
+        # Schritt 3: WaveQuestion-Cleanup & Seite löschen
+        # Fragen, die auf der Seite waren, werden aus der Befragung entfernt, sofern sie auf keiner anderen Seite in der Befragung mehr vorkommen.
         with transaction.atomic():
             wave_ids = list(page.waves.values_list("id", flat=True))
             question_ids = list(page.page_questions.values_list("question_id", flat=True).distinct())
@@ -457,7 +462,66 @@ class WavePageDeleteView(EditorRequiredMixin, View):
             page_name = page.pagename
             page.delete()
 
-        #  Schritt 2: nach der Transaktion: Orphans bestimmen (b)
+            # Schritt 4: Variablen bereinigen
+            WaveVarThrough = Variable._meta.get_field("waves").remote_field.through
+
+            for wid in wave_ids:
+                # Fragen, die in dieser Wave nach dem Löschen noch irgendwo auf Pages vorkommen
+                remaining_qids_in_wave = set(
+                    WavePageQuestion.objects.filter(
+                        wave_page__waves__id=wid
+                    ).values_list("question_id", flat=True).distinct()
+                )
+
+                # Fragen der gelöschten Seite, die jetzt in dieser Befragung nirgends mehr vorkommen
+                removed_qids_from_wave = set(question_ids) - remaining_qids_in_wave
+                if not removed_qids_from_wave:
+                    continue
+
+                # Triad-Zeilen, die genau zu diesen "aus der Befragung gefallenen" Questions gehören
+                triad_qs = QuestionVariableWave.objects.filter(
+                    wave_id=wid,
+                    question_id__in=removed_qids_from_wave,
+                )
+
+                # Variablen-Kandidaten: die Variablen, die an den gelöschten Triad-Zeilen hingen
+                affected_var_ids = set(
+                    triad_qs.values_list("variable_id", flat=True).distinct()
+                )
+
+                # a) Triad löschen (Q aus Wave => Triad für diese Q+Wave muss weg)
+                triad_qs.delete()
+
+                if not affected_var_ids:
+                    continue
+
+                # b) Welche dieser Variablen sind in der Befragung noch über verbleibende Fragen verknüpft?
+                still_used_var_ids = set(
+                    QuestionVariableWave.objects.filter(
+                        wave_id=wid,
+                        question_id__in=remaining_qids_in_wave,
+                        variable_id__in=affected_var_ids,
+                    ).values_list("variable_id", flat=True).distinct()
+                )
+
+                to_remove_var_ids = affected_var_ids - still_used_var_ids
+                if not to_remove_var_ids:
+                    continue
+
+                # Failsafe: technische Variablen nicht anfassen
+                non_technical_to_remove = Variable.objects.filter(
+                    id__in=to_remove_var_ids,
+                    is_technical=False,
+                ).values_list("id", flat=True)
+
+                # c) WaveVar bereinigen
+                WaveVarThrough.objects.filter(
+                    wave_id=wid,
+                    variable_id__in=non_technical_to_remove,
+                ).delete()
+
+
+        #  Schritt 5: nach der Transaktion: Frage-Orphans bestimmen (b)
         orphan_qids = get_new_orphan_question_ids(question_ids)
         if orphan_qids:
             request.session[ORPHAN_REVIEW_SESSION_KEY] = {
