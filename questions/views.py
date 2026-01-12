@@ -216,9 +216,11 @@ class QuestionCreateFromPageView(EditorRequiredMixin, View):
 
 
         # Frage anlegen und verknüpfen mit Helferfunktion
+        questiontext = (request.POST.get("questiontext") or "").strip()
+
         result = create_question_for_page(
                 page=page,
-                questiontext="",  # ANPASSEN FALLS WIR DEN QT HIER MITGEBEN WOLLEN
+                questiontext=questiontext,
                 wave_ids=[w.id for w in selected_waves],
             )
         q = result.question
