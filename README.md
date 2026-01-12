@@ -26,6 +26,9 @@ Production system: https://slcdb.de
 - **Detail pages**
   - Questions with surveys assignments, constructs, keywords, and screenshots
   - Variables with JSON-based value labels, waves, and metadata
+ 
+- **Questionnaire Builder**
+  - allows creating and editing of questionnaires
 
 - **Backend architecture**
   - Modular Django apps: Waves, Questions, Pages, Variables, Constructs, Keywords, Search, Accounts
