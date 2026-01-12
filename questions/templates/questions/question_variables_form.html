@@ -1,0 +1,252 @@
+{% extends "main.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+{% endblock %}
+
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script src="{% static 'js/builder/question_variables_tomselect.js' %}"></script>
+  <script src="{% static 'js/builder/questions_variables_formset.js' %}"></script>
+  <script src="{% static 'js/builder/question_variables_quickcreate.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h4 mb-1">Variablen zuordnen</h1>
+      <div class="text-muted">
+        Frage #{{ question.id }} – {{ question.questiontext|truncatechars:120 }}
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <a href="{{ back_url|default:question.get_absolute_url }}"
+        class="text-muted small text-decoration-none opacity-75">
+        ← Zurück
+    </a>
+  </div>
+  
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="back_url" value="{{ back_url }}">
+
+    {# Management form #}
+    {{ formset.management_form }}
+
+    {# Fehler-Hinweis (für Scroll) #}
+    {% if formset.non_form_errors or formset.total_error_count %}
+      <div id="vfs-has-errors" class="alert alert-danger">
+        Bitte korrigiere die markierten Felder.
+      </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Variablen</div>
+      </div>
+
+      <div class="card-body p-0">
+        <div id="vfs-container"
+            class="vstack gap-3 p-3"
+            data-formset-prefix="{{ formset.prefix|default:'vfs' }}"
+            data-locked-wave-ids="{{ locked_wave_ids|join:',' }}">
+
+          {% for f in formset.forms %}
+            <div class="border rounded p-3 vfs-form {% if f.errors %}border-danger{% endif %}">
+              <div class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                  <label class="form-label">Variable</label>
+                  {% with var_val=f.variable.value %}
+                    <div class="input-group variable-input-group {% if var_val %}is-locked{% endif %}">
+                      <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
+                        {{ f.variable }}
+                      </div>
+
+                      <button type="button"
+                              class="btn btn-outline-success vfs-quickcreate {% if var_val %}disabled{% endif %}"
+                              {% if var_val %}disabled aria-disabled="true"{% endif %}
+                              title="Neue Variable anlegen"
+                              data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
+                        <i class="fa-solid fa-plus"></i>
+                        <span class="d-none d-lg-inline ms-1">Neu</span>
+                      </button>
+                    </div>
+
+                    {% if var_val %}
+                      <!-- Hidden field to ensure value is sent even if disabled -->
+                      <input type="hidden" name="{{ f.variable.html_name }}" value="{{ var_val }}">
+                    {% endif %}
+                  {% endwith %}
+
+                  {% if f.variable.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ f.variable.errors|striptags }}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <div class="col-lg-6">
+                  <label class="form-label">Gruppen</label>
+
+                  <div class="d-flex flex-wrap gap-2">
+                    {% for cb in f.waves %}
+                      <div class="form-check form-check-inline">
+                        {{ cb.tag }}
+                        <label class="form-check-label" for="{{ cb.id_for_label }}">
+                          {{ cb.choice_label }}
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  {% if f.waves.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ f.waves.errors|striptags }}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <div class="col-lg-1 text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger vfs-remove" title="Zeile entfernen">
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {# DELETE-Feld (can_delete=True) – wird im JS gesetzt #}
+              <div class="d-none">
+                {{ f.DELETE }}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="px-3 pb-3 pt-0">
+          <button type="button" id="vfs-add" class="btn btn-sm btn-outline-primary">
+            + Variable hinzufügen
+          </button>
+        </div>
+
+      </div>
+
+      <div class="card-footer d-flex justify-content-between align-items-center">
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            Speichern
+          </button>
+          <a class="btn btn-outline-secondary"
+             href="{{ back_url|default:question.get_absolute_url }}">
+            Abbrechen
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {# Empty-Form Template #}
+    <template id="vfs-empty-form-template">
+      <div class="border rounded p-3 vfs-form">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-5">
+            <label class="form-label">Variable</label>
+
+                  <div class="input-group variable-input-group">
+                    <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
+                      {{ formset.empty_form.variable }}
+                    </div>
+                      <button type="button" class="btn btn-outline-success vfs-quickcreate"
+                              title="Neue Variable anlegen"
+                              data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
+                              <i class="fa-solid fa-plus"></i>
+                             <span class="d-none d-lg-inline ms-1">Neu</span>
+                      </button>
+                  </div>
+          </div>
+
+          <div class="col-lg-6">
+            <label class="form-label">Wellen</label>
+            <div class="d-flex flex-wrap gap-2">
+              {% for cb in formset.empty_form.waves %}
+                <div class="form-check form-check-inline">
+                  {{ cb.tag }}
+                  <label class="form-check-label" for="{{ cb.id_for_label }}">
+                    {{ cb.choice_label }}
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-lg-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger vfs-remove" title="Zeile entfernen">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div class="d-none">
+          {{ formset.empty_form.DELETE }}
+        </div>
+      </div>
+    </template>
+  </form>
+  <div class="modal fade" id="confirmLockedWavesModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Änderung in abgeschlossener Befragung</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+          <div class="modal-body">
+            Du hast Zuordnungen für mindestens eine abgeschlossene Befragung geändert.<br>
+            Möchtest du trotzdem speichern?
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              Abbrechen
+            </button>
+            <button type="button" class="btn btn-primary" id="confirmLockedWavesYes">
+              Trotzdem speichern
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="quickCreateVariableModal" data-varname-check-url="{% url 'variables:variable_varname_check' %}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Neue Variable anlegen</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="mb-2">
+              <label class="form-label">Variablenname</label>
+              <input type="text" class="form-control" id="qc-varname" autocomplete="off">
+              <div class="form-text">Mindestens 2 Zeichen.</div>
+            </div>
+
+            <div class="mt-2" id="qc-name-status"></div>
+            <div class="mt-2 d-none" id="qc-suggestions"></div>
+
+            <div class="alert alert-danger d-none mb-0" id="qc-error"></div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            <button type="button" class="btn btn-primary" id="qc-save">Anlegen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+{% endblock %}

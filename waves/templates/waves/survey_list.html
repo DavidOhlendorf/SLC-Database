@@ -8,22 +8,40 @@
 
   {% if surveys %}
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+
+      <!-- Kachel zum Hinzufügen einer neuen Befragung -->
+      {% if perms.accounts.can_edit_slc %}
+        <div class="col">
+          <a href="{% url 'waves:survey_create' %}" class="text-decoration-none">
+            <div class="card h-100 bg-body-tertiary">
+              <div class="card-body d-flex flex-column justify-content-center text-center">
+                <div class="display-4 mb-2">+</div>
+                <h4 class="card-title mb-1">Neue Befragung anlegen</h4>
+                <p class="small text-muted mb-0">
+                  Neue Befragung erstellen
+                </p>
+              </div>
+            </div>
+          </a>
+        </div>
+      {% endif %}
+
+      <!-- Kachel für bestehende Befragungen-->
       {% for survey in surveys %}
         <div class="col">
-          <div class="card h-100">
-            <div class="card-body">
-              <h4 class="card-title mb-1">
+          <div class="card h-100 ">
+            <div class="card-body position-relative">
+              {% if perms.accounts.can_edit_slc %}
+                <a href="{% url 'waves:survey_edit' survey.pk %}"
+                  class="btn btn-sm position-absolute top-0 end-0 m-2"
+                  title="Bearbeiten">
+                  <i class="fa-solid fa-pen"></i>
+                </a>
+              {% endif %}
+              <h4 class="card-title mb-3">
                 {{ survey.name }}
               </h4>
 
-              <p class="small text-muted mb-3">
-                {% if survey.start_min %}
-                  <span>Feldstart: {{ survey.start_min }}</span>
-                {% endif %}
-                {% if survey.end_max %}
-                  <span class="ms-2">Feldende: {{ survey.end_max }}</span>
-                {% endif %}
-              </p>
               <div class="d-flex flex-wrap gap-2 mb-3">
                 <a href="{% url 'waves:survey_detail' survey.name %}?wave=all"
                   class="btn btn-sm btn-outline-dark">
@@ -31,7 +49,7 @@
                 </a>
               </div>
               <p class="small text-muted mb-2">
-                Fragebogenvarianten:
+                Gruppen in dieser Befragung:
               </p>
 
               <div class="d-flex flex-wrap gap-2">

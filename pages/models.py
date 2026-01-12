@@ -1,22 +1,41 @@
 from django.db import models
-
 from waves.models import Wave
 from questions.models import Question
+from django.db.models import Q, Case, When, Value, BooleanField
 
 
+# QuerySet mit Annotations zur Vollständigkeitsprüfung von Seiten
+class WavePageQuerySet(models.QuerySet):
+    def with_completeness(self):
+        missing = (
+            Q(pagename__isnull=True) | Q(pagename="") |
+            Q(transition_control__isnull=True) | Q(transition_control="") |
+            Q(transitions__isnull=True) | Q(transitions="")
+        )
+        return self.annotate(
+            is_incomplete=Case(
+                When(missing, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            )
+        )
+
+# Modell für Befragungsseiten
 class WavePage(models.Model):
+
+    objects = WavePageQuerySet.as_manager()
     
     waves = models.ManyToManyField(
         Wave,
         related_name="pages",
         blank=True,
-        help_text="Wellen, in denen diese Seite verwendet wird.",
+        help_text="Befragtengruppen, die diese Seite sehen.",
     )
 
     # Interner Seitenname (pn)
     pagename = models.CharField(
         max_length=200,
-        help_text="Interner Seitenname, z.B. 'dem123' (pn).",
+        help_text="Interner Seitenname, z.B. 'dem_123' (pn).",
     )
 
     # Überschrift auf der Seite (hl)
@@ -36,6 +55,48 @@ class WavePage(models.Model):
     transition_control = models.TextField(
         blank=True,
         help_text="Transitionskontrolle in Textform (tc).",
+    )
+
+    # Einblendbedingungen (vc)
+    visibility_conditions = models.TextField(
+        blank=True,
+        help_text="Einblendbedingungen (vc).",
+    )
+
+    # Antwortvalidierungen (av)
+    answer_validations = models.TextField(
+        blank=True,
+        help_text="Antwortvalidierungen (av).",
+    )
+
+    # Korrekturhinweise (kh)
+    correction_notes = models.TextField(
+        blank=True,
+        help_text="Korrekturhinweise (kh).",
+    )
+
+    # Forcierungsvariablen (fv)
+    forcing_variables = models.TextField(
+        blank=True,
+        help_text="Forcierungsvariablen (fv).",
+    )
+
+    # Hilfsvariablen (hv)
+    helper_variables = models.TextField(    
+        blank=True,
+        help_text="Hilfsvariablen (hv).",
+    )
+
+    # Steuerungsvariablen (sv)
+    control_variables = models.TextField(
+        blank=True,
+        help_text="Steuerungsvariablen (sv).",
+    )
+
+    # Formatierung (fo)
+    formatting = models.TextField(
+        blank=True,
+        help_text="Formatierung (fo).",
     )
 
     # Seitenübergänge (tr)
@@ -61,6 +122,8 @@ class WavePage(models.Model):
         return self.pagename
 
 
+
+# Modell für Fragen auf Befragungsseiten
 class WavePageQuestion(models.Model):
 
     wave_page = models.ForeignKey(
@@ -84,6 +147,8 @@ class WavePageQuestion(models.Model):
         return f"{self.wave_page} – {self.question}"
 
 
+
+# Modell für Screenshots von Befragungsseiten
 class WavePageScreenshot(models.Model):
 
     wave_page = models.ForeignKey(

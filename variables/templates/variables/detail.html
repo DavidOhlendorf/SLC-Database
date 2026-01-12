@@ -1,78 +1,156 @@
 {% extends "main.html" %}
 
+{% load static %}
+{% block extra_js %}
+      <script src="{% static 'js/ui/tooltips.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container my-4">
 
-  <header class="mb-4">
-    <h1 class="display-5 d-flex align-items-center gap-2">{{ object.varname }}</h1>
-    <div class="text-muted ">{{ object.varlab }}</div>
+  <!-- Variablenname  etc. -->
+  <header>
+    <div class="d-flex align-items-start justify-content-between gap-3">
+      <div class="flex-grow-1 min-w-0">
+        <h1 class="h3 mb-0 text-break">
+          Variable: {{ variable.varname }}
+          {% if perms.accounts.can_edit_slc and variable.is_incomplete %}
+            <span>
+              <i class="fa-solid fa-circle-exclamation text-danger"
+                data-bs-toggle="tooltip"
+                data-bs-title="Frage unvollständig: Pflichtfelder nicht gefüllt oder keine Variablen verknüpft."></i>
+            </span>
+          {% endif %}
+        </h1>
+      </div>
+      <div class="flex-shrink-0">
+        {% if perms.accounts.can_edit_slc %}
+            <a class="btn btn-link btn-lg icon-action p-0"
+              title="Variable bearbeiten"
+              href="{% url 'variables:variable_edit' variable.pk %}?back={{ request.get_full_path|urlencode }}">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+        {% endif %}
+      </div>
+    </div>
   </header>
 
-  <!-- Kontext: Accordion-Card, standardmäßig offen -->
-  <div class="accordion mb-3" id="contextAccordion-{{ object.pk }}">
+
+
+  <!-- Varlabel -->
+  <div class="text-secondary mb-2">
+    {% if variable.varlab %}
+      {{ variable.varlab }}
+    {% else %}
+      <span class="text-muted">Kein Variablenlabel vergeben.</span>
+    {% endif %}
+
+  </div>
+
+  <hr class="my-2 mb-4">
+
+  <!-- Back-Link  -->
+  <div class="mb-3">
+    <a href="{{ back_url|default:'/' }}"
+      class="text-muted small text-decoration-none opacity-75">
+      ← Zurück
+    </a>
+  </div>
+
+  <!-- Fragen der Variablen -->
+  <div class="accordion mb-3" id="variablenAccordion-{{ variable.pk }}">
     <div class="accordion-item">
-      <h2 class="accordion-header" id="headingContext-{{ object.pk }}">
+      <h2 class="accordion-header" id="headingVariablen-{{ variable.pk }}">
         <button class="accordion-button" type="button"
                 data-bs-toggle="collapse"
-                data-bs-target="#collapseContext-{{ object.pk }}"
+                data-bs-target="#collapseVariablen-{{ variable.pk }}"
                 aria-expanded="true"
-                aria-controls="collapseContext-{{ object.pk }}">
-          Kontext
+                aria-controls="collapseVariablen-{{ variable.pk }}">
+          Zugehörige {% if single_question %} Frage {% else %} Fragen {% endif %}
         </button>
       </h2>
 
-      <div id="collapseContext-{{ object.pk }}"
-           class="accordion-collapse collapse show"
-           aria-labelledby="headingContext-{{ object.pk }}"
-           data-bs-parent="#contextAccordion-{{ object.pk }}">
-        <div class="accordion-body">
-
-          <div class="mb-3">
-            <strong class="d-block mb-1">Fragen</strong>
-
-            {% if questions_count == 0 %}
-              <span class="text-muted">–</span>
-
-            {% elif single_question %}
-              <div class="card clickable-card border-0 shadow-sm small position-relative">
-                <div class="card-body py-2 px-3">
-                  <div class="fw-semibold mb-1">
-                    {{ single_question.questiontext|truncatechars:160 }}
-                  </div>
-                  <a href="{% url 'questions:question_detail' single_question.pk %}"
-                    class="stretched-link text-decoration-none text-primary"></a>
-                </div>
-              </div>
-
-            {% else %}
-              <div class="vstack gap-2">
-                {% for q in questions_preview %}
-                  <div class="card clickable-card border-0 shadow-sm small position-relative">
-                    <div class="card-body py-2 px-3">
-                      <div class="fw-semibold mb-1">
-                        {{ q.questiontext|truncatechars:160 }}
-                      </div>
-                      <a href="{% url 'questions:question_detail' q.pk %}"
-                        class="stretched-link text-decoration-none text-primary"></a>
+      <div id="collapseVariablen-{{ variable.pk }}"
+          class="accordion-collapse collapse show"
+          aria-labelledby="headingVariablen-{{ variable.pk }}"
+          data-bs-parent="#variablenAccordion-{{ variable.pk }}">
+        <div class="accordion-body p-0">
+          {% if questions %}
+            <div class="list-group list-group-flush">
+              {% for q in questions %}
+                <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
+                  <div class="flex-grow-1"style="min-width:0; overflow:hidden;">
+                    <div class="d-flex align-items-center gap-2"style="min-width:0; overflow:hidden;">
+                      <span class="text-break d-block" style="min-width: 0;">
+                        {{ q.questiontext}}
+                      </span>
+                      {% if perms.accounts.can_edit_slc %}
+                        {% if q.is_incomplete %}
+                          <span>
+                          <i class="fa-solid fa-circle-exclamation text-danger"
+                            data-bs-toggle="tooltip"
+                            data-bs-title="Fragenangaben unvollständig"></i>
+                          </span>
+                        {% endif %}
+                      {% endif %}
                     </div>
                   </div>
-                {% endfor %}
-
-                {% if questions_more_count > 0 %}
-                  <div class="text-muted small">
-                    +{{ questions_more_count }} weitere Frage(n)
+                  <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
+                    <a class="btn btn-link px-2 icon-action"
+                      title="Details anzeigen"
+                      href="{% url 'questions:question_detail' q.pk %}">
+                      <i class="fa-regular fa-eye"></i>
+                    </a>
+                    {% if perms.accounts.can_edit_slc %}
+                      <a class="btn btn-link px-2 icon-action"
+                        title="Frage bearbeiten"
+                        href="{% url 'questions:question_edit' q.pk %}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </a>
+                    {% endif %}
                   </div>
-                {% endif %}
-              </div>
-            {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted px-3 py-2 mb-0">Für diese Befragung/Gruppe sind keine Fragen verknüpft.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 
-          </div>
+
+
+
+
+
+
+
+  <!-- Kontext: Accordion-Card, standardmäßig offen -->
+  <div class="accordion mb-3" id="contextAccordion-{{ variable.pk }}">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingContext-{{ variable.pk }}">
+        <button class="accordion-button" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapseContext-{{ variable.pk }}"
+                aria-expanded="true"
+                aria-controls="collapseContext-{{ variable.pk }}">
+          In folgenden Befragungen eingesetzt:
+        </button>
+      </h2>
+
+      <div id="collapseContext-{{ variable.pk }}"
+           class="accordion-collapse collapse show"
+           aria-labelledby="headingContext-{{ variable.pk }}"
+           data-bs-parent="#contextAccordion-{{ variable.pk }}">
+        <div class="accordion-body">
 
           <div>
             <strong class="d-block mb-1">Befragungen</strong>
-            {% if object.waves.exists %}
+            {% if variable.waves.exists %}
               <div class="d-flex flex-wrap gap-2">
-                {% for w in object.waves.all %}
+                {% for w in variable.waves.all %}
                   <span class="badge rounded-pill text-bg-light border">{{ w.name|default:w }}</span>
                 {% endfor %}
               </div>
@@ -87,21 +165,21 @@
   </div>
   
   <!-- Value-Label: 1 Accordion-Card, standardmäßig offen -->
-  <div class="accordion mb-3" id="vallabAccordion-{{ object.pk }}">
+  <div class="accordion mb-3" id="vallabAccordion-{{ variable.pk }}">
     <div class="accordion-item">
-      <h2 class="accordion-header" id="headingVallab-{{ object.pk }}">
+      <h2 class="accordion-header" id="headingVallab-{{ variable.pk }}">
         <button class="accordion-button" type="button"
                 data-bs-toggle="collapse"
-                data-bs-target="#collapseVallab-{{ object.pk }}"
+                data-bs-target="#collapseVallab-{{ variable.pk }}"
                 aria-expanded="true"
-                aria-controls="collapseVallab-{{ object.pk }}">
+                aria-controls="collapseVallab-{{ variable.pk }}">
           Value-Label
         </button>
       </h2>
-      <div id="collapseVallab-{{ object.pk }}"
+      <div id="collapseVallab-{{ variable.pk }}"
            class="accordion-collapse collapse show"
-           aria-labelledby="headingVallab-{{ object.pk }}"
-           data-bs-parent="#vallabAccordion-{{ object.pk }}">
+           aria-labelledby="headingVallab-{{ variable.pk }}"
+           data-bs-parent="#vallabAccordion-{{ variable.pk }}">
         <div class="accordion-body">
           {% if object.vallab %}
             <p class="mb-2"><strong>Name:</strong> {{ object.vallab.vallabname }}</p>
@@ -134,27 +212,27 @@
   </div>
 
   <!-- Eigenschaften: bis zu 4 Accordion-Cards, nur aktive Flags -->
-  <div class="accordion" id="eigenschaftenAccordion-{{ object.pk }}">
+  <div class="accordion" id="eigenschaftenAccordion-{{ variable.pk }}">
     {% if flags_active %}
         <div class="accordion-item">
-          <h2 class="accordion-header" id="headingEigenschaften-{{ object.pk }}">
+          <h2 class="accordion-header" id="headingEigenschaften-{{ variable.pk }}">
             <button class="accordion-button" type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#collapseEigenschaften-{{ object.pk }}"
+                    data-bs-target="#collapseEigenschaften-{{ variable.pk }}"
                     aria-expanded="true"
-                    aria-controls="collapseEigenschaften-{{ object.pk }}">
+                    aria-controls="collapseEigenschaften-{{ variable.pk }}">
               Eigenschaften
             </button>
           </h2>
 
-          <div id="collapseEigenschaften-{{ object.pk }}"
+          <div id="collapseEigenschaften-{{ variable.pk }}"
               class="accordion-collapse collapse show"
-              aria-labelledby="headingEigenschaften-{{ object.pk }}"
-              data-bs-parent="#eigenschaftenAccordion-{{ object.pk }}">
+              aria-labelledby="headingEigenschaften-{{ variable.pk }}"
+              data-bs-parent="#eigenschaftenAccordion-{{ variable.pk }}">
             <div class="accordion-body">
               <div class="vstack gap-2">
                 {% for f in flags_active %}
-                  <div id="reason-{{ f.key }}-{{ object.pk }}" class="card border-0 shadow-sm">
+                  <div id="reason-{{ f.key }}-{{ variable.pk }}" class="card border-0 shadow-sm">
                     <div class="card-body py-2 px-3 d-flex align-items-baseline">
                       <span class="badge text-bg-primary me-3 flex-shrink-0 text-center"
                             style="width: 6rem;">{{ f.label }}</span>

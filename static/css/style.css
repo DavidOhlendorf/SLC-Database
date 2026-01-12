@@ -23,3 +23,88 @@ button.collapse-toggle[aria-expanded="false"] i {
   box-shadow: 0 .25rem .5rem rgba(0,0,0,.08);
 }
 
+/* Hover Effekt für Icons */
+.icon-action i {
+  color: var(--bs-secondary-color);
+}
+
+.icon-action:hover i {
+  color: var(--bs-body-color);
+}
+
+.icon-action--success i {
+  color: var(--bs-success);
+}
+
+.icon-action--success:hover i {
+  color: var(--bs-success-text-emphasis, #0f5132);
+}
+
+.icon-action--danger i {
+  color: var(--bs-danger);
+}
+
+.icon-action--danger:hover i {
+  color: var(--bs-danger-text-emphasis, #842029);
+}
+
+/* Stil für inaktive Select-Felder (ohne Dropdown-Pfeil) */
+select.qc-passive {
+  background-image: none;   /* entfernt den Dropdown-Pfeil (Bootstrap) */
+  padding-right: .75rem;    /* kompensiert den fehlenden Pfeilbereich */
+}
+
+select.qc-passive:focus {
+  box-shadow: none;
+}
+
+
+/* Quickcreate in der Variablen-Auswahl: Vorschlagsliste ” */
+.qc-sugg-header {
+  color: var(--bs-secondary-color);
+  margin-bottom: .25rem;
+  font-size: .875rem;
+}
+
+.qc-sugg-box {
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  border-radius: .375rem;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .125rem .5rem;
+}
+
+.qc-sugg-row {
+  padding: .2rem .35rem;
+  color: var(--bs-secondary-color);
+  border-radius: .25rem;
+  font-size: .875rem;
+  line-height: 1.2;
+}
+
+
+/* Input-Gruppe für Variable-Auswahl mit Button (bricht sonst unschön um) */
+.variable-input-group {
+  flex-wrap: nowrap;
+
+}
+
+.variable-input-group .ts-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.variable-input-group .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.variable-input-group .ts-control {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+}
+

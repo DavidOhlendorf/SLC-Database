@@ -1,48 +1,172 @@
 {% extends "main.html" %}
+{% load static %}
+
+
+{% block extra_js %}
+    <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
+{% endblock %}
+
 
 {% block content %}
   <div class="container my-4">
 
-    <!-- Fragetext -->
-    <header class="mb-3">
-      <h1 class="h4">{{ question.questiontext }}</h1>
+    <!-- Fragetitel etc. -->
+    <header>
+      <div class="d-flex align-items-start justify-content-between gap-3">
+        <div class="flex-grow-1 min-w-0">
+          <h1 class="h3 mb-0 text-break">
+            {{ question.questiontext|truncatechars:150 }}
+            {% if perms.accounts.can_edit_slc and question.is_incomplete %}
+              <span>
+                <i class="fa-solid fa-circle-exclamation text-danger"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Frage unvollständig: Pflichtfelder nicht gefüllt oder keine Variablen verknüpft."></i>
+              </span>
+            {% endif %}
+          </h1>
+        </div>
+        <div class="flex-shrink-0">
+          {% if perms.accounts.can_edit_slc %}
+            {% if active_wave and active_page %}
+              <a class="btn btn-link btn-lg icon-action p-0"
+                title="Frage bearbeiten"
+                href="{% url 'questions:question_edit' question.id %}?page={{ active_page.id }}&wave={{ active_wave.id }}">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </a>
+            {% else %}
+              <button class="btn btn-link btn-lg icon-action pe-0" disabled
+                      title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Befragung einer Seite zugeordnet ist.">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            {% endif %}
+          {% endif %}
+        </div>
+
+      </div>
     </header>
 
     <!-- Konstrukt -->
-    {% if question.construct %}
-      <div class="small text-secondary mb-3">
-        <i class="fa-solid fa-diagram-project me-1"></i>
+    <div class="small text-muted ">
+      <i class="fa-solid fa-hashtag me-1"></i>
+      {{ question.id }}
+      {% if question.construct %}
+        <i class="fa-solid fa-diagram-project me-1 px-3"></i>
         {{ question.construct.level_1 }}
         {% if question.construct.level_2 %}
           → {{ question.construct.level_2 }}
         {% endif %}
-      </div>
-    {% endif %}
+      {% endif %}  
+    </div>
+
+    <hr class="my-2 mb-4">
+
+
 
     <!-- Wellen-Pills -->
     {% if waves %}
-      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto mb-3 small" style="white-space: nowrap;">
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small" style="white-space: nowrap;">
         {% for w in waves %}
           <li class="nav-item">
             {% if active_wave and w.id == active_wave.id %}
               <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
                 class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
-                aria-current="page">
+                aria-current="page"
+                title="Aktive Befragung">
                 {{ w }}
               </a>
             {% else %}
               <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
-                class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border">
+                class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border"
+                title="Befragung auswählen">
                 {{ w }}
               </a>
             {% endif %}
           </li>
         {% endfor %}
       </ul>
-
     {% endif %}
 
-    <!-- Variablenliste -->
+    {% if survey and active_wave %}
+      <div class="mb-3">
+        <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
+          class="text-muted small text-decoration-none opacity-75">
+          ← Alle Seiten dieses Fragebogens anzeigen
+        </a>
+      </div>
+    {% else %}
+      <div class="mb-3"></div>
+    {% endif %}
+
+
+    <!-- Seiten-Pills -->
+    {% if active_wave %}
+      {% if pages %}
+          <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small m-0" style="white-space: nowrap;">
+            {% for p in pages %}
+              <li class="nav-item">
+                {% if active_page and p.id == active_page.id %}
+                  <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
+                    class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
+                    aria-current="page"
+                    title="Aktive Seite">
+                    Seite: {{ p.pagename }}
+                  </a>
+                {% else %}
+                  <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
+                    class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border"
+                    title="Seite auswählen">
+                    Seite: {{ p.pagename }}
+                  </a>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+      {% else %}
+        <p class="text-muted small mb-3">Für diese Frage ist in {{ active_wave.name|default:active_wave }} noch keine Seite verknüpft.</p>
+      {% endif %}
+    {% endif %}
+
+    {% if active_wave and active_page %}
+      <div class="mb-4">
+        <a href="{% url 'pages:page-detail' active_page.id %}?wave={{ active_wave.id }}"
+          class="text-muted small text-decoration-none opacity-75">
+          ← Zur ausgewählten Fragebogenseite
+        </a>
+      </div>
+    {% else %}
+      <div class="mb-4"></div>
+    {% endif %}
+
+    <div class="accordion mb-3" id="questiontextAccordion-{{ question.id }}">
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#questiontextCollapse"
+                  aria-expanded="true"
+                  aria-controls="questiontextCollapse">
+            Frage- und Hinweistext
+          </button>
+        </h2>
+        <div id="questiontextCollapse" class="accordion-collapse collapse show">
+          <div class="accordion-body">
+            <p class="mb-1"><strong>Fragetext:</strong></p>
+            <p>{{ question.questiontext }}</p>
+
+            {% if question.instruction %}
+              <p class="mb-1 mt-4"><strong>Instruktion:</strong></p>
+              <p>{{ question.instruction }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- Variablen der Frage in der ausgewählten Befragung/Gruppe -->
     <div class="accordion mb-3" id="variablenAccordion-{{ question.id }}">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingVariablen-{{ question.id }}">
@@ -60,67 +184,77 @@
             aria-labelledby="headingVariablen-{{ question.id }}"
             data-bs-parent="#variablenAccordion-{{ question.id }}">
           <div class="accordion-body p-0">
-
             {% if variables %}
               <div class="list-group list-group-flush">
                 {% for v in variables %}
-                  <a class="list-group-item list-group-item-action"
-                    href="{% url 'variables:variable_detail' v.id %}">
-                    <div class="fw-semibold">{{ v.varname }}</div>
-                    {% if v.varlab %}
-                      <div class="text-muted small text-truncate">{{ v.varlab }}</div>
-                    {% endif %}
-                  </a>
+                  <div class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold d-flex align-items-center gap-2">
+                        <span>{{ v.varname }}</span>
+                        {% if perms.accounts.can_edit_slc %}
+                          {% if v.is_incomplete %}
+                            <span>
+                            <i class="fa-solid fa-circle-exclamation text-danger"
+                              data-bs-toggle="tooltip"
+                              data-bs-title="Variablenangaben unvollständig"></i>
+                            </span>
+                          {% endif %}
+                        {% endif %}
+                      </div>
+                      {% if v.varlab %}
+                        <div class="text-muted small text-truncate">
+                          {{ v.varlab }}
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
+                      <a class="btn btn-link px-2 icon-action"
+                        title="Details anzeigen"
+                        href="{% url 'variables:variable_detail' v.id %}?back={{ request.get_full_path|urlencode }}">
+                        <i class="fa-regular fa-eye"></i>
+                      </a>
+                      {% if perms.accounts.can_edit_slc %}
+                        <a class="btn btn-link px-2 icon-action"
+                          title="Variable bearbeiten"
+                          href="{% url 'variables:variable_edit' v.id %}?back={{ request.get_full_path|urlencode }}">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
                 {% endfor %}
               </div>
             {% else %}
-              <p class="text-muted px-3 py-2 mb-0">In dieser Welle sind keine Variablen verknüpft.</p>
-            {% endif %}
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Seiten -->
-    <div class="accordion mb-3" id="pageAccordion-{{ question.id }}">
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingPage-{{ question.id }}">
-          <button class="accordion-button" type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#collapsePage-{{ question.id }}"
-                  aria-expanded="true"
-                  aria-controls="collapsePage-{{ question.id }}">
-            Fragebogenseite in {{ active_wave.name|default:active_wave }}
-          </button>
-        </h2>
-
-        <div id="collapsePage-{{ question.id }}"
-            class="accordion-collapse collapse show"
-            aria-labelledby="headingPage-{{ question.id }}"
-            data-bs-parent="#pageAccordion-{{ question.id }}">
-          <div class="accordion-body p-0">
-
-            {% if page %}
-              <div class="list-group list-group-flush">
-                <a class="list-group-item list-group-item-action"
-                  href="{% url 'pages:page-detail' page.id %}?wave={{ active_wave.id }}">
-                  <div class="fw-semibold">
-                    Seite: {{ page.pagename }}
-                  </div>
-                </a>
-              </div>
-            {% else %}
-              <p class="text-muted px-3 py-2 mb-0">Für diese Frage ist hier noch keine Seite verknüpft.</p>
+              <p class="text-muted px-3 py-2 mb-0">Für diese Befragung/Gruppe sind keine Variablen verknüpft.</p>
             {% endif %}
           </div>
         </div>
       </div>
     </div>
-    
-    
+
+    {% if perms.accounts.can_edit_slc %}
+      <div class="d-flex align-items-start gap-2 mb-5">
+        <a class="btn text-secondary link-secondary"
+          href="{% url 'questions:question_variables' question.id %}?back={{ request.get_full_path|urlencode }}{% if active_wave %}&wave={{ active_wave.id }}{% endif %}">
+          <i class="fa-solid fa-link"></i> Variablen zuordnen
+        </a>
+        <button type="button"
+                class="btn text-success link-success"
+                data-bs-toggle="modal"
+                data-bs-target="#qcVarForQuestionModal">
+          <i class="fa-solid fa-plus"></i> Neue Variable anlegen
+        </button>
+      </div>
+    {% else %}
+      <div class="mb-5"></div>
+    {% endif %}
+
+
+
+
+    <!-- Screenshots -->
     {% if screenshots %}
-      <h2 class="h6 mb-2 fw-semibold">Screenshots</h2>
+      <h6 class="mb-3 fw-semibold">Screenshots der ausgewählten Fragebogenseite</h6>
 
       <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
         {% for s in screenshots %}
@@ -130,7 +264,7 @@
               <a href="/{{ s.image_path }}"
                 class="glightbox"
                 data-gallery="question-{{ question.id }}"
-                data-title="Sprache: {{ s.language }} | Ansicht: {{ s.device }}{% if page %} | Seite: {{ page.pagename }}{% endif %}">
+                data-title="Sprache: {{ s.language }} | Ansicht: {{ s.device }}{% if active_page %} | Seite: {{ active_page.pagename }}{% endif %}">
 
                 <img
                   src="/{{ s.image_path }}"
@@ -153,8 +287,77 @@
         {% endfor %}
       </div>
     {% endif %}
-
-
   </div>
+
+  <!-- Modal: Variable-Schnellerstellung für Question -->
+  <div class="modal fade"
+     id="qcVarForQuestionModal"
+     data-varname-check-url="{% url 'variables:variable_varname_check' %}"
+     data-create-url="{% url 'variables:variable_quickcreate_question' %}"
+     data-question-id="{{ question.id }}"
+     tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Neue Variable anlegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Variablenname</label>
+            <input type="text" class="form-control" id="qcq-varname" autocomplete="off">
+            <div class="form-text">Mindestens 2 Zeichen.</div>
+          </div>
+
+          <div class="mt-2" id="qcq-name-status"></div>
+          <div class="mt-2 d-none" id="qcq-suggestions"></div>
+
+          <hr class="my-3">
+
+          <label class="form-label">Befragungsgruppen</label>
+          <div class="d-flex flex-wrap gap-2" id="qcq-waves">
+            {% for w in waves %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input"
+                      type="checkbox"
+                      name="wave_ids"
+                      value="{{ w.id }}"
+                      id="qcq-wave-{{ w.id }}"
+                      {% if w.is_locked %}disabled{% endif %}
+                      {% if active_wave and w.id == active_wave.id %}checked{% endif %}>
+                <label class="form-check-label" for="qcq-wave-{{ w.id }}">
+                  {{ w.cycle }} {{ w.instrument }}
+                  {% if w.is_locked %}<span class="text-muted">(locked)</span>{% endif %}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="alert alert-danger d-none mt-3 mb-0" id="qcq-error"></div>
+        </div>
+
+        <div class="modal-footer justify-content-between">
+          <button type="button"
+                  class="btn btn-link text-decoration-none px-0"
+                  id="qcq-later"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Legt die Variable an, aber führt dich danach zurück – Details kannst du später ergänzen.">
+            Erstellen und zurück
+          </button>
+
+          <button type="button"
+                  class="btn btn-primary"
+                  id="qcq-complete"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Legt die Variable an und öffnet danach das Bearbeiten-Fenster der Variable.">
+            Erstellen und vervollständigen
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 {% endblock %}
 

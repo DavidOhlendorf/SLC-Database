@@ -1,0 +1,34 @@
+{% extends "main.html" %}
+{% block content %}
+  <h1>Verwaiste Fragen</h1>
+  <p class="text-muted">
+    Durch die Bearbeitung einer Seite sind Fragen entstanden, die in keiner Befragung mehr vorkommen.
+    Was soll mit diesen Fragen geschehen?
+  </p>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <ul class="mb-0">
+        {% for q in questions %}
+          <li>
+            <strong>Q{{ q.id }}</strong> – {{ q.questiontext|default:"(ohne Fragetext)"|truncatechars:160 }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <form method="post" class="d-flex gap-2">
+    {% csrf_token %}
+    <button class="btn btn-danger" name="action" value="delete" type="submit">
+      Frage(n) löschen
+    </button>
+    <button class="btn btn-outline-secondary" name="action" value="keep" type="submit">
+      Frage(n) behalten
+    </button>
+
+    {% if return_url %}
+      <a class="btn btn-link ms-auto" href="{{ return_url }}">Zurück</a>
+    {% endif %}
+  </form>
+{% endblock %}

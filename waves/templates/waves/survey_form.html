@@ -1,0 +1,295 @@
+{% extends "main.html" %}
+{% load static %}
+{% block extra_js %}
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
+    <script src="{% static 'js/builder/wave_formset.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <header class="mb-4">
+        <h1>{% if is_edit_mode %}Befragung bearbeiten{% else %}Neue Befragung anlegen{% endif %}</h1>
+    </header>
+
+    <form method="post" class="mt-3" style="max-width: 980px;">
+        {% csrf_token %}
+
+       <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-1">Befragung / Erhebungsjahr</h5>
+                        <div class="text-muted small">Bitte vergib einen eindeutigen Namen, der noch nicht verwendet wird.
+                            Im SLC entspricht der Name der Befragung für gewöhnlich dem Erhebungsjahr (z.B. "EJ 2026").
+                        </div>
+                    </div>
+
+                    <button type="button"
+                        class="btn btn-sm"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="left"
+                        title="Hier legst du die Basisdaten an, unter denen die Befragung gefunden werden kann. Der Name muss eindeutig sein und darf noch nicht genutzt werden. Das Jahr ist optional und dient der Sortierung.">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-7">
+                        <div class="form-floating">
+                            {{ form.name }}
+                            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                        </div>
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">{{ form.name.errors|striptags }}</div>
+                            {% endif %}
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="form-floating">
+                            {{ form.year }}
+                            <label for="{{ form.year.id_for_label }}">{{ form.year.label }}</label>
+                        </div>
+
+                        {% if form.year.errors %}
+                            <div class="invalid-feedback d-block">{{ form.year.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-1">Befragungsgruppen</h5>
+                        <div class="text-muted small">Hier kannst du angeben, welche Personengruppen in der Befragung vorkommen. Mindestens eine Gruppe pro Befragung ist erforderlich.</div>
+                    </div>
+
+                    <button type="button"
+                        class="btn btn-sm"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="left"
+                        title="Jede Gruppe, die eine eigene Fragebogenvariante erhält oder im Fragebogen gesondert gefiltert wird, sollte hier aufgelistet sein. Gruppen können auch später noch hinzugefügt werden. ">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                </div>
+
+                <hr class="my-3">
+
+                <div id="wave-alert"
+                    class="alert alert-warning d-none mb-3"
+                    role="alert">
+                  <span class="js-wave-alert-text"></span>
+                </div>
+
+                {% if wave_formset.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {% for err in wave_formset.non_form_errors %}
+                            <div>{{ err }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {{ wave_formset.management_form }}
+
+                <div id="wave-forms" data-formset-prefix="{{ wave_formset.prefix }}" class="vstack gap-3">
+                {% for wf in wave_formset %}
+
+                    {% with inst=wf.instance %}
+                      {% if inst and inst.pk %}
+                        {% with can_del=inst.can_be_deleted reason=inst.delete_block_reason %}
+                          <div class="wave-form border rounded-3 p-3 bg-body-tertiary"
+                               data-can-delete="{% if can_del %}1{% else %}0{% endif %}"
+                               data-delete-reason="{{ reason|default_if_none:''|escape }}">
+                        {% endwith %}
+                      {% else %}
+                        <div class="wave-form border rounded-3 p-3 bg-body-tertiary"
+                             data-can-delete="1" data-delete-reason="">
+                      {% endif %}
+
+                        {% if wf.non_field_errors %}
+                            <div class="alert alert-warning py-2 mb-2">
+                                {{ wf.non_field_errors|striptags }}
+                            </div>
+                        {% endif %}
+
+                        {% for hidden in wf.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        <div class="row g-3 justify-content-center align-items-start">
+
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ wf.cycle }}
+                                    <label for="{{ wf.cycle.id_for_label }}">{{ wf.cycle.label }}</label>
+                                </div>
+                                {% if wf.cycle.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.cycle.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-floating">
+                                    {{ wf.instrument }}
+                                    <label for="{{ wf.instrument.id_for_label }}">{{ wf.instrument.label }}</label>
+                                </div>
+                                {% if wf.instrument.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.instrument.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    {{ wf.start_date }}
+                                    <label for="{{ wf.start_date.id_for_label }}">{{ wf.start_date.label }}</label>
+                                </div>
+                                {% if wf.start_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.start_date.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    {{ wf.end_date }}
+                                    <label for="{{ wf.end_date.id_for_label }}">{{ wf.end_date.label }}</label>
+                                </div>
+                                {% if wf.end_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ wf.end_date.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-1 text-end">
+                                <div class="d-none">
+                                    {{ wf.DELETE }}
+                                </div>
+
+                                {% if wf.instance and wf.instance.pk and not wf.instance.can_be_deleted %}
+                                <span class="d-inline-block"
+                                    tabindex="0"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="left"
+                                    title="{{ wf.instance.delete_block_reason|default:'Diese Gruppe kann nicht gelöscht werden.' }}">
+                                    <button type="button" class="btn btn-outline-danger btn-sm js-remove-wave disabled">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </span>
+                                {% else %}
+                                  <button type="button"
+                                          class="btn btn-outline-danger btn-sm js-remove-wave"
+                                          data-bs-toggle="tooltip"
+                                          data-bs-placement="left"
+                                          title="Gruppe entfernen">
+                                      <i class="fa-solid fa-trash"></i>
+                                  </button>
+                                {% endif %}
+                            </div>
+
+                        </div>
+                    </div>
+                    {% endwith %}
+
+                {% endfor %}
+                </div>
+
+                <template id="empty-wave-form">
+                <div class="wave-form border rounded-3 p-3 bg-body-tertiary"
+                     data-can-delete="1" data-delete-reason="">
+                    {% for hidden in wave_formset.empty_form.hidden_fields %}
+                        {{ hidden }}
+                    {% endfor %}
+
+                   <div class="row g-3 justify-content-center align-items-start">
+
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.cycle }}
+                                <label for="{{ wave_formset.empty_form.cycle.id_for_label }}">{{ wave_formset.empty_form.cycle.label }}</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.instrument}}
+                                <label for="{{ wave_formset.empty_form.instrument.id_for_label }}">{{ wave_formset.empty_form.instrument.label }}</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-2">
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.start_date }}
+                                <label for="{{ wave_formset.empty_form.start_date.id_for_label }}">{{ wave_formset.empty_form.start_date.label }}</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-2">
+                            <div class="form-floating">
+                                {{ wave_formset.empty_form.end_date }}
+                                <label for="{{ wave_formset.empty_form.end_date.id_for_label }}">{{ wave_formset.empty_form.end_date.label }}</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-1 text-end">
+                            <div class="d-none">
+                                {{ wave_formset.empty_form.DELETE }}
+                            </div>
+                            <button type="button"
+                                    class="btn btn-outline-danger btn-sm js-remove-wave"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="left"
+                                    title="Gruppe entfernen">
+                              <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+                </template>
+
+                <button type="button" class="btn btn-outline-dark btn-sm mt-3" id="add-wave">
+                    + Neue Gruppe
+                </button>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-dark">Speichern</button>
+                <a href="{% url 'waves:survey_list' %}" class="btn btn-outline-secondary">Abbrechen</a>
+            </div>
+
+            {% if is_edit_mode %}
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteSurveyModal">Befragung löschen</button>
+            {% endif %}
+
+            {% if is_edit_mode %}
+                <div class="modal fade" id="deleteSurveyModal" tabindex="-1" aria-labelledby="deleteSurveyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteSurveyModalLabel">Befragung löschen</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                            </div>
+
+                            <div class="modal-body">
+                                <p class="mb-2">Soll diese Befragung wirklich gelöscht werden?</p>
+                                <p class="text-muted mb-0">Das ist nur möglich, wenn alle Gruppen leer und nicht gesperrt sind (keine Seiten/Fragen enthalten).</p>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+
+                                <form method="post" action="" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="delete_survey" value="1" class="btn btn-danger">Ja, löschen</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+
+{% endblock %}

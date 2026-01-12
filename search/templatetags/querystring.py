@@ -6,7 +6,7 @@ register = template.Library()
 def url_with(context, **updates):
     """
     Baut einen Querystring aus request.GET und überschreibt/entfernt Keys.
-    Beispiel: {% url 'search' %}{% url_with type='variables' page=None %}
+    Beispiel: {% url 'search:search' %}{% url_with type='variables' page=None %}
     """
     request = context.get("request")
     params = request.GET.copy() if request else {}

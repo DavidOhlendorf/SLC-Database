@@ -1,0 +1,166 @@
+{% extends "main.html" %}
+{% load static %}
+
+{% block extra_js %}
+    <script src="{% static 'js/builder/variable_varname_livecheck.js' %}"></script>
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h4 mb-1">Variable bearbeiten</h1>
+      <div class="text-muted">{{ variable.varname }}</div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <a href="{{ back_url|default:variable.get_absolute_url }}"
+      class="text-muted small text-decoration-none opacity-75">
+      ← Zurück
+    </a>
+  </div>
+  
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="back_url" value="{{ back_url }}">
+
+    <div class="card mb-3">
+      <div class="card-body">
+
+        <div class="mb-3">
+          <label class="form-label">Variablenname</label>
+          {{ form.varname }}
+          {% if form.varname.errors %}
+            <div class="invalid-feedback d-block">{{ form.varname.errors|striptags }}</div>
+          {% endif %}
+          <div class="form-text" id="varname-status"></div>
+          <div class="mt-2 d-none" id="varname-suggestions"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Variablenlabel</label>
+          {{ form.varlab }}
+          {% if form.varlab.errors %}
+            <div class="invalid-feedback d-block">{{ form.varlab.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Kommentar</label>
+          {{ form.comment }}
+        </div>
+
+        <hr class="my-4">
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.ver }} <label class="form-check-label">versioniert</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_ver }}
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.gen }} <label class="form-check-label">generiert</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_gen }}
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.plausi }} <label class="form-check-label">plausibilisiert</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_plausi }}
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check">
+              {{ form.flag }} <label class="form-check-label">flag</label>
+            </div>
+            <label class="form-label mt-2">Grund</label>
+            {{ form.reason_flag }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center gap-2">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Speichern</button>
+        <a class="btn btn-outline-secondary"
+          href="{{ back_url|default:variable.get_absolute_url }}">
+          Abbrechen
+        </a>
+      </div>
+
+      <div>
+        {% if not can_delete %}
+        <span
+            class="d-inline-block"
+            tabindex="0"
+            data-bs-toggle="tooltip"
+            data-bs-title="Diese Variable kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+            <button type="button" class="btn btn-outline-danger" disabled>
+                <i class="fa-solid fa-trash me-1"></i> Variable löschen
+            </button>
+        </span>
+        {% else %}
+        <button
+            type="button"
+            class="btn btn-outline-danger"
+            data-bs-toggle="modal"
+            data-bs-target="#confirmDeleteModal">
+            <i class="fa-solid fa-trash me-1"></i> Variable löschen
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  <!-- Löschbestätigungsmodal -->
+  <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Variable löschen?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          Wirklich löschen? Das entfernt die Variable aus sämtlichen Befragungen, Seiten und Fragen.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            Abbrechen
+          </button>
+
+          <button type="submit"
+                  class="btn btn-danger"
+                  form="delete-variable-form">
+            Ja, löschen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Löschformular -->
+  <form id="delete-variable-form"
+        method="post"
+        action="{% url 'variables:variable_delete' variable.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="back_url" value="{{ back_url }}">  
+  </form>
+
+</div>
+
+{% endblock %}

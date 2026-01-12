@@ -1,0 +1,40 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <h1>Seite zuordnen</h1>
+
+  <p class="text-muted">
+    Diese Frage ist aktuell keiner Seite zugeordnet. Bitte wähle zuerst eine Befragung und dann eine Seite.
+  </p>
+
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title">Frage #{{ question.id }}</h5>
+      <p class="card-text">
+        {{ question.questiontext|default:"(ohne Fragetext)"|truncatechars:240 }}
+      </p>
+
+      <form method="post" class="vstack gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div>
+          {{ form.wave.label_tag }}
+          {{ form.wave }}
+          {% if form.wave.errors %}<div class="text-danger small mt-1">{{ form.wave.errors }}</div>{% endif %}
+        </div>
+
+        <div>
+          {{ form.wave_page.label_tag }}
+          {{ form.wave_page }}
+          {% if form.wave_page.errors %}<div class="text-danger small mt-1">{{ form.wave_page.errors }}</div>{% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Zuordnen</button>
+          <a class="btn btn-outline-secondary" href="{% url 'questions:question_detail' question.id %}">Abbrechen</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

@@ -1,6 +1,10 @@
 {% extends 'main.html' %}
 {% load querystring %}
 {% load static %}
+{% block extra_js %}
+  <script src="{% static 'js/search/searchfilter.js' %}"></script>
+{% endblock %}
+
 
 
 
@@ -234,9 +238,6 @@
     {% endif %}
 
   {% endif %}
-
-
-  <script src="{% static 'js/searchfilter.js' %}" defer></script>
 
 {% endblock %}
 

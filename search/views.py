@@ -1,10 +1,15 @@
 import re
 from django.conf import settings
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+
 from django.db.models import Q, F, Prefetch
 from django.db.models.functions import Lower
+
 from django.core.paginator import Paginator
-from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector
+from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector, TrigramWordSimilarity
+
 from collections import defaultdict
 from questions.models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
@@ -13,6 +18,128 @@ from waves.models import Wave, Survey
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
+
+
+# Hilfsfunktion: Suche nach Fragen (für Hauptsuche und für API-Endpunkt)
+# Später evtl. auslagern in search/utils.py und für Vars erweitern (aktuell nicht einheitlich)
+def search_questions(q: str, wave_ids=None, include_keywords=True):
+    q = (q or "").strip()
+    if len(q) < 2:
+        return []
+
+    q_lower = q.lower()
+    wave_ids = wave_ids or []
+
+    # Basis-QuerySet nur mit Wellen-Filter
+    base_qs_q = Question.objects.all()
+    if wave_ids:
+        base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
+
+    # ---- 1) Volltextsuche (tsvector) mit deutschem Analyzer
+    ts_query = SearchQuery(q, config="german", search_type="websearch")
+    ts_rows = (
+        base_qs_q
+        .annotate(sv=SearchVector("questiontext", weight="A", config="german"))
+        .filter(sv=ts_query)
+        .annotate(ts_rank=SearchRank(F("sv"), ts_query, normalization=32))
+        .values("id", "ts_rank")
+    )
+    ts_map = {r["id"]: float(r["ts_rank"] or 0.0) for r in ts_rows}
+
+    # ---- 2) Trigram-Suche im Fragetext (Fuzzy-Fallback) für Tippfehler/Teilstrings
+    tg_rows = (
+        base_qs_q
+        .annotate(sim=TrigramWordSimilarity(q_lower, "questiontext"))
+        .filter(sim__gt=0.6) # Mindestähnlichkeit
+        .values("id", "sim")
+    )
+    tg_map = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows}
+
+    # ---- 3) Wortgrenzen-Boost: wenn der Suchbegriff als eigenes Wort im Text steht
+    word_boundary = rf"\m{re.escape(q_lower)}\M"
+    wb_ids = set(
+        base_qs_q
+        .annotate(qt=Lower("questiontext"))
+        .filter(qt__iregex=word_boundary)
+        .values_list("id", flat=True)
+    )
+
+    # ---- 4) Keyword-Score: bestes passendes Keyword (entweder direkter Treffer per contains oder fuzzy per trgm)
+    kw_map = {}
+    if include_keywords:
+        kw_rows = (
+            Keyword.objects
+            .annotate(nl=Lower("name"))
+            .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
+            .filter(Q(nl__istartswith=q_lower) | Q(sim__gt=0.6))
+            .values("id", "sim")[:15]
+        )
+        kw_id_to_score = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows}
+
+        # Hole die zu den keywords aus kw_id_to_score gehörenden Fragen
+        kw_links = (
+            base_qs_q
+            .filter(keywords__in=list(kw_id_to_score.keys()))
+            .values("id", "keywords__id")
+            .distinct()
+        )
+
+        # SearchMap: FrageID -> bestes Keyword-Score
+        kw_map = {}
+        for r in kw_links:
+            qid = r["id"]; kwid = r["keywords__id"]
+            kw_map[qid] = max(kw_map.get(qid, 0.0), kw_id_to_score.get(kwid, 0.0))
+
+
+    # ---- 5) Finaler Score pro Frage aus den Einzelkomponenten
+    #   Logik:
+    #     Textscore = max(TS, TG*0.6, WB*0.95)
+    #     Score aus dem Fragetext wird gebildet aus dem höchsten Wert der drei Komponenten:
+    #       - Volltext-Score per ts_vector (TS) 
+    #       - Trigram-Score (TG), aber nur 60% Gewicht, damit Textrelevanz höher gewichtet wird
+    #       - Wortgrenzen-Bonus (WB), fester Wert 0.95 --> bei direktem Worttreffer im Fragetext wird geboostet
+    #     Keyword-Score (KW) = bestes Keyword * 0.8
+    #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Fragetext-Relevanz höher gewichtet wird
+    #     Finaler Score = Textscore + Keyword-Score * 0.15 (wenn Textscore > 0) bzw. + Keyword-Score * 0.10 (wenn kein Textscore)
+    #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
+
+    candidate_ids = set(ts_map) | set(tg_map) | wb_ids | (set(kw_map) if include_keywords else set())
+    if not candidate_ids:
+        return [], {}
+
+    final_score_map = {}
+    for qid in candidate_ids:
+        ts = ts_map.get(qid, 0.0)
+        tg = tg_map.get(qid, 0.0) * 0.6
+        wb = 0.95 if qid in wb_ids else 0.0
+        text_score = max(ts, tg, wb)
+
+        if include_keywords:
+            kw_score = kw_map.get(qid, 0.0) * 0.8
+            both = (text_score > 0.0 and kw_score > 0.0)
+            if text_score > 0:
+                relevance = text_score + 0.15 * kw_score
+            else:
+                relevance = 0.10 * kw_score 
+            if both:
+                relevance = min(1.2, relevance + 0.15)
+        else:
+            relevance = text_score
+
+        final_score_map[qid] = relevance
+
+     # ---- 6) Materialisieren, Facetten zählen, sortieren, paginieren
+    found = list(
+        base_qs_q
+        .filter(id__in=final_score_map.keys())
+        .only("id", "questiontext")
+        .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
+        .distinct()
+    )
+
+    return found, final_score_map
+
+
 
 # Landing-Page für die Suche
 def search_landing(request):
@@ -94,108 +221,10 @@ def search(request):
     # QUESTIONS 
     # =========================
     if search_type in {"all", "questions"}:
-        q_lower = q.lower()
-
-        # Basis-QuerySet nur mit Wellen-Filter
-        base_qs_q = Question.objects.all()
-        if wave_ids:
-            base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
-
-
-        # ---- 1) Volltextsuche (tsvector) mit deutschem Analyzer
-        ts_query = SearchQuery(q, config="german", search_type="websearch")
-
-        ts_rows = (
-            base_qs_q
-            .annotate(sv=SearchVector("questiontext", weight="A", config="german"))
-            .filter(sv=ts_query)
-            .annotate(ts_rank=SearchRank(F("sv"), ts_query, normalization=32))
-            .values("id", "ts_rank")
-        )
-        ts_map = {r["id"]: float(r["ts_rank"] or 0.0) for r in ts_rows}
-
-
-        # ---- 2) Trigram-Suche im Fragetext (Fuzzy-Fallback) für Tippfehler/Teilstrings
-        tg_rows = (
-            base_qs_q
-            .annotate(qt=Lower("questiontext"))
-            .annotate(sim=TrigramSimilarity(F("qt"), q_lower))
-            .filter(sim__gt=0.25) 
-            .values("id", "sim")
-        )
-        tg_map = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows}
-
-
-        # ---- 3) Wortgrenzen-Boost: wenn der Suchbegriff als eigenes Wort im Text steht
-        word_boundary = rf"\m{re.escape(q_lower)}\M"
-        wb_ids = set(
-            base_qs_q
-            .annotate(qt=Lower("questiontext"))
-            .filter(qt__iregex=word_boundary)
-            .values_list("id", flat=True)
-        )
-
-        # ---- 4) Keyword-Score: bestes passendes Keyword (entweder direkter Treffer per contains oder fuzzy per trgm)
-        kw_rows = (
-            Keyword.objects
-            .annotate(nl=Lower("name"))
-            .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.25))
-            .values("id", "sim")[:50]
-        )
-        kw_id_to_score = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows}
-
-        # Hole die zu den keywords aus kw_id_to_score gehörenden Fragen
-        kw_links = (
-            base_qs_q
-            .filter(keywords__in=list(kw_id_to_score.keys()))
-            .values("id", "keywords__id")
-            .distinct()
-        )
-
-        # SearchMap: FrageID -> bestes Keyword-Score
-        kw_map = {}
-        for r in kw_links:
-            qid = r["id"]; kwid = r["keywords__id"]
-            kw_map[qid] = max(kw_map.get(qid, 0.0), kw_id_to_score.get(kwid, 0.0))
-
-
-        # ---- 5) Finaler Score pro Frage aus den Einzelkomponenten
-        #   Logik:
-        #     Textscore = max(TS, TG*0.6, WB*0.95)
-        #     Score aus dem Fragetext wird gebildet aus dem höchsten Wert der drei Komponenten:
-        #       - Volltext-Score per ts_vector (TS) 
-        #       - Trigram-Score (TG), aber nur 60% Gewicht, damit Textrelevanz höher gewichtet wird
-        #       - Wortgrenzen-Bonus (WB), fester Wert 0.95 --> bei direktem Worttreffer im Fragetext wird geboostet
-        #     Keyword-Score (KW) = bestes Keyword * 0.8
-        #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Fragetext-Relevanz höher gewichtet wird
-        #     Finaler Score = Höherer Wert aus Textscore vs. Keyword-Score
-        #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
-
-        candidate_ids = set(ts_map) | set(tg_map) | wb_ids | set(kw_map)
-        final_score_map = {}
-        for qid in candidate_ids:
-            ts = ts_map.get(qid, 0.0)
-            tg = tg_map.get(qid, 0.0) * 0.6
-            wb = 0.95 if qid in wb_ids else 0.0
-            text_score = max(ts, tg, wb)
-
-            kw_score = kw_map.get(qid, 0.0) * 0.8
-            both = (text_score > 0.0 and kw_score > 0.0)
-
-            relevance = max(text_score, kw_score)
-            if both:
-                relevance = min(1.2, relevance + 0.15)
-
-            final_score_map[qid] = relevance
-
-        # ---- 6) Materialisieren, Facetten zählen, sortieren, paginieren
-        questions_found = list(
-            base_qs_q
-            .filter(id__in=final_score_map.keys())
-            .only("id", "questiontext")
-            .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
-            .distinct()
+        questions_found, final_score_map = search_questions(
+        q=q,
+        wave_ids=wave_ids,
+        include_keywords=True,
         )
 
         if sort == "alpha":
@@ -257,12 +286,12 @@ def search(request):
         # ---- 2) Trigram (Fuzzy) auf varlab (Tippfehler/Teilstrings)
         tg_rows_v = (
             base_qs_v
-            .annotate(vl=Lower("varlab"))
-            .annotate(sim=TrigramSimilarity(F("vl"), q_lower))
-            .filter(sim__gt=0.25)
+            .annotate(sim=TrigramWordSimilarity(q_lower, "varlab"))
+            .filter(sim__gt=0.6)
             .values("id", "sim")
         )
         tg_map_v = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows_v}
+
 
         # ---- 3) Wortgrenzen-Boost auf varlab
         word_boundary = rf"\m{re.escape(q_lower)}\M"
@@ -295,8 +324,8 @@ def search(request):
             Keyword.objects
             .annotate(nl=Lower("name"))
             .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__contains=q_lower) | Q(sim__gt=0.25))
-            .values("id", "sim")[:50]
+            .filter(Q(nl__istartswith=q_lower) | Q(sim__gt=0.6))
+            .values("id", "sim")[:15]
         )
         kw_id_to_score_v = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows_v}
 
@@ -331,7 +360,7 @@ def search(request):
         #       - Varname-Prefix-Bonus (VN), fester Wert 1.0 bzw. 1.05 bei exaktem Treffer
         #     Keyword-Score (KW) = bestes Keyword * 0.8
         #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Varlabel-Relevanz höher gewichtet wird
-        #     Finaler Score = Höherer Wert aus Textscore vs. Keyword-Score
+        #     Finaler Score = Textscore + Keyword-Score * 0.15 (wenn Textscore > 0) bzw. + Keyword-Score * 0.10 (wenn kein Textscore)
         #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
 
         candidate_ids_v = set(ts_map_v) | set(tg_map_v) | wb_ids_v | set(vn_map) | set(kw_map_v)
@@ -346,7 +375,11 @@ def search(request):
             kw_score = kw_map_v.get(vid, 0.0) * 0.8
             both = (text_score > 0.0 and kw_score > 0.0)
 
-            relevance = max(text_score, kw_score)
+            if text_score > 0:
+                relevance = text_score + 0.15 * kw_score
+            else:
+                relevance = 0.10 * kw_score 
+
             if both:
                 relevance = min(1.2, relevance + 0.15)
 
@@ -472,3 +505,38 @@ def search(request):
 
     # Rendern
     return render(request, "search/search.html", ctx)
+
+
+
+# API-Endpunkt: "Kleine" Suche nach Fragen für den Frage-Picker im Page-Editor
+#  Nur Fragen, keine Keywords, keine Facetten, nur Relevanz-Sortierung, Top 20
+@require_GET
+def search_questions_api(request):
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({"ok": True, "results": []})
+
+    wave_ids = []
+    try:
+        wave_ids = [int(x) for x in request.GET.getlist("waves") if x.strip().isdigit()]
+    except Exception:
+        wave_ids = []
+
+    found, score_map = search_questions(
+        q=q,
+        wave_ids=wave_ids,
+        include_keywords=False,
+    )
+
+    # API: immer nach Relevanz + Top 20
+    found_sorted = sorted(
+        found,
+        key=lambda obj: score_map.get(obj.id, 0.0),
+        reverse=True
+    )[:20]
+
+    results = [
+        {"id": obj.id, "label": (obj.questiontext or "")[:200]}
+        for obj in found_sorted
+    ]
+    return JsonResponse({"ok": True, "results": results})

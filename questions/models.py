@@ -1,9 +1,49 @@
 from django.db import models
 from django.urls import reverse
+from django.db.models.functions import Lower 
+from django.db.models import BooleanField, Case, When, Value, Q, OuterRef, Exists
+from variables.models import QuestionVariableWave  
+
+
+# Completeness check for Question model
+class QuestionQuerySet(models.QuerySet):
+
+    def with_completeness(self):
+
+        # Triad: hat die Frage überhaupt Variablen?
+        triad_exists = QuestionVariableWave.objects.filter(question_id=OuterRef("pk"))
+
+        # Keywords Exists auf M2M-through
+        kw_through = Question.keywords.through
+        kw_exists = kw_through.objects.filter(question_id=OuterRef("pk"))
+
+        # Fehlende Kernelemente
+        missing_core = (
+            Q(questiontext__isnull=True) | Q(questiontext="") |
+            Q(question_type__isnull=True) | Q(question_type="") |
+            Q(answer_options__isnull=True) | Q(answer_options=[])
+        )
+
+        incomplete_expr = missing_core | ~Exists(triad_exists) | ~Exists(kw_exists)
+
+        return self.annotate(
+            is_incomplete=Case(
+                When(incomplete_expr, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            )
+        )
+
 
 class Keyword(models.Model):
     legacy_id = models.IntegerField(unique=True, null=True, blank=True)
-    name = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=200, unique=False)
+
+    class Meta:
+        # Enforce case-insensitive uniqueness on 'name'
+        constraints = [
+            models.UniqueConstraint(Lower("name"), name="uniq_keyword_name_lower"),
+        ]
 
     def __str__(self):
         return self.name
@@ -36,6 +76,8 @@ class Construct(models.Model):
 
 class Question(models.Model):
 
+    objects = QuestionQuerySet.as_manager()
+
     # Ehemalige ID Access-Datenbank
     legacy_id = models.IntegerField(
         unique=True,
@@ -45,6 +87,7 @@ class Question(models.Model):
 
     # Fragetext (q)
     questiontext = models.TextField(
+        blank=True,
         help_text="Fragetext (q).",
     )
 
@@ -57,7 +100,7 @@ class Question(models.Model):
         MATRIX_SINGLE = "matrix_single", "Einfachauswahl-Matrix"
         MATRIX_MULTI = "matrix_multi", "Mehrfachauswahl-Matrix"
         SEMANTIC_DIFF = "semantic_diff", "Semantisches Differenzial"
-        OTHER = "other", "Sonstiger Fragetyp"
+        OTHER = "other", "Sonstiger Fragetyp / Mischtypen"
 
     # Fragetyp (qt)
     question_type = models.CharField(
@@ -66,6 +109,14 @@ class Question(models.Model):
         blank=True,
         help_text="Fragetyp (qt).",
     )
+
+    # Freitext nur wenn question_type == OTHER
+    question_type_other = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Freitext, falls 'Sonstiger Fragetyp'.",
+    )
+
 
     # Instruktionstext (is)
     instruction = models.TextField(
@@ -79,13 +130,32 @@ class Question(models.Model):
         help_text="Itemstamm, z. B. 'Ich bin jemand, der…' (st).",
     )
 
+    # Items (it)
+    items = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Items der Frage als Liste von Objekten, z.B. [{'uid': 'it1', 'value': '1', 'label': 'stimme zu'}].",
+    )
+
+    # fehlende Werte (mv)
+    missing_values = models.TextField(
+        blank= True,
+        help_text="Fehlende Werte (mv) im Format mv: Wert : anzuzeigender Wert : Wertelabel (z. B.  mv: -999 : : Das weiß ich nicht.)."
+    )
+
+    # Überkategorien (ka)
+    top_categories = models.TextField(
+        blank= True,
+        help_text="Gruppierung von Items/Antwortoptionen nach übergeordndeten Kategorien (ka)"
+    )
+
+    # Antwortoptionen (ao)
     answer_options = models.JSONField(
     default=list,
     blank=True,
     help_text="Antwortoptionen der Frage als Liste von Objekten, z.B. [{'uid': 'ao1', 'value': '1', 'label': 'sehr gut'}].",
     
     )
-
 
     # Zugeordnete Wellen
     waves = models.ManyToManyField(
@@ -97,6 +167,7 @@ class Question(models.Model):
     #  Zugeordnete Schlagwörter
     keywords = models.ManyToManyField(
         Keyword,
+        blank=True,
         related_name="questions"
     )
 

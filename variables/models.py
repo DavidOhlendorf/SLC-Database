@@ -2,6 +2,26 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.db.models import Q, Case, When, Value, BooleanField
+
+
+# QuerySet mit Annotations zur Vollständigkeitsprüfung von Variablen
+class VariableQuerySet(models.QuerySet):
+    def with_completeness(self):
+        missing = (
+            Q(varname__isnull=True) | Q(varname="") |
+            Q(varlab__isnull=True) | Q(varlab="") 
+
+        )
+        return self.annotate(
+            is_incomplete=Case(
+                When(missing, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            )
+        )
+
+
 
 
 def validate_vallab_values(value):
@@ -61,9 +81,12 @@ class ValLab(models.Model):
 
 
 class Variable(models.Model):
+
+    objects = VariableQuerySet.as_manager()
+
     legacy_id = models.PositiveIntegerField(null=True, blank=True, unique=True,)
     varname = models.CharField(max_length=50, unique=True)
-    varlab = models.CharField("Variablenblabel", max_length=255,)
+    varlab = models.CharField("Variablenblabel", max_length=255,blank=True, null=True,)
     vallab = models.ForeignKey(ValLab,on_delete=models.SET_NULL,null=True,blank=True,related_name="variables",)
 
     waves = models.ManyToManyField("waves.Wave",related_name="variables",)
@@ -76,6 +99,8 @@ class Variable(models.Model):
     reason_gen = models.TextField("Grund (generiert)", blank=True, null=True)
     reason_plausi = models.TextField("Grund (plausibilisiert)", blank=True, null=True)
     reason_flag = models.TextField("Grund (flag)", blank=True, null=True)
+
+    is_technical = models.BooleanField("technische Variable", default=False)
 
     comment = models.TextField(blank=True, null=True)
 
@@ -92,6 +117,8 @@ class Variable(models.Model):
     
     def get_absolute_url(self):
         return reverse("variables:variable_detail", args=[self.pk])
+    
+    
 
 # Through-Modell für triadische Beziehung zwischen Question, Variable und Wave    
 class QuestionVariableWave(models.Model):

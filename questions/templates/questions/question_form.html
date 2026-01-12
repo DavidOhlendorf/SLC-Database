@@ -1,0 +1,560 @@
+{# questions/question_form.html #}
+
+{% extends "main.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script src="{% static 'js/builder/question_keywords.js' %}"></script>
+  <script src="{% static 'js/builder/answeroptions_formset.js' %}"></script>
+  <script src="{% static 'js/builder/item_formset.js' %}"></script>
+  <script src="{% static 'js/builder/question_type_other.js' %}"></script>
+  <script src="{% static 'js/ui/tooltips.js' %}"></script>
+  <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
+  <script src="{% static 'js/ui/required_badge.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <h1 class="mb-0">Frage bearbeiten</h1>
+
+  <div class="mt-3" style="max-width: 980px;">
+    <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
+      <div>
+        {% if page %}
+        <a href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
+          class="text-muted small text-decoration-none opacity-75">
+          ← Zur Fragebogenseite
+        </a>
+        {% endif %}
+      </div>
+      <div>
+        <a href="{% url 'questions:question_detail' question.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
+          class="text-muted small text-decoration-none opacity-75">
+          Zur Detailansicht der Frage →
+        </a>
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.errors or form.non_field_errors or it_has_visible_errors or ao_has_visible_errors or item_formset.non_form_errors or answeroption_formset.non_form_errors %}
+        <div class="alert alert-danger">
+          Bitte korrigiere die markierten Felder.
+        </div>
+      {% endif %}
+
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {{ form.non_field_errors|striptags }}
+        </div>
+      {% endif %}
+
+      <!-- Fragetyp -->
+      <div class="card shadow-sm mb-4" data-required-field="question_type">
+        <div class="card-body">
+          <h5 class="card-title mb-3">
+            Fragetyp <span data-required-badge class="ms-2"></span>
+          </h5>
+
+          <div class="row g-3 align-items-start">
+            <div class="col-12 col-lg-6">
+              <label for="id_question_type" class="form-label">Fragetyp (qt)</label>
+              {{ form.question_type }}
+            </div>
+            <div class="col-12 col-lg-6" id="qt-other-wrap">
+              <label for="id_question_type_other" class="form-label">Sonstiger Fragetyp:</label>
+              {{ form.question_type_other }}
+
+              {% if form.question_type_other.errors %}
+                <div class="invalid-feedback d-block mt-2">
+                  {{ form.question_type_other.errors|striptags }}
+                </div>
+              {% endif %}
+              <div class="form-text">
+                Nur benötigt, wenn "Sonstiger Fragetyp" ausgewählt ist.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frage- und Hinweistext -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Frage- und Hinweistext</h5>
+
+          <div class="accordion" id="accordionQuestionInstructionText">
+
+            <!-- Fragetext (qt) -->
+            <div class="accordion-item" data-acc-open-when-filled="questiontext" data-required-field="questiontext">
+              <h2 class="accordion-header">
+                <button class="accordion-button"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#col-qt"
+                        aria-expanded="true">
+                  Fragetext (qt)
+                  <span data-required-badge class="ms-2"></span>
+                </button>
+              </h2>
+              <div id="col-qt"
+                class="accordion-collapse collapse show">
+                <div class="accordion-body">
+                    {{ form.questiontext }}
+                    {% if form.questiontext.errors %}
+                      <div class="invalid-feedback d-block mt-2">
+                        {{ form.questiontext.errors|striptags }}
+                      </div>
+                    {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Hinweistexte (is) -->
+            <div class="accordion-item" data-acc-open-when-filled="instruction">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#col-in">
+                        Hinweistexte (is)
+                </button>
+              </h2>
+              <div id="col-in"
+                class="accordion-collapse collapse {% if form.instruction.errors %}show{% endif %}">
+                <div class="accordion-body">
+                  {{ form.instruction }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Itemblock -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Itemblock</h5>
+
+          <div class="accordion" id="accordionItemstem">
+            <!-- Itemstamm (st) -->
+            <div class="accordion-item" data-acc-open-when-filled="item_stem">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#col-st">
+                  Itemstamm (st)
+                </button>
+              </h2>
+              <div id="col-st"
+                class="accordion-collapse collapse {% if form.item_stem.errors %}show{% endif %}">
+                <div class="accordion-body">
+                  {{ form.item_stem }}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+
+          <!-- Formset für Items -->
+          <hr class="my-4">
+
+          <div class="mb-1">
+            <h6 class="mb-2">Items</h6>
+            <div class="text-muted small mb-3">
+              Hier kannst du einzelne Items (it) hinzufügen. ID und Itemtext sind Pflichtfelder.
+            </div>
+          </div>
+
+          {{ item_formset.management_form }}
+
+          <!-- Fehleranzeige oberhalb der Tabellefür Item-Formset -->
+          {% if it_has_visible_errors or item_formset.non_form_errors %}
+            <div class="alert alert-danger py-2 mb-3">
+              {% if item_formset.non_form_errors %}
+                <div>{{ item_formset.non_form_errors|striptags }}</div>
+              {% endif %}
+
+              <ul class="mb-0">
+                {% for f in item_formset.forms %}
+                  {% if f.errors and not f.DELETE.value %}
+                    <li>
+                      {% if f.uid.value %}<strong>{{ f.uid.value }}</strong>{% else %}#{{ forloop.counter }}{% endif %}:
+                      {% for field in f %}
+                        {% for err in field.errors %}
+                          {{ err }}{% if not forloop.last %} {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2" id="it-table">
+
+              <colgroup>
+                <col style="width: 15%;">
+                <col style="width: 15%;">
+                <col style="width: 70%;">
+              </colgroup>
+
+              <thead>
+                <tr class="text-muted small">
+                  <th class="fw-semibold" style="min-width: 80px;">ID (z.B. it1, ...)*</th>
+                  <th class="fw-semibold" style="min-width: 80px;">Variable</th>
+                  <th class="fw-semibold" style="min-width: 200px;">Itemtext *</th>
+                  <th style="width: 1%;">&nbsp;</th>
+                </tr>
+              </thead>
+
+              <tbody id="it-tbody">
+                {% for f in item_formset.forms %}
+                  <tr class="it-row {% if f.DELETE.value %}d-none{% endif %}">
+                    <td>
+                      {{ f.uid }}
+                    </td>
+
+                    <td>
+                      {{ f.variable }}
+                    </td>
+
+                    <td>
+                      {{ f.label }}
+                    </td>
+
+                    <td class="text-end">
+                      <!-- DELETE Feld versteckt, Button setzt es per JS (technisch erforderlich)-->
+                      <div class="d-none">
+                        {{ f.DELETE }}
+                      </div>
+
+                      <button type="button"
+                              class="btn btn-link text-danger px-2 it-delete-row"
+                              title="Zeile löschen">
+                              <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="it-add-row">
+                + Item hinzufügen
+              </button>
+            </div>
+          </div>
+
+          <!-- Vorlage für neue Zeilen (wird per JS geklont). empty_form nutzt __prefix__ -->
+          <template id="it-empty-form-template">
+            <tr class="it-row {% if f.DELETE.value %}d-none{% endif %}">
+              <td>
+                {{ item_formset.empty_form.uid }}
+              </td>
+              <td>
+                {{ item_formset.empty_form.variable }}
+              </td>
+              <td>
+                {{ item_formset.empty_form.label }}
+              </td>
+              <td class="text-end">
+                <div class="d-none">
+                  {{ item_formset.empty_form.DELETE }}
+                </div>
+                <button type="button"
+                  class="btn btn-link text-danger px-2 it-delete-row"
+                  title="Zeile löschen">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </template>
+
+        </div>
+      </div>
+
+      <!-- Antwortblock -->
+      <div class="card shadow-sm mb-4" data-required-field="answer_options">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Antwortblock</h5>
+
+          <!-- Formset für Antwortoptionen -->
+          <div class="mb-1">
+            <h6 class="mb-2">Antwortoptionen</h6>
+            <div class="text-muted small mb-3">
+              Hier kannst du einzelne Antwortoptionen (ao) hinzufügen. ID und Antworttext sind Pflichtfelder.
+            </div>
+          </div>
+
+          {{ answeroption_formset.management_form }}
+
+          <!-- Fehleranzeige oberhalb der Tabellefür Antwortoptionen-Formset -->
+          {% if ao_has_visible_errors or answeroption_formset.non_form_errors %}
+            <div class="alert alert-danger py-2 mb-3">
+              {% if answeroption_formset.non_form_errors %}
+                <div>{{ answeroption_formset.non_form_errors|striptags }}</div>
+              {% endif %}
+
+              <ul class="mb-0">
+                {% for f in answeroption_formset.forms %}
+                  {% if f.errors and not f.DELETE.value %}
+                    <li>
+                      {% if f.uid.value %}<strong>{{ f.uid.value }}</strong>{% else %}#{{ forloop.counter }}{% endif %}:
+                      {% for field in f %}
+                        {% for err in field.errors %}
+                          {{ err }}{% if not forloop.last %} {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+
+            </div>
+          {% endif %}
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2" id="ao-table">
+              <colgroup>
+                <col style="width: 15%;">
+                <col style="width: 15%;">
+                <col style="width: 5%;">
+                <col style="width: 65%;">
+              </colgroup>
+              <thead>
+                <tr class="text-muted small">
+                  <th class="fw-semibold" style="min-width: 80px;">ID (z.B. ao1, ...)*</th>
+                  <th class="fw-semibold" style="min-width: 80px;">Variable</th>
+                  <th class="fw-semibold" style="min-width: 40px;">Wert</th>
+                  <th class="fw-semibold" style="min-width: 200px;">Antworttext *</th>
+                  <th style="width: 1%;">&nbsp;</th>
+                </tr>
+              </thead>
+
+              <tbody id="ao-tbody">
+                {% for f in answeroption_formset.forms %}
+                  <tr class="ao-row {% if f.DELETE.value %}d-none{% endif %}">
+                    <td>
+                      {{ f.uid }}
+                    </td>
+
+                    <td>
+                      {{ f.variable }}
+                    </td>
+
+                    <td>
+                      {{ f.value }}
+                    </td>
+
+                    <td>
+                      {{ f.label }}
+                    </td>
+
+                    <td class="text-end">
+                      <!-- DELETE Feld versteckt, Button setzt es per JS (technisch erforderlich)-->
+                      <div class="d-none">
+                        {{ f.DELETE }}
+                      </div>
+
+                      <button type="button"
+                              class="btn btn-link text-danger px-2 ao-delete-row"
+                              title="Zeile löschen">
+                              <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+
+            <div>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="ao-add-row">
+              + Antwortoption hinzufügen
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Vorlage für neue Zeilen (wird per JS geklont). empty_form nutzt __prefix__ -->
+          <template id="ao-empty-form-template">
+            <tr class="ao-row {% if f.DELETE.value %}d-none{% endif %}">
+              <td>
+                {{ answeroption_formset.empty_form.uid }}
+              </td>
+              <td>
+                {{ answeroption_formset.empty_form.variable }}
+              </td>
+              <td>
+                {{ answeroption_formset.empty_form.value }}
+              </td>
+              <td>
+                {{ answeroption_formset.empty_form.label }}
+              </td>
+              <td class="text-end">
+                <div class="d-none">
+                  {{ answeroption_formset.empty_form.DELETE }}
+                </div>
+                <button type="button"
+                        class="btn btn-link text-danger px-2 ao-delete-row"
+                        title="Zeile löschen">
+                        <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </template>
+
+          <hr class="my-4">
+
+
+          <div class="accordion" id="answerblockAccordion">
+
+            <!-- Überkategorien (ka) -->
+            <div class="accordion-item" data-acc-open-when-filled="top_categories">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#col-ka">
+                  Überkategorien (ka)
+                </button>
+              </h2>
+              <div id="col-ka"
+                class="accordion-collapse collapse {% if form.top_categories.errors %}show{% endif %}">
+                <div class="accordion-body">
+                  {{ form.top_categories }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Missing Values (mv) -->
+            <div class="accordion-item" data-acc-open-when-filled="missing_values">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#col-mv">
+                  Missing Values (mv)
+                </button>
+              </h2>
+              <div id="col-mv"
+                class="accordion-collapse collapse {% if form.missing_values.errors %}show{% endif %}">
+                <div class="accordion-body">
+                  {{ form.missing_values }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kontextblock -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Kontext</h5>
+            <div class="mb-3">
+            <label class="form-label">Konstrukt</label>
+            {{ form.construct }}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Schlagworte</label>
+
+            <div
+              id="keyword-widget"
+              data-search-url="{% url 'questions:keyword_search' %}"
+              data-create-url="{% url 'questions:keyword_create' %}"
+            >
+              {{ form.keywords }}
+            </div>
+
+            <div class="form-text">
+              Gib mindestens 2 Zeichen ein, damit Vorschläge angezeigt werden können.
+            </div>
+
+            <div class="form-text text-danger d-none" id="keyword-minlength-hint">
+              Schlagwörter müssen mindestens 2 Zeichen lang sein.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-dark">Speichern</button>
+          <a class="btn btn-outline-secondary"
+            href="{% url 'questions:question_detail' question.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
+            Abbrechen
+          </a>
+        </div>
+
+        <div>
+          {% if not can_delete %}
+          <span
+              class="d-inline-block"
+              tabindex="0"
+              data-bs-toggle="tooltip"
+              data-bs-title="Diese Frage kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+              <button type="button" class="btn btn-outline-danger" disabled>
+                  <i class="fa-solid fa-trash me-1"></i> Frage löschen
+              </button>
+          </span>
+          {% else %}
+          <button
+              type="button"
+              class="btn btn-outline-danger"
+              data-bs-toggle="modal"
+              data-bs-target="#confirmDeleteModal">
+              <i class="fa-solid fa-trash me-1"></i> Frage löschen
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+
+    <!-- Löschbestätigungsmodal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Frage löschen?</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+          <div class="modal-body">
+            Wirklich löschen? Das entfernt die Frage aus sämtlichen Befragungen und Seiten-Verknüpfungen.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              Abbrechen
+            </button>
+
+            <button type="submit"
+                    class="btn btn-danger"
+                    form="delete-question-form">
+              Ja, löschen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+
+    <!-- Löschformular -->
+    <form id="delete-question-form"
+          method="post"
+          action="{% url 'questions:question_delete' question.id %}">
+      {% csrf_token %}
+    </form>
+  </div>
+
+{% endblock %}
