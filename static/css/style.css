@@ -108,3 +108,12 @@ select.qc-passive:focus {
 
 }
 
+.pv-btn {
+  font-weight: 900;                 /* etwas dicker */
+  font-family: ui-monospace,
+               SFMono-Regular,
+               Menlo,
+               Consolas,
+               monospace;          
+  letter-spacing: 0.02em;           /* optional, macht es „iconiger“ */
+}

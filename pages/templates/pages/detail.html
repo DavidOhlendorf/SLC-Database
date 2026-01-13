@@ -26,6 +26,14 @@
         </div>
         <div class="flex-shrink-0">
           {% if perms.accounts.can_edit_slc %}
+              <a class="btn btn-lg pv-btn text-secondary"
+                target="_blank"
+                title="Programmiervorlage anzeigen"
+                rel="noopener"
+                href="{% url 'pages:pv' page.id %}{% if active_wave %}?wave={{ active_wave.id }}{% endif %}">
+                PV 
+              </a>
+
               <a class="btn btn-link btn-lg icon-action p-0"
                 title="Fragebogenseite bearbeiten"
                 href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
