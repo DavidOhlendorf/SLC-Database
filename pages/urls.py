@@ -17,5 +17,8 @@ urlpatterns = [
     path("<int:pk>/edit/content/", views.WavePageContentUpdateView.as_view(), name="page-edit-content"),
     # Ein POST-Endpunkt zum Löschen einer Seite
     path("<int:pk>/delete/", views.WavePageDeleteView.as_view(), name="page-delete"),
+    # Programmiervorlage (PV) einer Seite anzeigen
+    path("<int:pk>/pv/", views.WavePagePVView.as_view(), name="pv"),
 
 ]
+ 

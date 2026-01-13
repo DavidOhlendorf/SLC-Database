@@ -1,0 +1,47 @@
+{% extends "main.html" %}
+
+{% block content %}
+<div class="container my-4">
+
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Seite: {{ page.pagename }}</h1>
+      {% if active_wave %}
+        <div class="text-muted">Befragung: {{ active_wave }}</div>
+      {% else %}
+        <div class="text-muted">Befragung: (keine)</div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-secondary" id="btn-copy">
+        Kopieren
+      </button>
+    </div>
+  </div>
+
+  <textarea id="pv-text" class="form-control" rows="32" readonly style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">{{ pv_text }}</textarea>
+
+</div>
+
+<script>
+  (function() {
+    const ta = document.getElementById("pv-text");
+    ta.addEventListener("focus", () => ta.select());
+
+    const btn = document.getElementById("btn-copy");
+    btn.addEventListener("click", async () => {
+      ta.select();
+      try {
+        await navigator.clipboard.writeText(ta.value);
+        btn.textContent = "Kopiert ✓";
+        setTimeout(() => btn.textContent = "Kopieren", 1200);
+      } catch (e) {
+        // Fallback: bleibt selektiert, User kann Strg+C drücken
+        btn.textContent = "Bitte Strg+C";
+        setTimeout(() => btn.textContent = "Kopieren", 1200);
+      }
+    });
+  })();
+</script>
+{% endblock %}

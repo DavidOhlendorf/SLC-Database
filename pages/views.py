@@ -1,4 +1,5 @@
 # pages/views.py
+from collections import defaultdict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import Variable
 from django.template import Variable
@@ -20,6 +21,9 @@ from questions.models import Question, QuestionVariableWave
 from variables.models import Variable
 
 from .forms import WavePageBaseForm, WavePageContentForm, PageQuestionLinkFormSet
+
+from .services.pv_builder import PVContext, build_pv
+
 
 # Session-Key für verwaiste Fragen-Review
 ORPHAN_REVIEW_SESSION_KEY = "orphan_review"
@@ -589,4 +593,54 @@ class OrphanQuestionsReviewView(EditorRequiredMixin, View):
 
         request.session.pop(ORPHAN_REVIEW_SESSION_KEY, None)
         return redirect(return_url or "waves:survey_list")
+
+
+# View zum Anzeigen der PV einer Seite (für Zofar)
+class WavePagePVView(EditorRequiredMixin, DetailView):
+    model = WavePage
+    template_name = "pages/pv.html"
+    context_object_name = "page"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        page = self.object
+
+        wave_id = self.request.GET.get("wave")
+        active_wave = get_object_or_404(Wave, pk=wave_id) if wave_id else None
+
+        # Fragen der Seite
+        links = page.page_questions.select_related("question").all()
+        questions = [l.question for l in links]
+        q_ids = [q.id for q in questions]
+
+        # Variablen der Fragen
+        vars_by_qid = {q.id: [] for q in questions}
+
+        if q_ids:
+            qvw = (QuestionVariableWave.objects.filter(question_id__in=q_ids))
+            if active_wave:
+                qvw = qvw.filter(wave=active_wave)
+         
+        rows = (
+            qvw.values_list("question_id", "variable__varname")
+            .distinct()
+            .order_by("question_id", "variable__varname")
+        )
+
+        tmp = defaultdict(list)
+        for qid, varname in rows:
+            tmp[qid].append(varname)
+
+        vars_by_qid = dict(tmp)
+
+        pv_text = build_pv(PVContext(
+            page=page,
+            questions=questions,
+            vars_by_qid=vars_by_qid,
+            active_wave=active_wave,
+        ))
+
+        ctx["active_wave"] = active_wave
+        ctx["pv_text"] = pv_text
+        return ctx
 
