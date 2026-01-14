@@ -15,7 +15,7 @@ from accounts.mixins import EditorRequiredMixin
 from django.db import transaction
 from django.db.models import Prefetch
 from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
-from waves.models import WaveQuestion, Wave
+from waves.models import Survey, WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion
 from questions.models import Question, QuestionVariableWave
 from variables.models import Variable
@@ -644,3 +644,58 @@ class WavePagePVView(EditorRequiredMixin, DetailView):
         ctx["pv_text"] = pv_text
         return ctx
 
+
+# API-View: Liste der Surveys für Modal zum Duplizieren von Seiten
+class SurveyListApiView(EditorRequiredMixin, View):
+    http_method_names = ["get"]
+
+    def get(self, request, *args, **kwargs):
+        surveys = Survey.objects.all().order_by("-year", "name")
+        data = [
+            {"id": s.id, "name": s.name, "year": s.year}
+            for s in surveys
+        ]
+        return JsonResponse({"surveys": data})
+
+
+# API-View: Befragungsgruppen zu einem Survey für Modal zum Duplizieren von Seiten
+class WavesBySurveyApiView(EditorRequiredMixin, View):
+    http_method_names = ["get"]
+
+    def get(self, request, survey_id, *args, **kwargs):
+        waves = (
+            Wave.objects
+            .filter(survey_id=survey_id)
+            .order_by("cycle", "instrument", "id")
+        )
+        data = [
+            {
+                "id": w.id,
+                "label": f"{w.cycle} – {w.instrument}",
+                "is_locked": bool(w.is_locked),
+            }
+            for w in waves
+        ]
+        return JsonResponse({"waves": data})
+
+
+# API-View: Live-Prüfung, ob ein Seitenname in einem Survey schon existiert
+class CheckPageNameApiView(EditorRequiredMixin, View):
+    http_method_names = ["get"]
+
+    def get(self, request, *args, **kwargs):
+        survey_id = request.GET.get("survey_id")
+        pagename = (request.GET.get("pagename") or "").strip()
+
+        if not survey_id or not pagename:
+            return JsonResponse({"ok": False, "reason": "Fehlende Parameter."}, status=400)
+
+        # Name darf im Ziel-Survey nicht schon existieren
+        # (konkret: existiert eine Seite mit diesem Namen, die an irgendeiner Gruppe dieses Surveys hängt?)
+        exists = (
+            WavePage.objects
+            .filter(pagename=pagename, waves__survey_id=survey_id)
+            .distinct()
+            .exists()
+        )
+        return JsonResponse({"ok": not exists})
