@@ -5,6 +5,7 @@
 
 {% block extra_js %}
       <script src="{% static 'js/ui/tooltips.js' %}"></script>
+      <script src="{% static 'js/builder/page_duplicator.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -136,11 +137,18 @@
                             href="{% url 'pages:page-edit' p.id %}?wave={{ g.default_wave_id }}">
                             <i class="fa-solid fa-pen-to-square"></i>
                           </a>
-                          <a class="btn btn-link px-2 icon-action"
-                            title="Seite in andere Befragung kopieren"
-                            href="#">
+                          <button type="button"
+                                  class="btn btn-link px-2 icon-action js-page-copy-open"
+                                  title="Seite in andere Befragung kopieren"
+                                  data-page-id="{{ p.id }}"
+                                  data-default-name="{{ p.pagename|escape }}"
+                                  data-source-survey-id="{{ survey.id }}"
+                                  data-source-is-all="{% if is_all_mode %}1{% else %}0{% endif %}"
+                                  data-source-wave-id="{% if active_wave %}{{ active_wave.id }}{% endif %}"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#copyPageModal">
                             <i class="fa-solid fa-copy"></i>
-                          </a>
+                          </button>
                           {% if g.page_delete_blocked|get_item:p.id %}
                             <span
                                 class="d-inline-block"
@@ -283,11 +291,18 @@
                           href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
                           <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <a class="btn btn-link px-2 icon-action"
-                          title="Seite in andere Befragung kopieren"
-                          href="#">
+                        <button type="button"
+                                class="btn btn-link px-2 icon-action js-page-copy-open"
+                                title="Seite in andere Befragung kopieren"
+                                data-page-id="{{ p.id }}"
+                                data-default-name="{{ p.pagename|escape }}"
+                                data-source-survey-id="{{ survey.id }}"
+                                data-source-is-all="{% if is_all_mode %}1{% else %}0{% endif %}"
+                                data-source-wave-id="{% if active_wave %}{{ active_wave.id }}{% endif %}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#copyPageModal">
                           <i class="fa-solid fa-copy"></i>
-                        </a>
+                        </button>
                           {% if delete_blocked_global %}
                             <span
                                 class="d-inline-block"
@@ -429,6 +444,92 @@
         </div>
       </div>
     </div>
+
+
+    <!-- Modal for copying a page -->
+    <div class="modal fade" id="copyPageModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">Seite kopieren</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="alert alert-danger d-none" id="copyPageError"></div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Ziel-Befragung</label>
+                <select class="form-select" id="copyTargetSurvey"></select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Ziel-Waves</label>
+                <div class="border rounded p-2" style="max-height: 220px; overflow:auto;" id="copyTargetWavesBox">
+                  <div class="text-muted small">Bitte zuerst eine Befragung auswählen.</div>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Neuer Seitenname</label>
+                <input class="form-control" id="copyNewName" />
+                <div class="form-text d-none" id="copyNameHint"></div>
+              </div>
+
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="copyIncludeQuestions" checked>
+                  <label class="form-check-label" for="copyIncludeQuestions">Fragen ebenfalls übernehmen</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="copyIncludeVariables">
+                  <label class="form-check-label" for="copyIncludeVariables">Variablen ebenfalls übernehmen</label>
+                  <div class="form-text">Variablen werden aus der Quell-Befragung (aktive Wave bzw. All-Mode) abgeleitet.</div>
+                </div>
+              </div>
+
+              <!-- Hidden state -->
+              <input type="hidden" id="copySourcePageId">
+              <input type="hidden" id="copySourceSurveyId">
+              <input type="hidden" id="copySourceIsAll">
+              <input type="hidden" id="copySourceWaveId">
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            <button class="btn btn-primary" id="copySubmitBtn">Kopieren</button>
+          </div>
+
+          <div id="page-copy-endpoints"
+              data-api-surveys-url="{% url 'pages:api-surveys' %}"
+              data-api-waves-url-template="{% url 'pages:api-waves-by-survey' 0 %}"
+              data-api-check-name-url="{% url 'pages:api-check-page-name' %}"
+              data-copy-url-template="{% url 'pages:page-copy' 0 %}">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast für erfolgreiche Kopie -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+      <div id="copyPageSuccessToast" class="toast align-items-center text-bg-success border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">
+            Seite wurde erfolgreich kopiert.
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                  data-bs-dismiss="toast" aria-label="Schließen"></button>
+        </div>
+      </div>
+    </div>
+
+
+
+
   
     {% if page_modal_open %}
       <script>

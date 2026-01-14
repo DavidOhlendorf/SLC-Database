@@ -1,5 +1,6 @@
 # pages/views.py
 from collections import defaultdict
+from urllib import request
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import Variable
 from django.template import Variable
@@ -699,3 +700,171 @@ class CheckPageNameApiView(EditorRequiredMixin, View):
             .exists()
         )
         return JsonResponse({"ok": not exists})
+
+
+# View zum Duplizieren einer Seite in andere Befragungen
+class WavePageCopyView(EditorRequiredMixin, View):
+    http_method_names = ["post"]
+
+    @transaction.atomic
+    def post(self, request, pk, *args, **kwargs):
+        source_page = get_object_or_404(WavePage, pk=pk)
+
+
+        # --- Nutzereingaben lesen
+        target_survey_id = request.POST.get("target_survey_id")
+        target_wave_ids = request.POST.getlist("target_wave_ids")
+        new_pagename = (request.POST.get("new_pagename") or "").strip()
+
+        include_questions = request.POST.get("include_questions") == "1"
+        include_variables = request.POST.get("include_variables") == "1"
+
+        if include_variables and not include_questions:
+            include_variables = False
+
+        # Quelle für Variablen: aus survey_detail mode ableiten
+        # (vom JS als Hidden Inputs gesetzt)
+        source_is_all = request.POST.get("source_is_all") == "1"
+        source_wave_id = request.POST.get("source_wave_id")  # kann leer sein im all-mode
+        source_survey_id = request.POST.get("source_survey_id")
+
+
+
+        # --- Validierung
+        def err(msg, status=400):
+            return JsonResponse({"ok": False, "error": msg}, status=status)
+        
+        if not target_survey_id:
+            return err("Bitte eine Ziel-Befragung auswählen.")
+        if not target_wave_ids:
+            return err("Bitte mindestens eine Gruppe auswählen.")
+        if not new_pagename:
+            return err("Bitte einen neuen Seitennamen angeben.")
+
+        # target-Befragungsgruppen sauber bestimmen (Gruppe muss zum ausgewählten Survey gehören)
+        # (IDs normalisieren, damit count/vergleich stabil bleibt)
+        try:
+            target_wave_ids_int = sorted({int(x) for x in target_wave_ids})
+        except ValueError:
+            return err("Ungültige Gruppenauswahl.")
+
+        target_waves_qs = Wave.objects.filter(id__in=target_wave_ids_int, survey_id=target_survey_id)
+        target_waves = list(target_waves_qs.order_by("cycle", "instrument", "id"))
+
+        if len(target_waves) != len(target_wave_ids_int):
+            return err("Ungültige Gruppen (gehören nicht zur gewählten Befragung).")
+
+        if any(w.is_locked for w in target_waves):
+            return err("Mindestens eine ausgewählte Gruppe ist gesperrt. Kopieren nicht möglich.", status=403)
+
+        name_exists = (
+            WavePage.objects
+            .filter(pagename=new_pagename, waves__survey_id=target_survey_id)
+            .distinct()
+            .exists()
+        )
+        if name_exists:
+            return err("Dieser Seitenname existiert in der Ziel-Befragung bereits.")
+        
+
+
+        # --- 1) Seite duplizieren (Inhalte kopieren)
+        new_page = WavePage.objects.create(
+            pagename=new_pagename,
+            page_heading=source_page.page_heading,
+            introduction=source_page.introduction,
+            transition_control=source_page.transition_control,
+            visibility_conditions=source_page.visibility_conditions,
+            answer_validations=source_page.answer_validations,
+            correction_notes=source_page.correction_notes,
+            forcing_variables=source_page.forcing_variables,
+            helper_variables=source_page.helper_variables,
+            control_variables=source_page.control_variables,
+            formatting=source_page.formatting,
+            transitions=source_page.transitions,
+            page_programming_notes=source_page.page_programming_notes,
+        )
+        new_page.waves.set(target_waves)
+
+        # Bestimme alle Fragen auf der Quell-Seite
+        qids: list[int] = []
+        if include_questions or include_variables:
+            qids = list(
+                WavePageQuestion.objects.filter(wave_page=source_page)
+                .values_list("question_id", flat=True)
+            )
+
+        # aktuell: ohne Fragen auch keine Vars
+        # --> evtl. später anpassen, wenn es technische Vars auf Seiten geben sollte, die unabhängig von Fragen sind
+        if not qids:
+            include_variables = False
+
+
+
+        # --- 2) Fragen duplizieren
+        if include_questions:
+            # Links Seite->Fragen kopieren
+            WavePageQuestion.objects.bulk_create(
+                [WavePageQuestion(wave_page=new_page, question_id=qid) for qid in qids],
+                ignore_conflicts=True,
+            )
+
+            # Links Frage->Gruppe kopieren
+            WaveQuestion.objects.bulk_create(
+                [WaveQuestion(wave_id=w.id, question_id=qid) for w in target_waves for qid in qids],
+                ignore_conflicts=True,
+            )
+
+
+
+
+        # --- 3) Variablen übernehmen
+        if include_variables:
+            if not source_survey_id:
+                return JsonResponse({"ok": False, "error": "Quelle (Befragung) konnte nicht bestimmt werden."}, status=400)
+
+            # Quell-Waveset bestimmen
+            if source_is_all:
+                source_wave_ids = list(
+                    Wave.objects.filter(survey_id=source_survey_id).values_list("id", flat=True)
+                )
+            else:
+                if not source_wave_id:
+                    return err("Quelle (aktive Wave) fehlt.")
+                try:
+                    source_wave_ids = [int(source_wave_id)]
+                except ValueError:
+                    return err("Ungültige Quell-Wave.")
+
+
+            # Alle (question, variable)-Paare, die in der Quell-Befragung an diesen Questions hängen
+            qv_pairs = list(
+                QuestionVariableWave.objects.filter(question_id__in=qids, wave_id__in=source_wave_ids)
+                .values_list("question_id", "variable_id")
+                .distinct()
+            )
+
+            if qv_pairs:
+                target_wave_ids_for_pairs = [w.id for w in target_waves]
+
+                # 3a) Triaden (question, variable, wave) für alle Ziel-Waves setzen
+                qvw_rows = [
+                    QuestionVariableWave(question_id=qid, variable_id=vid, wave_id=wid)
+                    for (qid, vid) in qv_pairs
+                    for wid in target_wave_ids_for_pairs
+                ]
+                QuestionVariableWave.objects.bulk_create(qvw_rows, ignore_conflicts=True)
+
+                # 3b) Direktes Variable↔Wave M2M setzen (Variable.waves)
+                var_ids = sorted({vid for (_, vid) in qv_pairs})
+
+                through = Variable.waves.through
+                m2m_rows = [
+                    through(variable_id=vid, wave_id=wid)
+                    for vid in var_ids
+                    for wid in target_wave_ids_for_pairs
+                ]
+                through.objects.bulk_create(m2m_rows, ignore_conflicts=True)
+
+
+        return JsonResponse({"ok": True, "new_page_id": new_page.pk})
