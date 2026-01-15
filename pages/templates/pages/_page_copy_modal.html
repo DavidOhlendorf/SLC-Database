@@ -1,0 +1,82 @@
+{# templates/pages/partials/_page_copy_modal.html #}
+
+<form class="d-none" id="page-copy-csrf">
+    {% csrf_token %}
+</form>
+
+<div class="modal fade" id="copyPageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Seite kopieren</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-danger d-none" id="copyPageError"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Ziel-Befragung</label>
+                        <select class="form-select" id="copyTargetSurvey"></select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Gruppen</label>
+                        <div class="border rounded p-2" style="max-height: 220px; overflow:auto;" id="copyTargetWavesBox">
+                            <div class="text-muted small">Bitte zuerst eine Befragung auswählen.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Neuer Seitenname</label>
+                        <input class="form-control" id="copyNewName" />
+                        <div class="form-text d-none" id="copyNameHint"></div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="copyIncludeQuestions" checked>
+                            <label class="form-check-label" for="copyIncludeQuestions">Fragen übernehmen</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="copyIncludeVariables">
+                            <label class="form-check-label" for="copyIncludeVariables">Variablen übernehmen</label>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="copySourcePageId">
+
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="copySubmitBtn">Kopieren</button>
+            </div>
+
+            <div id="page-copy-endpoints"
+                data-api-surveys-url="{% url 'pages:api-surveys' %}"
+                data-api-waves-url-template="{% url 'pages:api-waves-by-survey' 0 %}"
+                data-api-check-name-url="{% url 'pages:api-check-page-name' %}"
+                data-copy-url-template="{% url 'pages:page-copy' 0 %}">
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Toast mit Erfolgsmeldung -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+    <div id="copyPageSuccessToast" class="toast align-items-center text-bg-success border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body">
+                Seite wurde erfolgreich kopiert.
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast" aria-label="Schließen">
+            </button>
+        </div>
+    </div>
+</div>

@@ -3,6 +3,7 @@
 {% load static %}
 {% block extra_js %}
       <script src="{% static 'js/ui/tooltips.js' %}"></script>
+      <script src="{% static 'js/builder/page_duplicator.js' %}"></script>
 {% endblock %}
 
 
@@ -33,6 +34,16 @@
                 href="{% url 'pages:pv' page.id %}{% if active_wave %}?wave={{ active_wave.id }}{% endif %}">
                 PV 
               </a>
+
+              <button type="button"
+                      class="btn btn-link btn-lg icon-action p-0 js-page-copy-open"
+                      title="Seite in andere Befragung kopieren"
+                      data-page-id="{{ page.id }}"
+                      data-default-name="{{ page.pagename|escape }}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#copyPageModal">
+                      <i class="fa-solid fa-copy"></i>
+              </button>
 
               <a class="btn btn-link btn-lg icon-action p-0"
                 title="Fragebogenseite bearbeiten"
@@ -230,8 +241,13 @@
     {% endwith %}
 
     {% url "questions:question_create_from_page" page.id as qc_post_url %}
-    {% include "pages/_question_quickcreate_modal.html" with qc_mode="redirect" qc_post_url=qc_post_url %}
-
+    
+    
+    <!-- Seite kopieren / Frage erstellen Modals -->
+    {% if perms.accounts.can_edit_slc %}
+      {% include "pages/_page_copy_modal.html" %}
+      {% include "pages/_question_quickcreate_modal.html" with qc_mode="redirect" qc_post_url=qc_post_url %}
+    {% endif %}
 
 
 
