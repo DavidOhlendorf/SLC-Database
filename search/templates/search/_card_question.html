@@ -2,7 +2,7 @@
   <div class="card-body">
 
     <h6 class="card-title mb-2">
-      {{ item.questiontext|truncatechars:200 }}
+      {{ item.questiontext|truncatechars:300 }}
     </h6>
     {% if show_relevance %}
       <p class="text-muted mb-0 small">
@@ -10,7 +10,7 @@
       </p>
     {% endif %}
 
-    {# Wellen-Badges #}
+    <!-- Wellen Badges -->
     {% if item.waves.all %}
       <div class="mb-2">
         {% for wave in item.waves.all %}
@@ -23,34 +23,29 @@
 
     <div class="d-flex align-items-center gap-2 mt-2">
 
-      {# Button zum Auf-/Zuklappen #}
-      <button
-        class="btn btn-sm btn-outline-secondary collapse-toggle"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#details{{ item.id }}"
-        aria-expanded="false"
-        aria-controls="details{{ item.id }}"
-      >
-        <i class="fa-solid fa-angles-down" aria-hidden="true"></i>
-      </button>
-
-      <a  class="btn btn-sm btn-dark"
-          href="{{ item.get_absolute_url }}?back={{ request.get_full_path|urlencode }}"
-          target="_blank"
+      <div class="btn-group btn-group-sm flex-shrink-0"
+           role="group"
+           aria-label="Aktionen">
+        <a class="btn btn-link px-2 icon-action"
+           title="Details anzeigen"
+            href="{% url 'questions:question_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
+            target="_blank"
           rel="noopener noreferrer">
-          Details 
-      </a>
+          <i class="fa-regular fa-eye"></i>
+        </a>
+
+        {% if perms.accounts.can_edit_slc %}
+          <a class="btn btn-link px-2 icon-action"
+             title="Bearbeiten"
+              href="{% url 'questions:question_edit' item.id %}?back={{ request.get_full_path|urlencode }}"
+              target="_blank"
+              rel="noopener noreferrer">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </a>
+        {% endif %}
+      </div>
 
     </div>
-
-    {# Aufklappbarer Bereich #}
-    <div class="collapse mt-3" id="details{{ item.id }}">
-      <p class="text-muted mb-2">
-        Hier kommen später noch weitere Inhalte hin.
-      </p>
-    </div>
-
   </div>
 </div>
 
