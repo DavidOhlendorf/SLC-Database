@@ -13,9 +13,6 @@
     const includeV = document.getElementById("copyIncludeVariables");
 
     const hiddenPageId = document.getElementById("copySourcePageId");
-    const hiddenSourceSurveyId = document.getElementById("copySourceSurveyId");
-    const hiddenSourceIsAll = document.getElementById("copySourceIsAll");
-    const hiddenSourceWaveId = document.getElementById("copySourceWaveId");
 
     const submitBtn = document.getElementById("copySubmitBtn");
 
@@ -54,9 +51,9 @@
 
     // --- Endpoints (vom Template per data-attributes)
     const API_SURVEYS_URL = endpoints.dataset.apiSurveysUrl;
-    const API_WAVES_TEMPLATE = endpoints.dataset.apiWavesUrlTemplate; // enthält /0/
+    const API_WAVES_TEMPLATE = endpoints.dataset.apiWavesUrlTemplate; 
     const API_CHECK_NAME_URL = endpoints.dataset.apiCheckNameUrl;
-    const COPY_URL_TEMPLATE = endpoints.dataset.copyUrlTemplate; // enthält /0/
+    const COPY_URL_TEMPLATE = endpoints.dataset.copyUrlTemplate; 
 
     let nameOk = true;
     let nameDebounce = null;
@@ -107,6 +104,7 @@
         nameHint.textContent = "";
     }
 
+    // Erfolgsmeldung anzeigen
     function showSuccessToast() {
         const toastEl = document.getElementById("copyPageSuccessToast");
         if (!toastEl || typeof bootstrap === "undefined") return;
@@ -116,6 +114,12 @@
         });
         toast.show();
     }
+
+    // Hilfsfunktion: URL mit ID füllen
+    function urlWithId(template, id) {
+        // ersetzt "/0/" oder "/0" (z.B. am Ende) zuverlässig
+        return template.replace("/0/", `/${id}/`).replace("/0", `/${id}`);
+        }
 
 
 
@@ -129,7 +133,7 @@
         for (const s of surveys) {
         const opt = document.createElement("option");
         opt.value = s.id;
-        opt.textContent = s.year ? `${s.name} (${s.year})` : s.name;
+        opt.textContent = `${s.name}`;
         surveySel.appendChild(opt);
         }
 
@@ -146,12 +150,12 @@
             return;
         }
 
-        const wavesUrl = API_WAVES_TEMPLATE.replace("/0/", `/${surveyId}/`);
+        const wavesUrl = urlWithId(API_WAVES_TEMPLATE, surveyId);
         const data = await fetchJSON(wavesUrl);
 
         const waves = data.waves || [];
         if (!waves.length) {
-            wavesBox.innerHTML = `<div class="text-muted small">Keine Waves vorhanden.</div>`;
+            wavesBox.innerHTML = `<div class="text-muted small">Keine Gruppen vorhanden.</div>`;
             return;
         }
 
@@ -205,7 +209,7 @@
         const newName = nameInput.value.trim();
 
         if (!targetSurveyId) return showError("Bitte eine Ziel-Befragung auswählen.");
-        if (!targetWaveIds.length) return showError("Bitte mindestens eine Ziel-Wave auswählen.");
+        if (!targetWaveIds.length) return showError("Bitte mindestens eine Gruppe auswählen.");
         if (!newName) return showError("Bitte einen neuen Seitennamen angeben.");
         if (!nameOk) return showError("Der Seitenname ist im Ziel-Survey nicht verfügbar.");
 
@@ -216,15 +220,10 @@
         form.append("include_questions", includeQ && includeQ.checked ? "1" : "0");
         form.append("include_variables", includeV && includeV.checked ? "1" : "0");
 
-        // Quelle für Variablenableitung
-        form.append("source_survey_id", hiddenSourceSurveyId ? hiddenSourceSurveyId.value : "");
-        form.append("source_is_all", hiddenSourceIsAll ? hiddenSourceIsAll.value : "0");
-        form.append("source_wave_id", hiddenSourceWaveId ? hiddenSourceWaveId.value : "");
-
         const pageId = hiddenPageId ? hiddenPageId.value : "";
         if (!pageId) return showError("Interner Fehler: page_id fehlt.");
 
-        const url = COPY_URL_TEMPLATE.replace("/0/", `/${pageId}/`);
+        const url = urlWithId(COPY_URL_TEMPLATE, pageId);
 
         submitBtn.disabled = true;
         try {
@@ -270,9 +269,6 @@
         clearError();
 
         if (hiddenPageId) hiddenPageId.value = btn.dataset.pageId || "";
-        if (hiddenSourceSurveyId) hiddenSourceSurveyId.value = btn.dataset.sourceSurveyId || "";
-        if (hiddenSourceIsAll) hiddenSourceIsAll.value = btn.dataset.sourceIsAll || "0";
-        if (hiddenSourceWaveId) hiddenSourceWaveId.value = btn.dataset.sourceWaveId || "";
 
         nameInput.value = btn.dataset.defaultName || "";
         nameOk = true;
@@ -292,7 +288,7 @@
         try {
         await loadWavesForSurvey(surveySel.value);
         } catch (e) {
-        showError("Waves konnten nicht geladen werden: " + (e.message || e));
+        showError("Gruppen konnten nicht geladen werden: " + (e.message || e));
         }
 
         debounce(checkName, 250);

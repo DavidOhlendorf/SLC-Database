@@ -13,7 +13,7 @@ from django.contrib import messages
 
 from accounts.mixins import EditorRequiredMixin
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
 from waves.models import Survey, WaveQuestion, Wave
@@ -722,13 +722,6 @@ class WavePageCopyView(EditorRequiredMixin, View):
         if include_variables and not include_questions:
             include_variables = False
 
-        # Quelle für Variablen: aus survey_detail mode ableiten
-        # (vom JS als Hidden Inputs gesetzt)
-        source_is_all = request.POST.get("source_is_all") == "1"
-        source_wave_id = request.POST.get("source_wave_id")  # kann leer sein im all-mode
-        source_survey_id = request.POST.get("source_survey_id")
-
-
 
         # --- Validierung
         def err(msg, status=400):
@@ -784,7 +777,14 @@ class WavePageCopyView(EditorRequiredMixin, View):
             transitions=source_page.transitions,
             page_programming_notes=source_page.page_programming_notes,
         )
-        new_page.waves.set(target_waves)
+
+        try:
+            new_page.waves.set(target_waves)
+        except IntegrityError:
+            return err(
+            "Kopieren nicht möglich: Ziel verletzt Datenbank-Regeln "
+            "(Seitenname im Survey bereits vorhanden oder Survey-Zuordnung nicht eindeutig)."
+            )
 
         # Bestimme alle Fragen auf der Quell-Seite
         qids: list[int] = []
@@ -801,7 +801,7 @@ class WavePageCopyView(EditorRequiredMixin, View):
 
 
 
-        # --- 2) Fragen duplizieren
+        # --- 2) Fragen übernehmen
         if include_questions:
             # Links Seite->Fragen kopieren
             WavePageQuestion.objects.bulk_create(
@@ -816,30 +816,31 @@ class WavePageCopyView(EditorRequiredMixin, View):
             )
 
 
-
-
         # --- 3) Variablen übernehmen
+        # Quell-Survey bestimmen. Es werden nur Variablen kopiert, die im Quell-Survey an den Seitenfragen hängen.
         if include_variables:
-            if not source_survey_id:
-                return JsonResponse({"ok": False, "error": "Quelle (Befragung) konnte nicht bestimmt werden."}, status=400)
 
-            # Quell-Waveset bestimmen
-            if source_is_all:
-                source_wave_ids = list(
-                    Wave.objects.filter(survey_id=source_survey_id).values_list("id", flat=True)
-                )
-            else:
-                if not source_wave_id:
-                    return err("Quelle (aktive Wave) fehlt.")
-                try:
-                    source_wave_ids = [int(source_wave_id)]
-                except ValueError:
-                    return err("Ungültige Quell-Wave.")
+            source_survey_ids = list(
+                source_page.waves.values_list("survey_id", flat=True).distinct()
+            )
+        
+            if not source_survey_ids:
+                return err("Quelle konnte nicht bestimmt werden (Seite hat keine Waves).")
+            if len(source_survey_ids) > 1:
+                return err("Quelle ist nicht eindeutig (Seite hängt an mehreren Befragungen).")
+            source_survey_id = source_survey_ids[0]
 
+            # Alle Gruppen des Quell-Surveys bestimmen
+            source_wave_ids = list(
+                Wave.objects.filter(survey_id=source_survey_id).values_list("id", flat=True)
+            )
 
-            # Alle (question, variable)-Paare, die in der Quell-Befragung an diesen Questions hängen
+            # Alle (question, variable)-Paare, die irgendwo im Quell-Survey an den Seitenfragen hängen
             qv_pairs = list(
-                QuestionVariableWave.objects.filter(question_id__in=qids, wave_id__in=source_wave_ids)
+                QuestionVariableWave.objects.filter(
+                    question_id__in=qids,
+                    wave_id__in=source_wave_ids
+                )
                 .values_list("question_id", "variable_id")
                 .distinct()
             )
@@ -847,7 +848,7 @@ class WavePageCopyView(EditorRequiredMixin, View):
             if qv_pairs:
                 target_wave_ids_for_pairs = [w.id for w in target_waves]
 
-                # 3a) Triaden (question, variable, wave) für alle Ziel-Waves setzen
+                # 3a) Triaden für alle Ziel-Waves setzen
                 qvw_rows = [
                     QuestionVariableWave(question_id=qid, variable_id=vid, wave_id=wid)
                     for (qid, vid) in qv_pairs
@@ -855,7 +856,7 @@ class WavePageCopyView(EditorRequiredMixin, View):
                 ]
                 QuestionVariableWave.objects.bulk_create(qvw_rows, ignore_conflicts=True)
 
-                # 3b) Direktes Variable↔Wave M2M setzen (Variable.waves)
+                # 3b) Direktes Variable↔Wave M2M setzen
                 var_ids = sorted({vid for (_, vid) in qv_pairs})
 
                 through = Variable.waves.through
@@ -866,5 +867,5 @@ class WavePageCopyView(EditorRequiredMixin, View):
                 ]
                 through.objects.bulk_create(m2m_rows, ignore_conflicts=True)
 
-
+        
         return JsonResponse({"ok": True, "new_page_id": new_page.pk})
