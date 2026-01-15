@@ -1,5 +1,6 @@
 # pages/views.py
 from collections import defaultdict
+import re
 from urllib import request
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import Variable
@@ -51,6 +52,20 @@ def _get_active_wave_from_qs(request, waves_qs, *, default_first=True):
     return active_wave
 
 
+# Helper: Frage-IDs aus POST-Daten extrahieren
+def _extract_posted_question_ids(post_data, prefix="qfs"):
+    ids = set()
+    # Felder heißen z.B. qfs-0-question, qfs-1-question, ...
+    pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)-question$")
+    for key, val in post_data.items():
+        if pattern.match(key) and val:
+            try:
+                ids.add(int(val))
+            except ValueError:
+                pass
+    return ids
+
+
 # Helper: Formset für GET (Initial) oder für POST (bound)
 def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=None):
     """
@@ -60,23 +75,35 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
     """
     allowed_waves = allowed_waves.order_by("cycle", "instrument", "id")
 
-    # POST: gebundenes Formset
-    if method == "POST":
-        return PageQuestionLinkFormSet(
-            post_data,
-            prefix="qfs",
-            form_kwargs={"allowed_waves": allowed_waves},
-        )
-
-    # GET: initial auslesen
+    # Basis: Fragen, die bereits auf der Seite sind
     wpq_qs = (
         WavePageQuestion.objects
         .filter(wave_page=page)
         .select_related("question")
         .order_by("id")
     )
+    page_questions = [x.question for x in wpq_qs]
+    page_question_ids = {q.id for q in page_questions}
 
-    questions = [x.question for x in wpq_qs]
+
+    # POST: gebundenes Formset
+    if method == "POST":
+        posted_ids = _extract_posted_question_ids(post_data, prefix="qfs")
+        allowed_ids = page_question_ids | posted_ids
+
+        allowed_questions = Question.objects.filter(id__in=allowed_ids)
+
+        return PageQuestionLinkFormSet(
+            post_data,
+            prefix="qfs",
+            form_kwargs={
+                "allowed_waves": allowed_waves,
+                "allowed_questions": allowed_questions,
+            },
+        )
+
+    # GET: initial auslesen
+    questions = page_questions
     q_ids = [q.id for q in questions]
 
     wave_map = {}
@@ -91,10 +118,15 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
 
     initial = [{"question": q, "waves": wave_map.get(q.id, [])} for q in questions]
 
+    allowed_questions = Question.objects.filter(id__in=page_question_ids)
+
     return PageQuestionLinkFormSet(
         prefix="qfs",
         initial=initial,
-        form_kwargs={"allowed_waves": allowed_waves},
+        form_kwargs={
+            "allowed_waves": allowed_waves,
+            "allowed_questions": allowed_questions,
+        },
     )
 
 
@@ -279,7 +311,7 @@ class WavePageBaseUpdateView(EditorRequiredMixin, UpdateView):
 # Content + Fragen speichern: POST /pages/<pk>/edit/content/
 # - speichert nur Zusatzfelder
 # - validiert/speichert Formset
-# - synced WavePageQuestion & WaveQuestion (wie bisher)
+# - synced WavePageQuestion & WaveQuestion
 # - Redirect zurück auf /edit/
 class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
     model = WavePage
