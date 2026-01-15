@@ -14,7 +14,7 @@ from django.contrib import messages
 from accounts.mixins import EditorRequiredMixin
 
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, OuterRef, Exists
 from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
 from waves.models import Survey, WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion
@@ -651,11 +651,19 @@ class SurveyListApiView(EditorRequiredMixin, View):
     http_method_names = ["get"]
 
     def get(self, request, *args, **kwargs):
-        surveys = Survey.objects.all().order_by("-year", "name")
-        data = [
-            {"id": s.id, "name": s.name, "year": s.year}
-            for s in surveys
-        ]
+        unlocked_waves = Wave.objects.filter(
+            survey_id=OuterRef("pk"),
+            is_locked=False,
+        )
+
+        surveys = (
+            Survey.objects
+            .annotate(has_unlocked_waves=Exists(unlocked_waves))
+            .filter(has_unlocked_waves=True)
+            .order_by("-year", "name")
+        )
+
+        data = [{"id": s.id, "name": s.name, "year": s.year} for s in surveys]
         return JsonResponse({"surveys": data})
 
 

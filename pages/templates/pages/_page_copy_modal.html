@@ -1,5 +1,12 @@
 {# templates/pages/partials/_page_copy_modal.html #}
 
+{% load static %}
+
+{% block extra_js %}
+    <script src="{% static 'js/ui/tooltips.js' %}"></script>
+{% endblock %}
+
+
 <form class="d-none" id="page-copy-csrf">
     {% csrf_token %}
 </form>
@@ -19,11 +26,25 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Ziel-Befragung</label>
+                        <button type="button"
+                            class="btn btn-sm"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Wähle die Befragung aus, in die du die Seite kopieren möchtest. Abgeschlossene Befragungen können nicht als Ziel ausgewählt werden.">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </button>
                         <select class="form-select" id="copyTargetSurvey"></select>
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label">Gruppen</label>
+                        <button type="button"
+                            class="btn btn-sm"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Wenn die Ziel-Befragung verschiedene Gruppen beinhaltet, kannst du hier auswählen, welche Gruppen die kopierte Seite sehen sollen.">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </button>
                         <div class="border rounded p-2" style="max-height: 220px; overflow:auto;" id="copyTargetWavesBox">
                             <div class="text-muted small">Bitte zuerst eine Befragung auswählen.</div>
                         </div>
@@ -31,18 +52,34 @@
 
                     <div class="col-12">
                         <label class="form-label">Neuer Seitenname</label>
+                        <button type="button"
+                            class="btn btn-sm"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Der Name der neuen Seite in der Ziel-Befragung. Der Name darf innerhalb einer Befragung nur einmal vorkommen.">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </button>
                         <input class="form-control" id="copyNewName" />
                         <div class="form-text d-none" id="copyNameHint"></div>
                     </div>
 
                     <div class="col-12">
+                        <label class="form-label">Weitere Inhalte übernehmen</label>
+                        <button type="button"
+                            class="btn btn-sm"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Du kannst auswählen, ob sämtliche Fragen und Variablen der Seite mitkopiert werden sollen. 
+                            Möchtest du nur einzelne Fragen oder Variablen in der Ziel-Befragung verwenden, kannst du dies nach dem Kopieren über die Seiten-Bearbeitung in der Ziel-Befragung anpassen.">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </button>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="copyIncludeQuestions" checked>
-                            <label class="form-check-label" for="copyIncludeQuestions">Fragen übernehmen</label>
+                            <label class="form-check-label" for="copyIncludeQuestions">Fragen</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="copyIncludeVariables">
-                            <label class="form-check-label" for="copyIncludeVariables">Variablen übernehmen</label>
+                            <input class="form-check-input" type="checkbox" id="copyIncludeVariables" checked>
+                            <label class="form-check-label" for="copyIncludeVariables">Variablen</label>
                         </div>
                     </div>
 
