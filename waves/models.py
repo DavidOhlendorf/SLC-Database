@@ -110,6 +110,14 @@ class WaveQuestion(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
 
     legacy_screenshot_id = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wave", "question"],
+                name="uq_wavequestion_wave_question",
+            )
+        ]
     
     def __str__(self):
         return f"{self.wave} ⟷ {self.question}"

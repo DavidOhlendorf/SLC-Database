@@ -58,7 +58,7 @@ def build_pv(ctx: PVContext) -> str:
         lines.append(line("mv", getattr(q, "missing_values", "")))
         lines.append(line("ka", getattr(q, "top_categories", "")))
 
-        # Items (JSON) → einfache Liste
+        # Items (JSON)
         items = getattr(q, "items", None) or []
         lines.append("it:\n")
 
@@ -84,7 +84,7 @@ def build_pv(ctx: PVContext) -> str:
                     lines.append(f"- {':'.join(parts)}\n")
 
 
-        # Antwortoptionen (JSON) → Elemente nur anzeigen, wenn vorhanden
+        # Antwortoptionen (JSON)
         aos = getattr(q, "answer_options", None) or []
         lines.append("ao:\n")
 

@@ -5,6 +5,7 @@
 
 {% block extra_js %}
       <script src="{% static 'js/ui/tooltips.js' %}"></script>
+      <script src="{% static 'js/builder/page_duplicator.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -136,11 +137,15 @@
                             href="{% url 'pages:page-edit' p.id %}?wave={{ g.default_wave_id }}">
                             <i class="fa-solid fa-pen-to-square"></i>
                           </a>
-                          <a class="btn btn-link px-2 icon-action"
-                            title="Seite in andere Befragung kopieren"
-                            href="#">
+                          <button type="button"
+                                  class="btn btn-link px-2 icon-action js-page-copy-open"
+                                  title="Seite in andere Befragung kopieren"
+                                  data-page-id="{{ p.id }}"
+                                  data-default-name="{{ p.pagename|escape }}"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#copyPageModal">
                             <i class="fa-solid fa-copy"></i>
-                          </a>
+                          </button>
                           {% if g.page_delete_blocked|get_item:p.id %}
                             <span
                                 class="d-inline-block"
@@ -283,11 +288,15 @@
                           href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
                           <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <a class="btn btn-link px-2 icon-action"
-                          title="Seite in andere Befragung kopieren"
-                          href="#">
+                        <button type="button"
+                                class="btn btn-link px-2 icon-action js-page-copy-open"
+                                title="Seite in andere Befragung kopieren"
+                                data-page-id="{{ p.id }}"
+                                data-default-name="{{ p.pagename|escape }}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#copyPageModal">
                           <i class="fa-solid fa-copy"></i>
-                        </a>
+                        </button>
                           {% if delete_blocked_global %}
                             <span
                                 class="d-inline-block"
@@ -429,6 +438,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Seite kopieren Modal -->
+    {% if perms.accounts.can_edit_slc %}
+      {% include "pages/_page_copy_modal.html" %}
+    {% endif %}
+
+    
+
   
     {% if page_modal_open %}
       <script>
