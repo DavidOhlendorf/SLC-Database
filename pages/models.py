@@ -54,7 +54,7 @@ class WavePage(models.Model):
     # Transitionskontrolle (tc)
     transition_control = models.TextField(
         blank=True,
-        help_text="Transitionskontrolle in Textform (tc).",
+        help_text="Transitionskontrolle (tc).",
     )
 
     # Einblendbedingungen (vc)

@@ -434,7 +434,7 @@
                         </div>
 
                         <!-- Korrekturhinweis (kh) -->
-                        <div class="accordion-item" data-acc-open-when-filled="correction_note">
+                        <div class="accordion-item" data-acc-open-when-filled="correction_notes">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
@@ -444,9 +444,9 @@
                                 </button>
                             </h2>
                             <div id="col-kh"
-                                class="accordion-collapse collapse {% if content_form.correction_note.errors %}show{% endif %}">
+                                class="accordion-collapse collapse {% if content_form.correction_notes.errors %}show{% endif %}">
                                 <div class="accordion-body">
-                                    {{ content_form.correction_note }}
+                                    {{ content_form.correction_notes }}
                                 </div>
                             </div>
                         </div>
@@ -506,7 +506,7 @@
                         </div>
 
                         <!-- Formatierung (fo) -->
-                        <div class="accordion-item" data-acc-open-when-filled="form">
+                        <div class="accordion-item" data-acc-open-when-filled="formatting">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"

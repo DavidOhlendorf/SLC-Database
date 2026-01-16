@@ -222,6 +222,22 @@ class WavePageDetailView(DetailView):
         ctx["page_is_locked"] = page_is_locked
         ctx["edit_question_allowed_waves"] = waves_qs.filter(is_locked=False)
 
+        ctx["has_page_header"] = any([
+            page.page_heading,
+            page.introduction,
+        ])
+
+        ctx["has_page_other_fields"] = any([
+            page.visibility_conditions,
+            page.answer_validations,
+            page.correction_notes,
+            page.forcing_variables,
+            page.helper_variables,
+            page.control_variables,
+            page.formatting,
+            page.page_programming_notes,
+        ])
+
         return ctx
     
 
