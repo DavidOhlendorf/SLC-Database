@@ -51,7 +51,23 @@ def build_pv(ctx: PVContext) -> str:
         qid = getattr(q, "id", "")
         lines.append(f"\n### Q{qid} ({i}/{total})\n")
 
-        lines.append(line("qt", getattr(q, "question_type", "")))
+        qt_value = getattr(q, "question_type", "")
+        qt_label = ""
+
+        get_disp = getattr(q, "get_question_type_display", None)
+        if callable(get_disp):
+            qt_label = get_disp()
+
+        if not qt_label:
+            qt_label = qt_value
+
+        # Wenn OTHER, dann Freitext anhängen
+        if qt_value == "other":
+            other_txt = s(getattr(q, "question_type_other", ""))
+            if other_txt:
+                qt_label = f"{qt_label}: {other_txt}"
+
+        lines.append(line("qt", qt_label))
         lines.append(line("q", getattr(q, "questiontext", "")))
         lines.append(line("is", getattr(q, "instruction", "")))
         lines.append(line("st", getattr(q, "item_stem", "")))
