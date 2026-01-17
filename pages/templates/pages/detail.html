@@ -90,6 +90,35 @@
 
     </div>
 
+    <!-- Seitenkopf Accordion -->
+    {% if has_page_header %} 
+      <div class="accordion mb-3" id="pageHeadAccordion-{{ page.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#questiontextCollapse"
+                    aria-expanded="true"
+                    aria-controls="questiontextCollapse">
+              Seitenkopf
+            </button>
+          </h2>
+          <div id="questiontextCollapse" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+              {% if page.page_heading %}
+                <p class="mb-1"><strong>Überschrift: {{ page.page_heading }}</strong></p>
+              {% endif %}
+
+              {% if page.introduction %}
+                <p class="mb-1 mt-3">Einleitungstext: {{ page.introduction }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
 
 
     <!-- Fragen auf der Seite -->
@@ -198,9 +227,132 @@
       <div class="mb-5"></div>
     {% endif %}
 
+    {% if page.transition_control %} 
+      <div class="accordion mb-3" id="pageTransitionControlAccordion-{{ page.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#transitionControlCollapse-{{ page.id }}"
+                    aria-expanded="true"
+                    aria-controls="transitionControlCollapse-{{ page.id }}">
+              Transitionskontrolle
+            </button>
+          </h2>
+          <div id="transitionControlCollapse-{{ page.id }}" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+                <p>{{ page.transition_control }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if page.transitions %} 
+      <div class="accordion mb-3" id="pageTransitionsAccordion-{{ page.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#transitionsCollapse-{{ page.id }}"
+                    aria-expanded="true"
+                    aria-controls="transitionsCollapse-{{ page.id }}">
+              Seitenübergänge
+            </button>
+          </h2>
+          <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+                <p>{{ page.transitions }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Weitere Seitenfelder Accordion -->
+    {% if has_page_other_fields %}
+      <div class="accordion mb-3" id="pageOtherFieldsAccordion-{{ page.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#transitionsCollapse-{{ page.id }}"
+                    aria-expanded="true"
+                    aria-controls="transitionsCollapse-{{ page.id }}">
+              Sonstige Seitenangaben
+            </button>
+          </h2>
+          <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse show">
+            <div class="accordion-body p-0">
+              <div class="list-group list-group-flush">
+
+                <!-- visibility conditions (vc)-->
+                {% if page.visibility_conditions %}
+                  <div class="list-group-item py-3">
+                    Einblendbedingungen: {{ page.visibility_conditions }}
+                  </div>
+                {% endif %}
+
+                <!-- answer validation (av)-->
+                 {% if page.answer_validations %}
+                  <div class="list-group-item py-3">
+                    Antwortvalidierung: {{ page.answer_validations }}
+                  </div>
+                {% endif %}
+
+                <!-- Korrekturhinweise (kh) -->
+                {% if page.correction_notes %}
+                  <div class="list-group-item py-3">
+                    Korrekturhinweise: {{ page.correction_notes }}
+                  </div>
+                {% endif %}
+
+                <!-- Forcierungsvariablen (fv) -->
+                {% if page.forcing_variables %}
+                  <div class="list-group-item py-3">
+                    Forcierungsvariablen: {{ page.forcing_variables }}
+                  </div>
+                {% endif %}
+                
+                <!-- Hilfsvariablen (hv) -->
+                {% if page.helper_variables %}
+                  <div class="list-group-item py-3">
+                    Hilfsvariablen: {{ page.helper_variables }}
+                  </div>
+                {% endif %}
+
+                <!-- Steuerungsvariablen (sv) -->
+                {% if page.control_variables %}
+                  <div class="list-group-item py-3">
+                    Steuerungsvariablen: {{ page.control_variables }}
+                  </div>
+                {% endif %}
+
+                <!-- Formatierung (fo) -->
+                {% if page.formatting %}
+                  <div class="list-group-item py-3">
+                    Formatierung: {{ page.formatting }}
+                  </div>
+                {% endif %}
+
+                <!-- Programmierhinweise (ph) -->
+                {% if page.page_programming_notes %}
+                  <div class="list-group-item py-3">
+                    Programmierhinweise: {{ page.page_programming_notes }}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
 
 
-
+              
     <!-- Screenshots -->
     {% with page.screenshots.all as screenshots %}
       {% if screenshots %}

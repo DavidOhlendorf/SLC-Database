@@ -164,6 +164,143 @@
       </div>
     </div>
 
+    <!-- Items-->
+    {% if question.items or question.item_stem %}
+      <div class="accordion mb-3" id="ItemAccordion-{{ question.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingItem-{{ question.id }}">
+            <button class="accordion-button" type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseItem-{{ question.id }}"
+                    aria-expanded="true"
+                    aria-controls="collapseItem-{{ question.id }}">
+              Itemblock
+            </button>
+          </h2>
+          <div id="collapseItem-{{ question.id }}"
+              class="accordion-collapse collapse show"
+              aria-labelledby="headingItem-{{ question.id }}"
+              data-bs-parent="#ItemAccordion-{{ question.id }}">
+            <div class="accordion-body">
+              {% if question.item_stem %}
+                <p class="mb-2"><strong> {{ question.item_stem }} </strong></p>
+              {% endif %}
+
+              {% if question.items %}
+                <div class="table-responsive small">
+                  <table class="table table-sm align-middle">
+                    <thead>
+                      <tr>
+                        <th style="width:3rem;"></th>
+                        {% if has_item_variable %}
+                          <th style="width:6rem;"></th>
+                        {% endif %}
+                        <th></th>
+                      </tr>
+                    </thead>
+                      <tbody>
+                        {% for it in question.items %}
+                          <tr>
+                            <td>{{ it.uid }}</td>
+
+                            {% if has_item_variable %}
+                              <td>
+                                {% if it.variable %}
+                                  ({{ it.variable }})
+                                {% endif %}
+                              </td>
+                            {% endif %}
+
+                            <td>{{ it.label }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                  </table>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Answeroptions-->
+    {% if question.answer_options or question.top_categories or question.missing_values  %}
+      <div class="accordion mb-3" id="AOAccordion-{{ question.id }}">
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingAO-{{ question.id }}">
+            <button class="accordion-button" type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseAO-{{ question.id }}"
+                    aria-expanded="true"
+                    aria-controls="collapseAO-{{ question.id }}">
+              Antwortblock
+            </button>
+          </h2>
+          <div id="collapseAO-{{ question.id }}"
+              class="accordion-collapse collapse show"
+              aria-labelledby="headingAO-{{ question.id }}"
+              data-bs-parent="#AOAccordion-{{ question.id }}">
+            <div class="accordion-body">
+
+              {% if question.answer_options %}
+                <div class="table-responsive small mb-3">
+                  <table class="table table-sm align-middle">
+                    <thead>
+                      <tr>
+                        <th style="width:3rem;"></th>
+                        {% if has_ao_variable %}
+                          <th style="width:6rem;"></th>
+                        {% endif %}
+                        {% if has_ao_value %}
+                          <th style="width:2rem;"></th>
+                        {% endif %}
+                        <th></th>
+                      </tr>
+                    </thead>
+                      <tbody>
+                        {% for it in question.answer_options %}
+                          <tr>
+                            <td>{{ it.uid }}</td>
+
+                            {% if has_ao_variable %}
+                              <td>
+                                {% if it.variable %}
+                                  ({{ it.variable }})
+                                {% endif %}
+                              </td>
+                            {% endif %}
+
+                            {% if has_ao_value %}
+                              <td>
+                                {% if it.value %}
+                                  {{ it.value }}
+                                {% endif %}
+                              </td>
+                            {% endif %}
+
+                            <td>{{ it.label }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                  </table>
+                </div>
+              {% endif %}
+
+              {% if question.top_categories %}
+                <p class="mb-2"> Überkategorien: {{ question.top_categories }}</p>
+              {% endif %}
+
+              {% if question.missing_values %}
+                <p class="mb-2"> Fehlende Werte: {{ question.missing_values }}</p>
+              {% endif %}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
 
 
     <!-- Variablen der Frage in der ausgewählten Befragung/Gruppe -->

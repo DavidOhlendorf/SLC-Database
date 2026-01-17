@@ -22,35 +22,28 @@
     {% endif %}
 
     <div class="d-flex align-items-center gap-2 mt-2"> 
-
-      {# Button zum Auf-/Zuklappen #}
-      <button
-        class="btn btn-sm btn-outline-secondary collapse-toggle"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#details{{ item.id }}"
-        aria-expanded="false"
-        aria-controls="details{{ item.id }}"
-      >
-        <i class="fa-solid fa-angles-down" aria-hidden="true"></i>
-      </button>
-
-      <a  class="btn btn-sm btn-dark"
-          href="{{ item.get_absolute_url }}?back={{ request.get_full_path|urlencode }}"
+      <div class="btn-group btn-group-sm flex-shrink-0"
+          role="group"
+          aria-label="Aktionen">
+        <a class="btn btn-link px-2 icon-action"
+          title="Details anzeigen"
+          href="{% url 'variables:variable_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
           target="_blank"
           rel="noopener noreferrer">
-          Details
-      </a>
-    </div>
+          <i class="fa-regular fa-eye"></i>
+        </a>
 
-    {# Aufklappbarer Bereich #}
-    <div class="collapse mt-3" id="details{{ item.id }}">
-      
-      <p class="text-muted mb-2">
-        Hier kommen später noch weitere Inhalte hin.
-      </p>
+        {% if perms.accounts.can_edit_slc %}
+          <a class="btn btn-link px-2 icon-action"
+            title="Bearbeiten"
+            href="{% url 'variables:variable_edit' item.id %}?back={{ request.get_full_path|urlencode }}"
+            target="_blank"
+            rel="noopener noreferrer">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </a>
+        {% endif %}
+      </div>
     </div>
-
   </div>
 </div>
 

@@ -214,7 +214,7 @@ class WavePageContentForm(forms.ModelForm):
 class PageQuestionLinkForm(forms.Form):
 
     question = forms.ModelChoiceField(
-        queryset=Question.objects.all().order_by("id"),
+        queryset=Question.objects.none(),
         required=True,
         label="Frage",
         widget=forms.Select(attrs={"class": "form-select qc-passive"}),
@@ -232,7 +232,7 @@ class PageQuestionLinkForm(forms.Form):
         },
     )
 
-    def __init__(self, *args, allowed_waves=None, **kwargs):
+    def __init__(self, *args, allowed_waves=None,  allowed_questions=None,**kwargs):
         """
         allowed_waves: QuerySet[Wave] – Befragtengruppen, die für diese Page auswählbar sind.
         """
@@ -245,6 +245,11 @@ class PageQuestionLinkForm(forms.Form):
 
         self.fields["waves"].queryset = allowed_waves
         self._allowed_wave_ids = set(allowed_waves.values_list("id", flat=True))
+
+        if allowed_questions is None:
+            allowed_questions = Question.objects.none()
+
+        self.fields["question"].queryset = allowed_questions.order_by("id")
 
     def clean(self):
         cleaned = super().clean()

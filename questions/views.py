@@ -165,7 +165,6 @@ class QuestionDetail(DetailView):
 
             if active_page:
                 screenshots = list(active_page.screenshots.all())
- 
 
         ctx.update({
             "survey": active_wave.survey if active_wave and active_wave.survey_id else None,
@@ -176,6 +175,9 @@ class QuestionDetail(DetailView):
             "pages": pages,
             "active_page": active_page, 
             "screenshots": screenshots,
+            "has_item_variable": any(it.get("variable") for it in question.items),
+            "has_ao_variable": any(ao.get("variable") for ao in question.answer_options),
+            "has_ao_value": any(ao.get("value") for ao in question.answer_options),
         })
         return ctx
     
