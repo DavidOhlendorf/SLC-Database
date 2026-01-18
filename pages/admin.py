@@ -66,7 +66,6 @@ class WavePageAdmin(admin.ModelAdmin):
     list_display = ("pagename", "get_waves")
     search_fields = ("pagename",)
     ordering = ("pagename",)
-    filter_horizontal = ("waves",)
 
     inlines = [WavePageQuestionInline, WavePageScreenshotInline]
 

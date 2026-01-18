@@ -10,7 +10,7 @@ from django.shortcuts import redirect
 from django.contrib import messages
 
 from .models import Survey, Wave, WaveQuestion
-from pages.models import WavePageQuestion, WavePage
+from pages.models import WavePageQuestion, WavePage, WavePageWave
 
 from .forms import SurveyCreateForm, WaveFormSet
 from pages.forms import WavePageCreateForm
@@ -191,7 +191,16 @@ class SurveyDetailView(TemplateView):
             page = WavePage.objects.create(
                 pagename=form.cleaned_data["pagename"]
             )
-            page.waves.set(form.cleaned_data["waves"])
+            
+            selected_waves = form.cleaned_data["waves"]
+            
+            for w in selected_waves:
+                next_pos = (
+                    WavePageWave.objects
+                    .filter(wave=w)
+                    .aggregate(m=Max("sort_order"))["m"] or 0
+                ) + 1
+                WavePageWave.objects.create(wave=w, page=page, sort_order=next_pos)
 
             # Redirect auf Page-Detail; wave-Parameter auf erste ausgewählte Wave setzen
             first_wave = form.cleaned_data["waves"].first()

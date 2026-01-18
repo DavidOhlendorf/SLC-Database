@@ -25,11 +25,12 @@ class WavePage(models.Model):
 
     objects = WavePageQuerySet.as_manager()
     
+
     waves = models.ManyToManyField(
-        Wave,
+        "waves.Wave",
+        through="WavePageWave",
         related_name="pages",
         blank=True,
-        help_text="Befragtengruppen, die diese Seite sehen.",
     )
 
     # Interner Seitenname (pn)
@@ -181,3 +182,18 @@ class WavePageScreenshot(models.Model):
 
     def __str__(self) -> str:
         return f"{self.wave_page} – {self.language}/{self.device}"
+    
+
+# Modell für die Verknüpfung von Seiten und Befragungswellen mit Sortierreihenfolge
+class WavePageWave(models.Model):
+    page = models.ForeignKey("WavePage", on_delete=models.CASCADE, related_name="wave_links")
+    wave = models.ForeignKey("waves.Wave", on_delete=models.CASCADE, related_name="page_links")
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["wave", "page"], name="uq_wavepagewave_wave_page"),
+        ]
+        indexes = [
+            models.Index(fields=["wave", "sort_order"], name="idx_wavepagewave_wave_sort"),
+        ]

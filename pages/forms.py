@@ -5,7 +5,9 @@ from django.core.exceptions import ValidationError
 
 from waves.models import Wave
 from questions.models import Question
-from .models import WavePage
+from django.db import transaction
+from django.db.models import Max
+from .models import WavePage, WavePageWave
 
 # Form zum Anlegen einer neuen Fragebogenseite mit Zuordnung zu Survey/Befragungsgruppen
 class WavePageCreateForm(forms.Form):
@@ -82,10 +84,17 @@ class WavePageBaseForm(forms.ModelForm):
 
     class Meta:
         model = WavePage
-        fields = ["pagename", "waves"]
-        widgets = {
-            "waves": forms.CheckboxSelectMultiple,
-        }
+        fields = ["pagename"]
+
+    waves = forms.ModelMultipleChoiceField(
+        queryset=Wave.objects.none(),
+        required=True,
+        label="Welche Befragtengruppen sollen diese Seite sehen?",
+        help_text="Mindestens eine Gruppe auswählen. Kann später noch angepasst werden.",
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={"required": "Bitte wähle mindestens eine Befragtengruppe aus."},
+    )
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -97,11 +106,6 @@ class WavePageBaseForm(forms.ModelForm):
         })
         self.fields["pagename"].error_messages.update({
             "required": "Bitte gib einen Seitennamen ein.",
-        })
-
-        self.fields["waves"].required = True
-        self.fields["waves"].error_messages.update({
-            "required": "Bitte wähle mindestens eine Befragtengruppe aus.",
         })
 
         # Survey der Page ableiten und Befragtengruppen darauf begrenzen
@@ -121,6 +125,10 @@ class WavePageBaseForm(forms.ModelForm):
             )
         else:
             self.fields["waves"].queryset = Wave.objects.none()
+
+        # Initiale Auswahl (bei Bearbeiten)
+        if self.instance and self.instance.pk:
+            self.fields["waves"].initial = list(self.instance.waves.all())
 
     def clean(self):
         cleaned = super().clean()
@@ -159,6 +167,44 @@ class WavePageBaseForm(forms.ModelForm):
             )
 
         return cleaned
+    
+    @transaction.atomic
+    def save(self, commit=True):
+        """
+        Speichert pagename normal und synchronisiert anschließend die Wave-Verknüpfungen
+        über die Through-Tabelle (inkl. sort_order).
+        """
+        page = super().save(commit=commit)
+
+        new_waves = list(self.cleaned_data.get("waves") or [])
+        new_ids = {w.id for w in new_waves}
+
+        existing_links = WavePageWave.objects.filter(page=page)
+        existing_ids = set(existing_links.values_list("wave_id", flat=True))
+
+        # Entfernen: Links löschen
+        remove_ids = existing_ids - new_ids
+        if remove_ids:
+            WavePageWave.objects.filter(page=page, wave_id__in=remove_ids).delete()
+
+        # Hinzufügen: ans Ende einsortieren
+        add_ids = new_ids - existing_ids
+        if add_ids:
+            for w in new_waves:
+                if w.id not in add_ids:
+                    continue
+                max_pos = (
+                    WavePageWave.objects
+                    .filter(wave=w)
+                    .aggregate(m=Max("sort_order"))["m"] or 0
+                )
+                WavePageWave.objects.create(
+                    wave=w,
+                    page=page,
+                    sort_order=max_pos + 1
+                )
+
+        return page
 
 
 # Form für die Inhaltsdaten einer Fragebogenseite ---

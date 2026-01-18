@@ -15,10 +15,10 @@ from django.contrib import messages
 from accounts.mixins import EditorRequiredMixin
 
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch, OuterRef, Exists
+from django.db.models import Prefetch, OuterRef, Exists, Max
 from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
 from waves.models import Survey, WaveQuestion, Wave
-from .models import WavePage, WavePageQuestion
+from .models import WavePage, WavePageQuestion, WavePageWave
 from questions.models import Question, QuestionVariableWave
 from variables.models import Variable
 
@@ -835,13 +835,17 @@ class WavePageCopyView(EditorRequiredMixin, View):
         )
 
         try:
-            new_page.waves.set(target_waves)
+            with transaction.atomic():
+                for w in target_waves:
+                    next_pos = (WavePageWave.objects.filter(wave=w).aggregate(m=Max("sort_order"))["m"] or 0) + 1
+                    WavePageWave.objects.create(wave=w, page=new_page, sort_order=next_pos)
+                    
         except IntegrityError:
             return err(
             "Kopieren nicht möglich: Ziel verletzt Datenbank-Regeln "
             "(Seitenname im Survey bereits vorhanden oder Survey-Zuordnung nicht eindeutig)."
             )
-
+        
         # Bestimme alle Fragen auf der Quell-Seite
         qids: list[int] = []
         if include_questions or include_variables:
