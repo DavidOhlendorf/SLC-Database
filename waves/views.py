@@ -143,10 +143,15 @@ class SurveyDetailView(TemplateView):
         # WAVE MODE: (Pages + Frage-Counts pro Page)
         # ------------------------------------------------------------
         pages_qs = (
-            active_wave.pages
+            WavePage.objects
             .with_completeness()
-            .all()
-            .order_by("pagename")
+            .filter(wave_links__wave=active_wave)
+            .order_by("wave_links__sort_order", "pagename")
+            .distinct()
+        )
+
+        pages_qs = pages_qs.annotate(
+            sort_order=Min("wave_links__sort_order")
         )
 
         wave_question_ids = (

@@ -1,3 +1,4 @@
+#waves/urls.py
 
 from django.urls import path
 from .views import SurveyListView, SurveyDetailView, SurveyCreateView, SurveyUpdateView  
