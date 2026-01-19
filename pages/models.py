@@ -190,6 +190,15 @@ class WavePageWave(models.Model):
     wave = models.ForeignKey("waves.Wave", on_delete=models.CASCADE, related_name="page_links")
     sort_order = models.PositiveIntegerField(default=0, db_index=True)
 
+    # Fragebogenmodule
+    module = models.ForeignKey(
+        "waves.WaveModule",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="page_links",
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["wave", "page"], name="uq_wavepagewave_wave_page"),
