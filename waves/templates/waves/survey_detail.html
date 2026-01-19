@@ -10,6 +10,7 @@
   {% if not is_all_mode %}
       <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
       <script src="{% static 'js/builder/page_reorder.js' %}"></script>
+      <script src="{% static 'js/builder/modules_modal.js' %}"></script>
   {% endif %}
 {% endblock %}
 
@@ -58,6 +59,16 @@
     </div>
 
     <div>
+
+      {% if perms.accounts.can_edit_slc and not is_all_mode and active_wave and not active_wave.is_locked %}
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary me-2"
+                data-bs-toggle="modal"
+                data-bs-target="#modulesModal">
+          Module bearbeiten
+        </button>
+      {% endif %}
+
       {% if perms.accounts.can_edit_slc %}
         {% if waves %}
           <button type="button"
@@ -404,13 +415,12 @@
 
 
     <!-- Seite kopieren Modal -->
-    {% if perms.accounts.can_edit_slc %}
-      {% include "pages/_page_copy_modal.html" %}
-    {% endif %}
+    {% include "pages/_page_copy_modal.html" %}
 
+    <!-- Module bearbeiten Modal -->
+    {% include "waves/_modules_modal.html" %}
     
 
-  
     {% if page_modal_open %}
       <script>
         document.addEventListener("DOMContentLoaded", function () {

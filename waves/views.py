@@ -11,7 +11,7 @@ from django.db.models import Count, Min, Max, Prefetch
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
-from .models import Survey, Wave, WaveQuestion
+from .models import Survey, Wave, WaveModule, WaveQuestion
 from pages.models import WavePageQuestion, WavePage, WavePageWave
 
 from .forms import SurveyCreateForm, WaveFormSet
@@ -174,7 +174,11 @@ class SurveyDetailView(TemplateView):
         ctx["pages"] = pages_qs
         ctx["page_question_counts"] = page_question_counts
         ctx["delete_blocked_global"] = bool(active_wave and active_wave.is_locked)
-
+        ctx["modules"] = (
+            WaveModule.objects.filter(wave=active_wave).order_by("sort_order", "id")
+            if active_wave else WaveModule.objects.none()
+        )
+        ctx["modules_manage_url"] = reverse("waves:wave_modules_manage", args=[active_wave.id]) if active_wave else ""
 
         return ctx
     
@@ -404,3 +408,110 @@ class SurveyUpdateView(EditorRequiredMixin, UpdateView):
         return super().form_valid(form)
     
 
+class WaveModulesManageView(View):
+    http_method_names = ["post"]
+
+    def post(self, request, wave_id, *args, **kwargs):
+        if not request.user.has_perm("accounts.can_edit_slc"):
+            raise PermissionDenied
+
+        wave = get_object_or_404(Wave, pk=wave_id)
+
+        if wave.is_locked:
+            messages.error(request, "Module können nicht bearbeitet werden, weil die Befragung gesperrt ist.")
+            return redirect(f"{reverse('waves:survey_detail', kwargs={'survey_name': wave.survey.name})}?wave={wave.id}")
+
+        delete_ids = [int(x) for x in request.POST.getlist("delete_ids") if x.isdigit()]
+
+        order_raw = (request.POST.get("module_order") or "").strip()
+        order_keys = [k for k in order_raw.split(",") if k]
+
+        with transaction.atomic():
+            # 1) aktuelle Module laden (vor deletes)
+            modules_qs = WaveModule.objects.filter(wave=wave)
+            modules_by_id = {m.id: m for m in modules_qs}
+
+            # 2) deletes
+            if delete_ids:
+                WaveModule.objects.filter(wave=wave, id__in=delete_ids).delete()
+
+            # 3) updates (bestehende Namen)
+            #    + Name-Duplikate sauber prüfen (case-insensitive)
+            seen = set()
+            remaining_ids = set(
+                WaveModule.objects.filter(wave=wave).values_list("id", flat=True)
+            )
+
+            # existing name updates
+            for mid in list(remaining_ids):
+                val = (request.POST.get(f"name_{mid}") or "").strip()
+                if not val:
+                    continue
+                low = val.lower()
+                if low in seen:
+                    messages.error(request, "Speichern nicht möglich: Modulnamen müssen innerhalb der Wave eindeutig sein.")
+                    return redirect(f"{reverse('waves:survey_detail', kwargs={'survey_name': wave.survey.name})}?wave={wave.id}")
+                seen.add(low)
+                WaveModule.objects.filter(wave=wave, id=mid).update(name=val)
+
+            # 4) creates (neue Module anhand order_keys: new-*)
+            #    Wir erzeugen neue Module nur, wenn sie im order vorkommen und ein Name existiert.
+            new_key_to_id = {}
+            max_sort = WaveModule.objects.filter(wave=wave).aggregate(m=Max("sort_order"))["m"] or 0
+            temp_base = max_sort + 1000
+            temp_i = 0
+
+            for key in order_keys:
+                if not key.startswith("new-"):
+                    continue
+                name = (request.POST.get(f"new_name_{key}") or "").strip()
+                if not name:
+                    continue
+                low = name.lower()
+                if low in seen:
+                    messages.error(request, "Speichern nicht möglich: Modulnamen müssen innerhalb der Wave eindeutig sein.")
+                    return redirect(f"{reverse('waves:survey_detail', kwargs={'survey_name': wave.survey.name})}?wave={wave.id}")
+                seen.add(low)
+
+                temp_i += 1
+                m = WaveModule.objects.create(
+                    wave=wave,
+                    name=name,
+                    sort_order=temp_base + temp_i,  # temporär eindeutig
+                )
+                new_key_to_id[key] = m.id
+
+            # 5) finale Reihenfolge der IDs bestimmen
+            existing_ids_now = list(WaveModule.objects.filter(wave=wave).values_list("id", flat=True))
+            existing_set = set(existing_ids_now)
+
+            final_ids = []
+            for key in order_keys:
+                if key.startswith("new-"):
+                    mid = new_key_to_id.get(key)
+                    if mid:
+                        final_ids.append(mid)
+                else:
+                    if key.isdigit():
+                        mid = int(key)
+                        if mid in existing_set:
+                            final_ids.append(mid)
+
+            # falls irgendein Modul nicht in order_keys stand (z.B. weil order leer): hinten dran
+            missing = [mid for mid in existing_ids_now if mid not in final_ids]
+            final_ids.extend(missing)
+
+            # 6) sort_order constraint-sicher setzen (2 Phasen)
+            max_sort2 = WaveModule.objects.filter(wave=wave).aggregate(m=Max("sort_order"))["m"] or 0
+            temp_base2 = max_sort2 + 2000
+
+            # Phase A: alle auf einzigartige temporäre Werte
+            for idx, mid in enumerate(final_ids, start=1):
+                WaveModule.objects.filter(wave=wave, id=mid).update(sort_order=temp_base2 + idx)
+
+            # Phase B: final 1..n
+            for idx, mid in enumerate(final_ids, start=1):
+                WaveModule.objects.filter(wave=wave, id=mid).update(sort_order=idx)
+
+        messages.success(request, "Module gespeichert.")
+        return redirect(f"{reverse('waves:survey_detail', kwargs={'survey_name': wave.survey.name})}?wave={wave.id}")
