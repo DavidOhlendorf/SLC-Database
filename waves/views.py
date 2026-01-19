@@ -1,12 +1,14 @@
 from itertools import groupby
+import json
 
+from django.views import View
 from django.views.generic import ListView, TemplateView, CreateView, UpdateView
 from django.urls import reverse, reverse_lazy
 from django.forms import inlineformset_factory
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
 from .models import Survey, Wave, WaveQuestion
@@ -221,6 +223,63 @@ class SurveyDetailView(TemplateView):
         ctx["page_create_form"] = form
         ctx["page_modal_open"] = True
         return self.render_to_response(ctx)
+    
+
+# API View for reordering WavePages within a Wave    
+class WavePagesReorderApiView(View):
+    http_method_names = ["post"]
+
+    def post(self, request, wave_id, *args, **kwargs):
+        if not request.user.has_perm("accounts.can_edit_slc"):
+            raise PermissionDenied
+
+        wave = get_object_or_404(Wave, pk=wave_id)
+
+        if wave.is_locked:
+            return JsonResponse({"ok": False, "error": "Befragung ist gesperrt."}, status=403)
+
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Ungültiges JSON."}, status=400)
+
+        ordered_page_ids = payload.get("ordered_page_ids")
+        if not isinstance(ordered_page_ids, list) or not ordered_page_ids:
+            return JsonResponse({"ok": False, "error": "ordered_page_ids fehlt/leer."}, status=400)
+
+        # normalize + uniqueness
+        try:
+            ordered_page_ids = [int(x) for x in ordered_page_ids]
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "ordered_page_ids enthält ungültige IDs."}, status=400)
+
+        if len(set(ordered_page_ids)) != len(ordered_page_ids):
+            return JsonResponse({"ok": False, "error": "ordered_page_ids enthält Duplikate."}, status=400)
+        
+
+        # prüfen: gehören alle pages zur aktuellen Befragung?
+        existing_links = list(
+            WavePageWave.objects
+            .filter(wave=wave, page_id__in=ordered_page_ids)
+            .values_list("page_id", flat=True)
+        )
+        if len(existing_links) != len(ordered_page_ids):
+            return JsonResponse({"ok": False, "error": "Mindestens eine Seite gehört nicht zu dieser Befragung."}, status=400)
+
+        # Update: Sortierung speichern
+        with transaction.atomic():
+            links = list(
+                WavePageWave.objects.filter(wave=wave, page_id__in=ordered_page_ids)
+            )
+            link_by_page = {l.page_id: l for l in links}
+
+            for idx, pid in enumerate(ordered_page_ids, start=1):
+                link_by_page[pid].sort_order = idx
+
+            WavePageWave.objects.bulk_update(links, ["sort_order"])
+
+        return JsonResponse({"ok": True})
+
     
 
 class SurveyCreateView(EditorRequiredMixin, CreateView):

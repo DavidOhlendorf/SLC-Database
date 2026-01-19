@@ -6,6 +6,8 @@
 {% block extra_js %}
       <script src="{% static 'js/ui/tooltips.js' %}"></script>
       <script src="{% static 'js/builder/page_duplicator.js' %}"></script>
+      <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+      <script src="{% static 'js/builder/page_reorder.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -223,151 +225,137 @@
     {% endfor %}
     
   {% else %}
-    <!-- Seiten-Anzeige für die einzelne Befragungsgruppe-->
-    <div class="accordion mb-3" id="pagesAccordion-{{ survey.name|slugify }}">
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingPages-{{ survey.name|slugify }}">
-          <button class="accordion-button" type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#collapsePages-{{ survey.name|slugify }}"
-                  aria-expanded="true"
-                  aria-controls="collapsePages-{{ survey.name|slugify }}">
-            Fragebogenseiten
-            {% if active_wave %}
-              in {{ active_wave.cycle }}{% if active_wave.instrument %} – {{ active_wave.instrument }}{% endif %}
-            {% endif %}
-          </button>
-        </h2>
+    <div class="mb-3">
+      {% if pages %}
+        <div id="pageCardList"
+            class="vstack gap-2"
+            data-wave-id="{{ active_wave.id }}"
+            data-reorder-url="{% url 'waves:wave_pages_reorder' active_wave.id %}"
+            data-can-dnd="{% if perms.accounts.can_edit_slc and not active_wave.is_locked %}1{% else %}0{% endif %}">
+          {% for p in pages %}
+            <div class="card shadow-sm page-card" data-page-id="{{ p.id }}">
+              <div class="card-body d-flex align-items-start justify-content-between gap-3">
 
-        <div id="collapsePages-{{ survey.name|slugify }}"
-            class="accordion-collapse collapse show"
-            aria-labelledby="headingPages-{{ survey.name|slugify }}"
-            data-bs-parent="#pagesAccordion-{{ survey.name|slugify }}">
-          <div class="accordion-body p-0">
+                <div class="d-flex align-items-start gap-2">
+                  {% if perms.accounts.can_edit_slc and not active_wave.is_locked %}
+                    <span class="js-drag-handle text-muted"
+                          role="button"
+                          title="Reihenfolge ändern"
+                          style="cursor: grab;">
+                      <i class="fa-solid fa-up-down"></i>
+                    </span>
+                  {% endif %}
 
-            {% if pages %}
-              <div class="list-group list-group-flush">
-                {% for p in pages %}
-                  <div class="list-group-item d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                      <div class="fw-semibold d-flex align-items-center gap-2">
-                        <span>{{ p.pagename }}</span>
-                          {% if perms.accounts.can_edit_slc %}
-                            {% if p.is_incomplete %}
-                              <span>
-                              <i class="fa-solid fa-circle-exclamation text-danger"
-                                data-bs-toggle="tooltip"
-                                data-bs-title="Seitenangaben unvollständig"></i>
-                              </span>
-                            {% endif %}
-                          {% endif %}
-                      </div>
+                  <div class="min-w-0">
+                    <div class="fw-semibold d-flex align-items-center gap-2">
+                      <span class="text-break">{{ p.pagename }}</span>
 
-
-                      <div class="text-muted small">
-                        {% with page_question_counts|get_item:p.id as cnt %}
-                          {% if cnt == 1 %}
-                            1 Frage
-                          {% else %}
-                            {{ cnt|default:0 }} Fragen
-                          {% endif %}
-                        {% endwith %}
-                      </div>
-                    </div>
-
-                    <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
-                      <a class="btn btn-link px-2 icon-action"
-                        title="Details anzeigen"
-                        href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
-                        <i class="fa-regular fa-eye"></i>
-                      </a>
-
-                      {% if perms.accounts.can_edit_slc %}
-                        <a class="btn btn-link px-2 icon-action"
-                          title="Seite bearbeiten"
-                          href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
-                          <i class="fa-solid fa-pen-to-square"></i>
-                        </a>
-                        <button type="button"
-                                class="btn btn-link px-2 icon-action js-page-copy-open"
-                                title="Seite in andere Befragung kopieren"
-                                data-page-id="{{ p.id }}"
-                                data-default-name="{{ p.pagename|escape }}"
-                                data-bs-toggle="modal"
-                                data-bs-target="#copyPageModal">
-                          <i class="fa-solid fa-copy"></i>
-                        </button>
-                          {% if delete_blocked_global %}
-                            <span
-                                class="d-inline-block"
-                                tabindex="0"
-                                data-bs-toggle="tooltip"
-                                data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
-                                <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </span>
-                          {% else %}
-                            <button
-                                type="button"
-                                class="btn btn-link px-2 icon-action--danger"
-                                title="Seite löschen"
-                                data-bs-toggle="modal"
-                                data-bs-target="#deletePageModal-{{ p.id }}">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                          {% endif %}
+                      {% if perms.accounts.can_edit_slc and p.is_incomplete %}
+                        <i class="fa-solid fa-circle-exclamation text-danger"
+                          data-bs-toggle="tooltip"
+                          data-bs-title="Seitenangaben unvollständig"></i>
                       {% endif %}
                     </div>
-                  </div>
 
-                  <!-- Modal zum Löschen der Seite -->
-                  {% url "pages:page-delete" p.id as delete_action %}
-
-                  <div class="modal fade" id="deletePageModal-{{ p.id }}" tabindex="-1"
-                      aria-labelledby="deletePageModalLabel-{{ p.id }}" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                      <div class="modal-content">
-
-                        <div class="modal-header">
-                          <h5 class="modal-title" id="deletePageModalLabel-{{ p.id }}">Seite löschen</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                        </div>
-
-                          <div class="modal-body">
-                            <p class="mb-4">
-                                Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
-                            </p>
-                            <p class="text-muted small mb-0">
-                                Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
-                                Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungspübersicht der Seite anpassen.
-                            </p>
-                          </div>
-
-                        <div class="modal-footer">
-                          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-
-                          <form method="post"
-                                action="{{ delete_action }}?wave={% if is_all_mode %}{{ g.default_wave_id }}{% else %}{{ active_wave.id }}{% endif %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">Löschen</button>
-                          </form>
-                        </div>
-
-                      </div>
+                    <div class="text-muted small">
+                      {% with page_question_counts|get_item:p.id as cnt %}
+                        {% if cnt == 1 %}1 Frage{% else %}{{ cnt|default:0 }} Fragen{% endif %}
+                      {% endwith %}
                     </div>
                   </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="text-muted px-3 py-2 mb-0">
-                In dieser Befragung sind noch keine Seiten verknüpft.
-              </p>
-            {% endif %}
+                </div>
 
-          </div>
+                <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                  <a class="btn btn-link px-2 icon-action"
+                    title="Details anzeigen"
+                    href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
+                    <i class="fa-regular fa-eye"></i>
+                  </a>
+
+                  {% if perms.accounts.can_edit_slc %}
+                    <a class="btn btn-link px-2 icon-action"
+                      title="Seite bearbeiten"
+                      href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-link px-2 icon-action js-page-copy-open"
+                            title="Seite in andere Befragung kopieren"
+                            data-page-id="{{ p.id }}"
+                            data-default-name="{{ p.pagename|escape }}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#copyPageModal">
+                      <i class="fa-solid fa-copy"></i>
+                    </button>
+
+                    {% if delete_blocked_global %}
+                      <span class="d-inline-block" tabindex="0"
+                            data-bs-toggle="tooltip"
+                            data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+                        <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </span>
+                    {% else %}
+                      <button type="button"
+                              class="btn btn-link px-2 icon-action--danger"
+                              title="Seite löschen"
+                              data-bs-toggle="modal"
+                              data-bs-target="#deletePageModal-{{ p.id }}">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    {% endif %}
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Modal zum Löschen der Seite -->
+            {% url "pages:page-delete" p.id as delete_action %}
+
+            <div class="modal fade" id="deletePageModal-{{ p.id }}" tabindex="-1"
+                aria-labelledby="deletePageModalLabel-{{ p.id }}" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="deletePageModalLabel-{{ p.id }}">Seite löschen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                  </div>
+
+                    <div class="modal-body">
+                      <p class="mb-4">
+                          Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
+                      </p>
+                      <p class="text-muted small mb-0">
+                          Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
+                          Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungspübersicht der Seite anpassen.
+                      </p>
+                    </div>
+
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+
+                    <form method="post"
+                          action="{{ delete_action }}?wave={% if is_all_mode %}{{ g.default_wave_id }}{% else %}{{ active_wave.id }}{% endif %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-danger">Löschen</button>
+                    </form>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
-      </div>
+      {% else %}
+        <p class="text-muted px-3 py-2 mb-0">
+          In dieser Befragung sind noch keine Seiten verknüpft.
+        </p>
+      {% endif %}
+
     </div>
   {% endif %}
 
