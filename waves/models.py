@@ -122,3 +122,43 @@ class WaveQuestion(models.Model):
     def __str__(self):
         return f"{self.wave} ⟷ {self.question}"
     
+
+# Modell für Module innerhalb einer Befragung
+class WaveModule(models.Model):
+    wave = models.ForeignKey(
+        Wave,
+        on_delete=models.CASCADE,
+        related_name="modules",
+    )
+
+    name = models.CharField(
+        max_length=200,
+        help_text="Name des Moduls, z. B. 'Soziodemographie'.",
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Reihenfolge des Moduls innerhalb der Befragung.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wave", "sort_order"],
+                name="uq_wavemodule_wave_sortorder",
+            ),
+            models.UniqueConstraint(
+                fields=["wave", "name"],
+                name="uq_wavemodule_wave_name",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["wave", "sort_order"], name="idx_wavemodule_wave_sort"),
+        ]
+        ordering = ["wave", "sort_order", "id"]
+        verbose_name = "Modul"
+        verbose_name_plural = "Module"
+
+    def __str__(self) -> str:
+        return f"{self.wave} – {self.sort_order}: {self.name}"
