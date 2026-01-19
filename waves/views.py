@@ -144,49 +144,59 @@ class SurveyDetailView(TemplateView):
         # ------------------------------------------------------------
         # WAVE MODE: (Pages + Frage-Counts pro Page)
         # ------------------------------------------------------------
-        pages_qs = (
-            WavePage.objects
-            .with_completeness()
-            .filter(wave_links__wave=active_wave)
-            .order_by("wave_links__sort_order", "pagename")
-            .distinct()
+        modules_qs = WaveModule.objects.filter(wave=active_wave).order_by("sort_order", "id")
+
+        page_links_qs = (
+            WavePageWave.objects
+            .filter(wave=active_wave)
+            .select_related("module")  # module direkt
+            .prefetch_related(
+                Prefetch("page", queryset=WavePage.objects.with_completeness())
+            )
+            .order_by("sort_order", "page__pagename")
         )
 
-        pages_qs = pages_qs.annotate(
-            sort_order=Min("wave_links__sort_order")
-        )
-
+        # Frage-Counts pro Seite (weiter wie bisher, aber über page_ids)
         wave_question_ids = (
             WaveQuestion.objects
             .filter(wave=active_wave)
             .values_list("question_id", flat=True)
         )
 
+        page_ids = list(page_links_qs.values_list("page_id", flat=True))
+
         counts_qs = (
             WavePageQuestion.objects
-            .filter(wave_page__in=pages_qs)
+            .filter(wave_page_id__in=page_ids)
             .filter(question_id__in=wave_question_ids)
             .values("wave_page_id")
             .annotate(cnt=Count("id"))
         )
         page_question_counts = {row["wave_page_id"]: row["cnt"] for row in counts_qs}
 
-        ctx["pages"] = pages_qs
+        # Gruppierung fürs Template: Liste von Blöcken 
+        module_blocks = [{"module": m, "links": []} for m in modules_qs]
+        blocks_by_id = {b["module"].id: b for b in module_blocks}
+        unassigned_links = []
+
+        for link in page_links_qs:
+            if link.module_id and link.module_id in blocks_by_id:
+                blocks_by_id[link.module_id]["links"].append(link)
+            else:
+                unassigned_links.append(link)
+
+        ctx["modules"] = modules_qs
+        ctx["module_blocks"] = module_blocks
+        ctx["unassigned_links"] = unassigned_links
         ctx["page_question_counts"] = page_question_counts
         ctx["delete_blocked_global"] = bool(active_wave and active_wave.is_locked)
-        ctx["modules"] = (
-            WaveModule.objects.filter(wave=active_wave).order_by("sort_order", "id")
-            if active_wave else WaveModule.objects.none()
-        )
-        ctx["modules_manage_url"] = reverse("waves:wave_modules_manage", args=[active_wave.id]) if active_wave else ""
-
         return ctx
     
     # POST request for creating a new WavePage
     def post(self, request, *args, **kwargs):
 
         if request.POST.get("create_page") != "1":
-            return redirect(request.path)
+            return redirect(request.get_full_path())
         
         if not request.user.has_perm("accounts.can_edit_slc"):
             raise PermissionDenied
@@ -247,42 +257,77 @@ class WavePagesReorderApiView(View):
         except Exception:
             return JsonResponse({"ok": False, "error": "Ungültiges JSON."}, status=400)
 
-        ordered_page_ids = payload.get("ordered_page_ids")
-        if not isinstance(ordered_page_ids, list) or not ordered_page_ids:
-            return JsonResponse({"ok": False, "error": "ordered_page_ids fehlt/leer."}, status=400)
+        containers = payload.get("containers")
+        if not isinstance(containers, list) or not containers:
+            return JsonResponse({"ok": False, "error": "containers fehlt/leer."}, status=400)
 
-        # normalize + uniqueness
-        try:
-            ordered_page_ids = [int(x) for x in ordered_page_ids]
-        except (TypeError, ValueError):
-            return JsonResponse({"ok": False, "error": "ordered_page_ids enthält ungültige IDs."}, status=400)
+        all_page_ids = []
+        module_ids = set()
 
-        if len(set(ordered_page_ids)) != len(ordered_page_ids):
-            return JsonResponse({"ok": False, "error": "ordered_page_ids enthält Duplikate."}, status=400)
-        
+        # validate containers
+        for c in containers:
+            if not isinstance(c, dict):
+                return JsonResponse({"ok": False, "error": "containers Format ungültig."}, status=400)
 
-        # prüfen: gehören alle pages zur aktuellen Befragung?
-        existing_links = list(
-            WavePageWave.objects
-            .filter(wave=wave, page_id__in=ordered_page_ids)
+            mids = c.get("module_id", None)
+            pids = c.get("page_ids", [])
+
+            if mids is not None:
+                if not isinstance(mids, int):
+                    return JsonResponse({"ok": False, "error": "module_id ungültig."}, status=400)
+                module_ids.add(mids)
+
+            if not isinstance(pids, list):
+                return JsonResponse({"ok": False, "error": "page_ids ungültig."}, status=400)
+
+            try:
+                pids = [int(x) for x in pids]
+            except (TypeError, ValueError):
+                return JsonResponse({"ok": False, "error": "page_ids enthält ungültige IDs."}, status=400)
+
+            all_page_ids.extend(pids)
+
+        if not all_page_ids:
+            return JsonResponse({"ok": False, "error": "Keine Seiten übergeben."}, status=400)
+
+        if len(set(all_page_ids)) != len(all_page_ids):
+            return JsonResponse({"ok": False, "error": "page_ids enthält Duplikate."}, status=400)
+
+        # pages gehören zur wave?
+        existing_links = set(
+            WavePageWave.objects.filter(wave=wave, page_id__in=all_page_ids)
             .values_list("page_id", flat=True)
         )
-        if len(existing_links) != len(ordered_page_ids):
+        if len(existing_links) != len(all_page_ids):
             return JsonResponse({"ok": False, "error": "Mindestens eine Seite gehört nicht zu dieser Befragung."}, status=400)
 
-        # Update: Sortierung speichern
-        with transaction.atomic():
-            links = list(
-                WavePageWave.objects.filter(wave=wave, page_id__in=ordered_page_ids)
+        # module_ids gehören zur wave?
+        if module_ids:
+            existing_modules = set(
+                WaveModule.objects.filter(wave=wave, id__in=module_ids).values_list("id", flat=True)
             )
+            if existing_modules != module_ids:
+                return JsonResponse({"ok": False, "error": "Mindestens ein Modul gehört nicht zu dieser Befragung."}, status=400)
+
+        # Update: module + globale Sortierung speichern
+        with transaction.atomic():
+            links = list(WavePageWave.objects.filter(wave=wave, page_id__in=all_page_ids))
             link_by_page = {l.page_id: l for l in links}
 
-            for idx, pid in enumerate(ordered_page_ids, start=1):
-                link_by_page[pid].sort_order = idx
+            idx = 0
+            for c in containers:
+                mids = c.get("module_id", None)
+                pids = [int(x) for x in c.get("page_ids", [])]
+                for pid in pids:
+                    idx += 1
+                    l = link_by_page[pid]
+                    l.sort_order = idx
+                    l.module_id = mids
 
-            WavePageWave.objects.bulk_update(links, ["sort_order"])
+            WavePageWave.objects.bulk_update(links, ["sort_order", "module"])
 
         return JsonResponse({"ok": True})
+
 
     
 

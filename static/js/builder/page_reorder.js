@@ -1,11 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const list = document.getElementById("pageCardList");
-  if (!list) return;
+  const wrapper = document.getElementById("pageListsWrapper");
+  if (!wrapper) return;
 
-  const canDnd = list.dataset.canDnd === "1";
+  const canDnd = wrapper.dataset.canDnd === "1";
   if (!canDnd) return;
 
-  const reorderUrl = list.dataset.reorderUrl;
+  const reorderUrl = wrapper.dataset.reorderUrl;
 
   function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -14,32 +14,51 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   const csrftoken = getCookie("csrftoken");
 
-  // Initialize SortableJS
-  new Sortable(list, {
-    animation: 150,
-    handle: ".js-drag-handle",
-    draggable: ".page-card",
-    onEnd: async () => {
-      const ordered = Array.from(list.querySelectorAll(".page-card"))
-        .map(el => el.dataset.pageId);
+  const lists = Array.from(wrapper.querySelectorAll(".js-page-list"));
+  if (!lists.length) return;
 
-      try {
-        const resp = await fetch(reorderUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrftoken
-          },
-          body: JSON.stringify({ ordered_page_ids: ordered })
-        });
+  function buildPayload() {
+    const containers = lists.map(list => {
+      const raw = (list.dataset.moduleId || "").trim();
+      const moduleId = raw ? parseInt(raw, 10) : null;
 
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data.ok) {
-          console.error("Reorder failed:", data);
-        }
-      } catch (e) {
-        console.error("Reorder request error:", e);
+      const pageIds = Array.from(list.querySelectorAll(".page-card"))
+        .map(el => parseInt(el.dataset.pageId, 10));
+
+      return { module_id: moduleId, page_ids: pageIds };
+    });
+    return { containers };
+  }
+
+  async function save() {
+    const payload = buildPayload();
+
+    try {
+      const resp = await fetch(reorderUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) {
+        console.error("Reorder failed:", data);
       }
+    } catch (e) {
+      console.error("Reorder request error:", e);
     }
+  }
+
+  lists.forEach(list => {
+    new Sortable(list, {
+      animation: 150,
+      handle: ".js-drag-handle",
+      draggable: ".page-card",
+      group: "pages",
+      onEnd: save
+    });
   });
 });

@@ -11,7 +11,7 @@
       </div>
 
       <form method="post"
-            action="{{ modules_manage_url }}"
+            action="{% url 'waves:wave_modules_manage' active_wave.id %}"
             id="modulesForm"
             data-modules-modal="1">
         {% csrf_token %}
