@@ -12,12 +12,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function apply(filter) {
     blocks.forEach(block => {
-      const instr = (block.dataset.instrument || "").toLowerCase();
+      const instr = (block.dataset.instrument || "");
 
       if (filter === "all") {
         block.classList.remove("d-none");
       } else {
-        // filter = 'papi' oder 'cawi'
+
         if (instr === filter) block.classList.remove("d-none");
         else block.classList.add("d-none");
       }
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialzustand aus URL (?instr=papi / ?instr=cawi / default all)
   const url = new URL(window.location.href);
-  const initial = (url.searchParams.get("instr") || "all").toLowerCase();
+  const initial = (url.searchParams.get("instr") || "all");
   const initialBtn = document.querySelector(`.js-instr-filter[data-filter="${initial}"]`);
   if (initialBtn) {
     setActive(initialBtn);

@@ -6,9 +6,11 @@
 {% block extra_js %}
       <script src="{% static 'js/ui/tooltips.js' %}"></script>
       <script src="{% static 'js/builder/page_duplicator.js' %}"></script>
+      <script src="{% static 'js/ui/instrument_filter.js' %}"></script>
+  {% if not is_all_mode %}
       <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
       <script src="{% static 'js/builder/page_reorder.js' %}"></script>
-      <script src="{% static 'js/ui/instrument_filter.js' %}"></script>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -42,10 +44,6 @@
       ← Zurück zur Befragungsübersicht
     </a>
   </div>
-
-
-
-
 
   <div class="mb-3 d-flex align-items-start justify-content-between gap-2">
     <div class="text-muted small">
@@ -81,34 +79,32 @@
 
   <!-- Seiten-Anzeige für die gesamte Befragung-->
   {% if is_all_mode %}
-    <!-- Instrument Filter und Sprunglinks -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-      <div class="btn-group btn-group-sm" role="group" aria-label="Instrument Filter">
-        <button type="button" class="btn btn-outline-secondary js-instr-filter active" data-filter="all">
-          Alle
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-instr-filter" data-filter="papi">
-          Nur PAPI
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-instr-filter" data-filter="cawi">
-          Nur CAWI
-        </button>
-      </div>
+    <!-- Instrument Filter -->
+    {% if instrument_groups|length > 1 %}
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Instrument Filter">
+          <button type="button"
+                  class="btn btn-outline-secondary js-instr-filter active"
+                  data-filter="all">
+            Alle
+          </button>
 
-      <div class="d-flex flex-wrap gap-2 small">
-        {% for g in instrument_groups %}
-          <a class="text-decoration-none"
-            href="#block-{{ g.instrument|slugify }}">
-            zu {{ g.instrument }}
-          </a>
-        {% endfor %}
+          {% for g in instrument_groups %}
+            <button type="button"
+                    class="btn btn-outline-secondary js-instr-filter"
+                    data-filter="{{ g.instrument|slugify }}">
+              Nur {{ g.instrument }}
+            </button>
+          {% endfor %}
+        </div>
+
       </div>
-    </div>
+    {% endif %}
 
     {% for g in instrument_groups %}
       <div id="block-{{ g.instrument|slugify }}"
           class="mb-4"
-          data-instrument="{{ g.instrument|lower }}">
+          data-instrument="{{ g.instrument|slugify }}">
 
         <!-- Gruppen-Header -->
         <div class="d-flex align-items-center justify-content-between mb-2">
@@ -144,7 +140,7 @@
                     </div>
                   </div>
 
-                  <div class="btn-group btn-group-sm flex-shrink-0" role="group" aria-label="Aktionen">
+                  <div class="d-flex align-items-center gap-1 flex-shrink-0">
                     <a class="btn btn-link px-2 icon-action"
                       title="Details anzeigen"
                       href="{% url 'pages:page-detail' p.id %}?wave={{ g.default_wave_id }}">
@@ -179,10 +175,12 @@
                         </span>
                       {% else %}
                         <button type="button"
-                                class="btn btn-link px-2 icon-action--danger"
-                                title="Seite löschen"
-                                data-bs-toggle="modal"
-                                data-bs-target="#deletePageModal-{{ p.id }}">
+                              class="btn btn-link px-2 icon-action--danger js-open-delete-modal"
+                              title="Seite löschen"
+                              data-bs-toggle="modal"
+                              data-bs-target="#deletePageModal"
+                              data-page-name="{{ p.pagename|escape}}"
+                              data-delete-action="{% url 'pages:page-delete' p.id %}?wave={{ g.default_wave_id }}">
                           <i class="fa-solid fa-trash"></i>
                         </button>
                       {% endif %}
@@ -191,39 +189,6 @@
 
                 </div>
               </div>
-
-              {% url "pages:page-delete" p.id as delete_action %}
-              <div class="modal fade" id="deletePageModal-{{ p.id }}" tabindex="-1"
-                  aria-labelledby="deletePageModalLabel-{{ p.id }}" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                  <div class="modal-content">
-                    <div class="modal-header">
-                      <h5 class="modal-title" id="deletePageModalLabel-{{ p.id }}">Seite löschen</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                    </div>
-
-                    <div class="modal-body">
-                      <p class="mb-4">
-                        Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
-                      </p>
-                      <p class="text-muted small mb-0">
-                        Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
-                        Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungsübersicht der Seite anpassen.
-                      </p>
-                    </div>
-
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                      <form method="post" action="{{ delete_action }}?wave={{ g.default_wave_id }}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger">Löschen</button>
-                      </form>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-
             {% endfor %}
           </div>
         {% else %}
@@ -277,7 +242,7 @@
                   </div>
                 </div>
 
-                <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                <div class="d-flex align-items-center gap-1 flex-shrink-0">
                   <a class="btn btn-link px-2 icon-action"
                     title="Details anzeigen"
                     href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
@@ -300,9 +265,10 @@
                             data-bs-target="#copyPageModal">
                       <i class="fa-solid fa-copy"></i>
                     </button>
-
+                    
                     {% if delete_blocked_global %}
-                      <span class="d-inline-block" tabindex="0"
+                      <span class="d-inline-block"
+                            tabindex="0"
                             data-bs-toggle="tooltip"
                             data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
                         <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
@@ -311,53 +277,18 @@
                       </span>
                     {% else %}
                       <button type="button"
-                              class="btn btn-link px-2 icon-action--danger"
-                              title="Seite löschen"
-                              data-bs-toggle="modal"
-                              data-bs-target="#deletePageModal-{{ p.id }}">
+                            class="btn btn-link px-2 icon-action--danger js-open-delete-modal"
+                            title="Seite löschen"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deletePageModal"
+                            data-page-name="{{ p.pagename|escape}}"
+                            data-delete-action="{% url 'pages:page-delete' p.id %}?wave={{ active_wave.id }}">
                         <i class="fa-solid fa-trash"></i>
                       </button>
                     {% endif %}
                   {% endif %}
                 </div>
 
-              </div>
-            </div>
-
-            <!-- Modal zum Löschen der Seite -->
-            {% url "pages:page-delete" p.id as delete_action %}
-
-            <div class="modal fade" id="deletePageModal-{{ p.id }}" tabindex="-1"
-                aria-labelledby="deletePageModalLabel-{{ p.id }}" aria-hidden="true">
-              <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="deletePageModalLabel-{{ p.id }}">Seite löschen</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                  </div>
-
-                    <div class="modal-body">
-                      <p class="mb-4">
-                          Soll die Seite <strong>{{ p.pagename }}</strong> wirklich gelöscht werden?
-                      </p>
-                      <p class="text-muted small mb-0">
-                          Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
-                          Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungspübersicht der Seite anpassen.
-                      </p>
-                    </div>
-
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-
-                    <form method="post"
-                          action="{{ delete_action }}?wave={% if is_all_mode %}{{ g.default_wave_id }}{% else %}{{ active_wave.id }}{% endif %}">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-danger">Löschen</button>
-                    </form>
-                  </div>
-
-                </div>
               </div>
             </div>
           {% endfor %}
@@ -438,6 +369,39 @@
         </div>
       </div>
     </div>
+  
+    <!-- Seite löschen Modal -->
+    <div class="modal fade" id="deletePageModal" tabindex="-1"
+        aria-labelledby="deletePageModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deletePageModalLabel">Seite löschen</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+
+          <div class="modal-body">
+            <p class="mb-4">
+              Soll die Seite <strong id="deletePageName"></strong> wirklich gelöscht werden?
+            </p>
+            <p class="text-muted small mb-0">
+              Dadurch wird die Seite für <strong>alle</strong> Gruppen dieser Befragung gelöscht.
+              Wenn du die Seite nur für einzelne Gruppen löschen willst, kannst du das in der Bearbeitungsübersicht der Seite anpassen.
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+
+            <form method="post" id="deletePageForm" action="">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger">Löschen</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Seite kopieren Modal -->
     {% if perms.accounts.can_edit_slc %}
@@ -457,6 +421,24 @@
         });
       </script>
     {% endif %}
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const modalEl = document.getElementById("deletePageModal");
+        if (!modalEl) return;
+
+        const nameEl = document.getElementById("deletePageName");
+        const formEl = document.getElementById("deletePageForm");
+
+        modalEl.addEventListener("show.bs.modal", (event) => {
+          const btn = event.relatedTarget;
+          if (!btn) return;
+
+          nameEl.textContent = btn.dataset.pageName || "";
+          formEl.action = btn.dataset.deleteAction || "";
+        });
+      });
+    </script>
 
   {% endif %}
   
