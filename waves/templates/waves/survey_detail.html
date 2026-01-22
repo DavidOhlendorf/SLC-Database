@@ -227,16 +227,150 @@
             <div class="card shadow-sm">
               <div class="card-header bg-body bg-secondary-subtle">
                 <div class="d-flex align-items-center justify-content-between">
-                  <div class="fw-semibold text-muted">Ohne Modul</div>
+                  <button type="button"
+                          class="btn btn-sm btn-link text-decoration-none p-0 fw-semibold text-secondary-emphasis"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#moduleCollapse-unassigned"
+                          aria-expanded="true"
+                          aria-controls="moduleCollapse-unassigned">
+                    Ohne Modul
+                    <i class="fa-solid fa-chevron-down ms-1 small opacity-75"></i>
+                  </button>
                   <span class="badge text-bg-secondary js-page-count">{{ unassigned_links|length }}</span>
                 </div>
               </div>
-              <div class="card-body">
-                <div class="vstack gap-2 js-page-list" data-module-id="">
-                  {% for link in unassigned_links %}
-                    {% with p=link.page %}
+              <div id="moduleCollapse-unassigned" class="collapse show">
+                <div class="card-body">
+                  <div class="vstack gap-2 js-page-list" data-module-id="">
+                    {% for link in unassigned_links %}
+                      {% with p=link.page %}
+                        <div class="card shadow-sm page-card" data-page-id="{{ p.id }}">
+                          <div class="card-body d-flex align-items-start justify-content-between gap-3">
+                            <div class="d-flex align-items-start gap-2">
+                              {% if perms.accounts.can_edit_slc and not active_wave.is_locked %}
+                                <span class="js-drag-handle text-muted"
+                                      role="button"
+                                      title="Reihenfolge ändern"
+                                      style="cursor: grab;">
+                                  <i class="fa-solid fa-up-down"></i>
+                                </span>
+                              {% endif %}
+
+                              <div class="min-w-0">
+                                <div class="fw-semibold d-flex align-items-center gap-2">
+                                  <span class="text-break">{{ p.pagename }}</span>
+
+                                  {% if perms.accounts.can_edit_slc and p.is_incomplete %}
+                                    <i class="fa-solid fa-circle-exclamation text-danger"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-title="Seitenangaben unvollständig"></i>
+                                  {% endif %}
+                                </div>
+                                {% with cnt=page_question_counts|get_item:p.id %}
+                                  {% if not cnt %}
+                                    <div class="text-muted small fst-italic">
+                                      Keine Fragen auf dieser Seite
+                                    </div>
+                                  {% else %}
+                                    {% with snippets=page_question_snippets|get_item:p.id %}
+                                      {% if snippets %}
+                                        <div class="text-muted small mt-1 d-flex flex-column gap-1">
+                                          {% for s in snippets %}
+                                            <div>
+                                              {{ s }}{% if s|length == 100 %}…{% endif %}
+                                            </div>
+                                          {% endfor %}
+                                        </div>
+                                      {% endif %}
+                                    {% endwith %}
+                                  {% endif %}
+                                {% endwith %}
+                              </div>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                              <a class="btn btn-link px-2 icon-action"
+                                title="Details anzeigen"
+                                href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
+                                <i class="fa-regular fa-eye"></i>
+                              </a>
+
+                              {% if perms.accounts.can_edit_slc %}
+                                <a class="btn btn-link px-2 icon-action"
+                                  title="Seite bearbeiten"
+                                  href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
+                                  <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                <button type="button"
+                                        class="btn btn-link px-2 icon-action js-page-copy-open"
+                                        title="Seite in andere Befragung kopieren"
+                                        data-page-id="{{ p.id }}"
+                                        data-default-name="{{ p.pagename|escape }}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#copyPageModal">
+                                  <i class="fa-solid fa-copy"></i>
+                                </button>
+
+                                {% if delete_blocked_global %}
+                                  <span class="d-inline-block"
+                                        tabindex="0"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
+                                    <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
+                                      <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                  </span>
+                                {% else %}
+                                  <button type="button"
+                                          class="btn btn-link px-2 icon-action--danger js-open-delete-modal"
+                                          title="Seite löschen"
+                                          data-bs-toggle="modal"
+                                          data-bs-target="#deletePageModal"
+                                          data-page-name="{{ p.pagename|escape}}"
+                                          data-delete-action="{% url 'pages:page-delete' p.id %}?wave={{ active_wave.id }}">
+                                    <i class="fa-solid fa-trash"></i>
+                                  </button>
+                                {% endif %}
+                              {% endif %}
+                            </div>
+                          </div>
+                        </div>
+                      {% endwith %}
+                    {% empty %}
+                      <div class="text-muted small js-empty-hint">Keine unzugeordneten Seiten.</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+
+          {% for block in module_blocks %}
+            <div class="card shadow-sm">
+              <div class="card-header bg-body bg-primary-subtle">
+                <div class="d-flex align-items-center justify-content-between">
+                  <button type="button"
+                          class="btn btn-sm btn-link text-decoration-none p-0 fw-semibold text-secondary-emphasis"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#moduleCollapse-{{ block.module.id }}"
+                          aria-expanded="true"
+                          aria-controls="moduleCollapse-{{ block.module.id }}">
+                    {{ block.module.name }}
+                    <i class="fa-solid fa-chevron-down ms-1 small opacity-75"></i>
+                  </button>
+                  <span class="badge text-bg-secondary js-page-count">{{ block.links|length }}</span>
+                </div>
+              </div>
+              <div id="moduleCollapse-{{ block.module.id }}" class="collapse show">
+                <div class="card-body">
+                  <div class="vstack gap-2 js-page-list"
+                      data-module-id="{{ block.module.id }}">
+                    {% for link in block.links %}
+                      {% with p=link.page %}
                       <div class="card shadow-sm page-card" data-page-id="{{ p.id }}">
                         <div class="card-body d-flex align-items-start justify-content-between gap-3">
+
                           <div class="d-flex align-items-start gap-2">
                             {% if perms.accounts.can_edit_slc and not active_wave.is_locked %}
                               <span class="js-drag-handle text-muted"
@@ -257,25 +391,25 @@
                                     data-bs-title="Seitenangaben unvollständig"></i>
                                 {% endif %}
                               </div>
-                              {% with cnt=page_question_counts|get_item:p.id %}
-                                {% if not cnt %}
-                                  <div class="text-muted small fst-italic">
-                                    Keine Fragen auf dieser Seite
-                                  </div>
-                                {% else %}
-                                  {% with snippets=page_question_snippets|get_item:p.id %}
-                                    {% if snippets %}
-                                      <div class="text-muted small mt-1 d-flex flex-column gap-1">
-                                        {% for s in snippets %}
-                                          <div>
-                                            {{ s }}{% if s|length == 100 %}…{% endif %}
-                                          </div>
-                                        {% endfor %}
-                                      </div>
-                                    {% endif %}
-                                  {% endwith %}
-                                {% endif %}
-                              {% endwith %}
+                                {% with cnt=page_question_counts|get_item:p.id %}
+                                  {% if not cnt %}
+                                    <div class="text-muted small fst-italic">
+                                      Keine Fragen auf dieser Seite
+                                    </div>
+                                  {% else %}
+                                    {% with snippets=page_question_snippets|get_item:p.id %}
+                                      {% if snippets %}
+                                        <div class="text-muted small mt-1 d-flex flex-column gap-1">
+                                          {% for s in snippets %}
+                                            <div>
+                                              {{ s }}{% if s|length == 100 %}…{% endif %}
+                                            </div>
+                                          {% endfor %}
+                                        </div>
+                                      {% endif %}
+                                    {% endwith %}
+                                  {% endif %}
+                                {% endwith %}
                             </div>
                           </div>
 
@@ -292,6 +426,7 @@
                                 href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
                                 <i class="fa-solid fa-pen-to-square"></i>
                               </a>
+
                               <button type="button"
                                       class="btn btn-link px-2 icon-action js-page-copy-open"
                                       title="Seite in andere Befragung kopieren"
@@ -324,130 +459,14 @@
                               {% endif %}
                             {% endif %}
                           </div>
+
                         </div>
                       </div>
-                    {% endwith %}
-                  {% empty %}
-                    <div class="text-muted small js-empty-hint">Keine unzugeordneten Seiten.</div>
-                  {% endfor %}
-                </div>
-              </div>
-            </div>
-          {% endif %}
-
-
-          {% for block in module_blocks %}
-            <div class="card shadow-sm">
-              <div class="card-header bg-body bg-primary-subtle">
-                <div class="d-flex align-items-center justify-content-between">
-                  <div class="fw-semibold">{{ block.module.name }}</div>
-                  <span class="badge text-bg-secondary js-page-count">{{ block.links|length }}</span>
-                </div>
-              </div>
-
-              <div class="card-body">
-                <div class="vstack gap-2 js-page-list"
-                    data-module-id="{{ block.module.id }}">
-                  {% for link in block.links %}
-                    {% with p=link.page %}
-                    <div class="card shadow-sm page-card" data-page-id="{{ p.id }}">
-                      <div class="card-body d-flex align-items-start justify-content-between gap-3">
-
-                        <div class="d-flex align-items-start gap-2">
-                          {% if perms.accounts.can_edit_slc and not active_wave.is_locked %}
-                            <span class="js-drag-handle text-muted"
-                                  role="button"
-                                  title="Reihenfolge ändern"
-                                  style="cursor: grab;">
-                              <i class="fa-solid fa-up-down"></i>
-                            </span>
-                          {% endif %}
-
-                          <div class="min-w-0">
-                            <div class="fw-semibold d-flex align-items-center gap-2">
-                              <span class="text-break">{{ p.pagename }}</span>
-
-                              {% if perms.accounts.can_edit_slc and p.is_incomplete %}
-                                <i class="fa-solid fa-circle-exclamation text-danger"
-                                  data-bs-toggle="tooltip"
-                                  data-bs-title="Seitenangaben unvollständig"></i>
-                              {% endif %}
-                            </div>
-                              {% with cnt=page_question_counts|get_item:p.id %}
-                                {% if not cnt %}
-                                  <div class="text-muted small fst-italic">
-                                    Keine Fragen auf dieser Seite
-                                  </div>
-                                {% else %}
-                                  {% with snippets=page_question_snippets|get_item:p.id %}
-                                    {% if snippets %}
-                                      <div class="text-muted small mt-1 d-flex flex-column gap-1">
-                                        {% for s in snippets %}
-                                          <div>
-                                            {{ s }}{% if s|length == 100 %}…{% endif %}
-                                          </div>
-                                        {% endfor %}
-                                      </div>
-                                    {% endif %}
-                                  {% endwith %}
-                                {% endif %}
-                              {% endwith %}
-                          </div>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                          <a class="btn btn-link px-2 icon-action"
-                            title="Details anzeigen"
-                            href="{% url 'pages:page-detail' p.id %}?wave={{ active_wave.id }}">
-                            <i class="fa-regular fa-eye"></i>
-                          </a>
-
-                          {% if perms.accounts.can_edit_slc %}
-                            <a class="btn btn-link px-2 icon-action"
-                              title="Seite bearbeiten"
-                              href="{% url 'pages:page-edit' p.id %}?wave={{ active_wave.id }}">
-                              <i class="fa-solid fa-pen-to-square"></i>
-                            </a>
-
-                            <button type="button"
-                                    class="btn btn-link px-2 icon-action js-page-copy-open"
-                                    title="Seite in andere Befragung kopieren"
-                                    data-page-id="{{ p.id }}"
-                                    data-default-name="{{ p.pagename|escape }}"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#copyPageModal">
-                              <i class="fa-solid fa-copy"></i>
-                            </button>
-
-                            {% if delete_blocked_global %}
-                              <span class="d-inline-block"
-                                    tabindex="0"
-                                    data-bs-toggle="tooltip"
-                                    data-bs-title="Diese Seite kann nicht gelöscht werden, weil sie mit einer abgeschlossenen Befragung verknüpft ist.">
-                                <button type="button" class="btn btn-link px-2 icon-action--danger" disabled>
-                                  <i class="fa-solid fa-trash"></i>
-                                </button>
-                              </span>
-                            {% else %}
-                              <button type="button"
-                                      class="btn btn-link px-2 icon-action--danger js-open-delete-modal"
-                                      title="Seite löschen"
-                                      data-bs-toggle="modal"
-                                      data-bs-target="#deletePageModal"
-                                      data-page-name="{{ p.pagename|escape}}"
-                                      data-delete-action="{% url 'pages:page-delete' p.id %}?wave={{ active_wave.id }}">
-                                <i class="fa-solid fa-trash"></i>
-                              </button>
-                            {% endif %}
-                          {% endif %}
-                        </div>
-
-                      </div>
-                    </div>
-                    {% endwith %}
-                  {% empty %}
-                    <div class="text-muted small js-empty-hint">Keine Seiten in diesem Modul.</div>
-                  {% endfor %}
+                      {% endwith %}
+                    {% empty %}
+                      <div class="text-muted small js-empty-hint">Keine Seiten in diesem Modul.</div>
+                    {% endfor %}
+                  </div>
                 </div>
               </div>
             </div>

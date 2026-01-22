@@ -2,6 +2,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const wrapper = document.getElementById("pageListsWrapper");
   if (!wrapper) return;
 
+  // ----------------------------
+  // 1) Collapse state restore/persist (läuft IMMER, unabhängig von canDnd)
+  // ----------------------------
+  (function initModuleCollapsePersistence() {
+    const waveId = wrapper.dataset.waveId || "wave";
+    const keyPrefix = `slc.moduleCollapse.${waveId}.`;
+
+    document.querySelectorAll('[id^="moduleCollapse-"]').forEach((el) => {
+      const key = keyPrefix + el.id;
+
+      // Restore (nur Klassen setzen -> kein Flackern durch toggle)
+      const saved = localStorage.getItem(key);
+      if (saved === "hide") el.classList.remove("show");
+      else if (saved === "show") el.classList.add("show");
+
+      // Persist
+      el.addEventListener("shown.bs.collapse", () => localStorage.setItem(key, "show"));
+      el.addEventListener("hidden.bs.collapse", () => localStorage.setItem(key, "hide"));
+    });
+  })();
+
+  // ----------------------------
+  // 2) Alles ab hier nur für Drag&Drop
+  // ----------------------------
   const canDnd = wrapper.dataset.canDnd === "1";
   if (!canDnd) return;
 
@@ -19,7 +43,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // UI refresh (Badges, Empty hints)
   function refreshModuleUI() {
-    // nur innerhalb wrapper arbeiten
     wrapper.querySelectorAll(".js-page-list").forEach((listEl) => {
       const cardEl = listEl.closest(".card");
       if (!cardEl) return;
@@ -28,12 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const cards = listEl.querySelectorAll(".page-card");
       const count = cards.length;
 
-      // Badge aktualisieren
       if (countEl) countEl.textContent = String(count);
 
-      // Empty hint setzen/entfernen
       const existingHint = listEl.querySelector(".js-empty-hint");
-
       if (count === 0) {
         if (!existingHint) {
           const div = document.createElement("div");
@@ -52,20 +72,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-
   function buildPayload() {
-    const containers = lists.map(list => {
+    const containers = lists.map((list) => {
       const raw = (list.dataset.moduleId || "").trim();
       const moduleId = raw ? parseInt(raw, 10) : null;
 
       const pageIds = Array.from(list.querySelectorAll(".page-card"))
-        .map(el => parseInt(el.dataset.pageId, 10));
+        .map((el) => parseInt(el.dataset.pageId, 10));
 
       return { module_id: moduleId, page_ids: pageIds };
     });
     return { containers };
   }
-
 
   async function save() {
     const payload = buildPayload();
@@ -92,26 +110,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initial UI refresh
   refreshModuleUI();
 
-  lists.forEach(list => {
+  lists.forEach((list) => {
     new Sortable(list, {
       animation: 150,
       handle: ".js-drag-handle",
       draggable: ".page-card",
       group: "pages",
 
-      onAdd: () => {
-        refreshModuleUI();
-      },
-
-      onRemove: () => {
-        refreshModuleUI();
-      },
+      onAdd: () => refreshModuleUI(),
+      onRemove: () => refreshModuleUI(),
 
       onEnd: () => {
         refreshModuleUI();
         save();
       },
-      
     });
   });
 });
