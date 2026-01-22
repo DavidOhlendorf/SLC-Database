@@ -1,3 +1,4 @@
+from collections import defaultdict
 from itertools import groupby
 import json
 
@@ -8,6 +9,7 @@ from django.forms import inlineformset_factory
 from django.http import Http404, JsonResponse
 from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
+from django.db.models.functions import Substr
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
@@ -172,7 +174,24 @@ class SurveyDetailView(TemplateView):
             .values("wave_page_id")
             .annotate(cnt=Count("id"))
         )
+
+        # Dictionaries für Seitenkontext: Anzahl Fragen + Anfang Fragetext
         page_question_counts = {row["wave_page_id"]: row["cnt"] for row in counts_qs}
+        page_question_snippets = defaultdict(list)
+
+        snippets_qs = (
+            WavePageQuestion.objects
+            .filter(wave_page_id__in=page_ids)
+            .filter(question_id__in=wave_question_ids)
+            .annotate(snippet=Substr("question__questiontext", 1, 100))
+            .values_list("wave_page_id", "snippet")
+            .order_by("wave_page_id", "id")
+        )
+
+        for pid, snip in snippets_qs:
+            snip = (snip or "").replace("\n", " ").strip()
+            if snip:
+                page_question_snippets[pid].append(snip)
 
         # Gruppierung fürs Template: Liste von Blöcken 
         module_blocks = [{"module": m, "links": []} for m in modules_qs]
@@ -189,6 +208,7 @@ class SurveyDetailView(TemplateView):
         ctx["module_blocks"] = module_blocks
         ctx["unassigned_links"] = unassigned_links
         ctx["page_question_counts"] = page_question_counts
+        ctx["page_question_snippets"] = page_question_snippets
         ctx["delete_blocked_global"] = bool(active_wave and active_wave.is_locked)
         return ctx
     

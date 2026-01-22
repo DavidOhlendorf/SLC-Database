@@ -257,12 +257,25 @@
                                     data-bs-title="Seitenangaben unvollständig"></i>
                                 {% endif %}
                               </div>
-
-                              <div class="text-muted small">
-                                {% with page_question_counts|get_item:p.id as cnt %}
-                                  {% if cnt == 1 %}1 Frage{% else %}{{ cnt|default:0 }} Fragen{% endif %}
-                                {% endwith %}
-                              </div>
+                              {% with cnt=page_question_counts|get_item:p.id %}
+                                {% if not cnt %}
+                                  <div class="text-muted small fst-italic">
+                                    Keine Fragen auf dieser Seite
+                                  </div>
+                                {% else %}
+                                  {% with snippets=page_question_snippets|get_item:p.id %}
+                                    {% if snippets %}
+                                      <div class="text-muted small mt-1 d-flex flex-column gap-1">
+                                        {% for s in snippets %}
+                                          <div>
+                                            {{ s }}{% if s|length == 100 %}…{% endif %}
+                                          </div>
+                                        {% endfor %}
+                                      </div>
+                                    {% endif %}
+                                  {% endwith %}
+                                {% endif %}
+                              {% endwith %}
                             </div>
                           </div>
 
@@ -360,12 +373,25 @@
                                   data-bs-title="Seitenangaben unvollständig"></i>
                               {% endif %}
                             </div>
-
-                            <div class="text-muted small">
-                              {% with page_question_counts|get_item:p.id as cnt %}
-                                {% if cnt == 1 %}1 Frage{% else %}{{ cnt|default:0 }} Fragen{% endif %}
+                              {% with cnt=page_question_counts|get_item:p.id %}
+                                {% if not cnt %}
+                                  <div class="text-muted small fst-italic">
+                                    Keine Fragen auf dieser Seite
+                                  </div>
+                                {% else %}
+                                  {% with snippets=page_question_snippets|get_item:p.id %}
+                                    {% if snippets %}
+                                      <div class="text-muted small mt-1 d-flex flex-column gap-1">
+                                        {% for s in snippets %}
+                                          <div>
+                                            {{ s }}{% if s|length == 100 %}…{% endif %}
+                                          </div>
+                                        {% endfor %}
+                                      </div>
+                                    {% endif %}
+                                  {% endwith %}
+                                {% endif %}
                               {% endwith %}
-                            </div>
                           </div>
                         </div>
 
