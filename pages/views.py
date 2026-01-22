@@ -654,33 +654,37 @@ class WavePagePVView(EditorRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         page = self.object
 
+        # active_wave 
         wave_id = self.request.GET.get("wave")
-        active_wave = get_object_or_404(Wave, pk=wave_id) if wave_id else None
+        active_wave = None
+        if wave_id:
+            try:
+                active_wave = Wave.objects.get(pk=int(wave_id))
+            except (ValueError, Wave.DoesNotExist):
+                active_wave = None
+
 
         # Fragen der Seite
         links = page.page_questions.select_related("question").all()
         questions = [l.question for l in links]
         q_ids = [q.id for q in questions]
 
-        # Variablen der Fragen
+        # Variablen der Fragen, jede Frage bekommt einen Key (auch wenn leer)
         vars_by_qid = {q.id: [] for q in questions}
 
         if q_ids:
-            qvw = (QuestionVariableWave.objects.filter(question_id__in=q_ids))
+            qvw_qs = QuestionVariableWave.objects.filter(question_id__in=q_ids)
+    
             if active_wave:
-                qvw = qvw.filter(wave=active_wave)
+                qvw_qs = qvw_qs.filter(wave=active_wave)
          
-        rows = (
-            qvw.values_list("question_id", "variable__varname")
-            .distinct()
-            .order_by("question_id", "variable__varname")
-        )
-
-        tmp = defaultdict(list)
-        for qid, varname in rows:
-            tmp[qid].append(varname)
-
-        vars_by_qid = dict(tmp)
+      
+            for qid, varname in (
+                qvw_qs.values_list("question_id", "variable__varname")
+                .distinct()
+                .order_by("question_id", "variable__varname")
+            ):
+                vars_by_qid[qid].append(varname)
 
         pv_text = build_pv(PVContext(
             page=page,
