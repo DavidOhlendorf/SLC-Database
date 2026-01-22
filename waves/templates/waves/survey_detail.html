@@ -211,7 +211,9 @@
       </div>
     {% endfor %}
 
-    
+
+
+  <!-- Seiten-Anzeige für eine einzelne Befragung -->  
   {% else %}
     <div class="mb-3">
       {% if module_blocks or unassigned_links %}
@@ -226,7 +228,7 @@
               <div class="card-header bg-body bg-primary-subtle">
                 <div class="d-flex align-items-center justify-content-between">
                   <div class="fw-semibold">{{ block.module.name }}</div>
-                  <span class="badge text-bg-secondary">{{ block.links|length }}</span>
+                  <span class="badge text-bg-secondary js-page-count">{{ block.links|length }}</span>
                 </div>
               </div>
 
@@ -318,7 +320,7 @@
                     </div>
                     {% endwith %}
                   {% empty %}
-                    <div class="text-muted small">Keine Seiten in diesem Modul.</div>
+                    <div class="text-muted small js-empty-hint">Keine Seiten in diesem Modul.</div>
                   {% endfor %}
                 </div>
               </div>
@@ -329,7 +331,7 @@
             <div class="card-header bg-body bg-secondary-subtle">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-semibold text-muted">Ohne Modul</div>
-                <span class="badge text-bg-secondary">{{ unassigned_links|length }}</span>
+                <span class="badge text-bg-secondary js-page-count">{{ unassigned_links|length }}</span>
               </div>
             </div>
             <div class="card-body">
@@ -416,7 +418,7 @@
                     </div>
                   {% endwith %}
                 {% empty %}
-                  <div class="text-muted small">Keine unzugeordneten Seiten.</div>
+                  <div class="text-muted small js-empty-hint">Keine unzugeordneten Seiten.</div>
                 {% endfor %}
               </div>
             </div>
