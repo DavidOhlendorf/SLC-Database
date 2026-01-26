@@ -221,6 +221,7 @@
             id="pageListsWrapper"
             data-wave-id="{{ active_wave.id }}"
             data-reorder-url="{% url 'waves:wave_pages_reorder' active_wave.id %}"
+            data-csrf-token="{{ csrf_token }}"
             data-can-dnd="{% if perms.accounts.can_edit_slc and not active_wave.is_locked %}1{% else %}0{% endif %}">
 
           {% if unassigned_links %}  
