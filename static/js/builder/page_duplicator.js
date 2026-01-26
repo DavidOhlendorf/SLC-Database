@@ -77,7 +77,8 @@
     }
 
     function getCSRFToken() {
-        const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        const wrap = document.getElementById("page-copy-csrf");
+        const el = wrap?.querySelector('input[name="csrfmiddlewaretoken"]');
         return el ? el.value : "";
     }
 
@@ -229,6 +230,7 @@
         try {
         const r = await fetch(url, {
             method: "POST",
+            credentials: "same-origin",
             body: form,
             headers: {
             "X-CSRFToken": getCSRFToken(),
