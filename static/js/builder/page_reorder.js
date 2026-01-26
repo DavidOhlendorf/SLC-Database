@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(";").shift();
   }
-  const csrftoken = getCookie("csrftoken");
+  const csrftoken = wrapper.dataset.csrfToken; 
 
   const lists = Array.from(wrapper.querySelectorAll(".js-page-list"));
   if (!lists.length) return;
@@ -91,9 +91,11 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const resp = await fetch(reorderUrl, {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": csrftoken
+          "X-CSRFToken": csrftoken,
+          "X-Requested-With": "XMLHttpRequest"
         },
         body: JSON.stringify(payload)
       });
