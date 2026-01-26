@@ -95,11 +95,14 @@ class Question(models.Model):
         OPEN = "open", "Offene Frage"
         SINGLE_VERTICAL = "single_vertical", "Einfachauswahl vertikal"
         SINGLE_HORIZONTAL = "single_horizontal", "Einfachauswahl horizontal"
+        SINGLE_DROPDOWN = "single_dropdown", "Einfachauswahl Dropdown"
         MULTI_VERTICAL = "multi_vertical", "Mehrfachauswahl vertikal"
         MULTI_HORIZONTAL = "multi_horizontal", "Mehrfachauswahl horizontal"
-        MATRIX_SINGLE = "matrix_single", "Einfachauswahl-Matrix"
+        MATRIX_SINGLE_VERTICAL = "matrix_single_vertical", "Einfachauswahl-Matrix vertikal"
+        MATRIX_SINGLE_HORIZONTAL = "matrix_single_horizontal", "Einfachauswahl-Matrix horizontal"
         MATRIX_MULTI = "matrix_multi", "Mehrfachauswahl-Matrix"
         SEMANTIC_DIFF = "semantic_diff", "Semantisches Differenzial"
+        MATRIX_DOUBLE = "matrix_double", "Doppel-Matrix"
         OTHER = "other", "Sonstiger Fragetyp / Mischtypen"
 
     # Fragetyp (qt)
