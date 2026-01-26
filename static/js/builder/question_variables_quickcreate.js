@@ -14,16 +14,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-
+ 
 
 (function () {
 
     // Hilfsfunktion, um den CSRF-Token aus den Cookies zu lesen
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(";").shift();
+    function getCSRFToken() {
+        return document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
     }
+
 
     const modalEl = document.getElementById("quickCreateVariableModal");
     if (!modalEl) return;
@@ -179,8 +178,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 method: "POST",
                 body: formData,
                 headers: {
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": getCSRFToken(),
                 },
+                credentials: "same-origin",
             });
 
             const data = await res.json();
