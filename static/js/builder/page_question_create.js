@@ -1,10 +1,10 @@
 // JavaScript für das Anlegen von Fragen via Modal in der Seiten-Bearbeitung
 
 (function () {
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
+  function getCSRFTokenFromModal() {
+    const form = modalEl.querySelector('form');
+    const el = form?.querySelector('input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : "";
   }
 
   const modalEl = document.getElementById("qcModal");
@@ -68,9 +68,11 @@
     try {
       const resp = await fetch(qcPostUrl, {
         method: "POST",
-        headers: { "X-CSRFToken": getCookie("csrftoken") },
-        body: fd,
+      credentials: "same-origin",
+      headers: { "X-CSRFToken": getCSRFTokenFromModal() },
+      body: fd,
       });
+
 
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) {
