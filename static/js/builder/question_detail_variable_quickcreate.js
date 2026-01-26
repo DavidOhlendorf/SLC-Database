@@ -2,11 +2,11 @@
 // JS für die Schnellerstellung von Variablen aus der Question-Detail-Page heraus
 
 (function () {
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
+
+  function getCSRFToken() {
+    return document.getElementById("qcq-csrf")?.value || "";
   }
+
 
   const modalEl = document.getElementById("qcVarForQuestionModal");
   if (!modalEl || typeof bootstrap === "undefined") return;
@@ -97,8 +97,9 @@
 
       const res = await fetch(createUrl, {
         method: "POST",
+        credentials: "same-origin",
         body: fd,
-        headers: { "X-CSRFToken": getCookie("csrftoken") },
+        headers: { "X-CSRFToken": getCSRFToken() },
       });
 
       const data = await res.json();

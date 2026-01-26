@@ -11,15 +11,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const searchUrl = container.dataset.searchUrl;
   const createUrl = container.dataset.createUrl;
 
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      return parts.pop().split(";").shift();
-    }
+  function getCSRFToken() {
+    return document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
   }
 
-  const csrftoken = getCookie("csrftoken");
 
   new TomSelect(selectEl, {
     plugins: ["remove_button"],
@@ -68,7 +63,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       fetch(createUrl, {
         method: "POST",
-        headers: { "X-CSRFToken": csrftoken },
+        credentials: "same-origin",
+        headers: { "X-CSRFToken": getCSRFToken() },
         body: formData
       })
       .then(r => r.json().then(data => ({ ok: r.ok, data })))
