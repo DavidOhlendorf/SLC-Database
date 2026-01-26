@@ -31,12 +31,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const reorderUrl = wrapper.dataset.reorderUrl;
 
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
+  const csrftoken =
+    wrapper.dataset.csrfToken ||
+    document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
+    "";
+
+  if (!csrftoken) {
+    console.error("CSRF token missing");
+    return;
   }
-  const csrftoken = wrapper.dataset.csrfToken; 
 
   const lists = Array.from(wrapper.querySelectorAll(".js-page-list"));
   if (!lists.length) return;
