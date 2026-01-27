@@ -103,6 +103,7 @@ class Question(models.Model):
         MATRIX_MULTI = "matrix_multi", "Mehrfachauswahl-Matrix"
         SEMANTIC_DIFF = "semantic_diff", "Semantisches Differenzial"
         MATRIX_DOUBLE = "matrix_double", "Doppel-Matrix"
+        DATEPICKER = "datepicker", "Datepicker"
         OTHER = "other", "Sonstiger Fragetyp / Mischtypen"
 
     # Fragetyp (qt)
