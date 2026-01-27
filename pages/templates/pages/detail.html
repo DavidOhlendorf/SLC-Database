@@ -242,7 +242,7 @@
           </h2>
           <div id="transitionControlCollapse-{{ page.id }}" class="accordion-collapse collapse show">
             <div class="accordion-body">
-                <p>{{ page.transition_control }}</p>
+                {{ page.transition_control|linebreaks }}
             </div>
           </div>
         </div>
@@ -306,42 +306,42 @@
                 <!-- Korrekturhinweise (kh) -->
                 {% if page.correction_notes %}
                   <div class="list-group-item py-3">
-                    Korrekturhinweise: {{ page.correction_notes }}
+                    <p>Korrekturhinweise:</p> {{ page.correction_notes|linebreaks }}
                   </div>
                 {% endif %}
 
                 <!-- Forcierungsvariablen (fv) -->
                 {% if page.forcing_variables %}
                   <div class="list-group-item py-3">
-                    Forcierungsvariablen: {{ page.forcing_variables }}
+                    <p>Forcierungsvariablen:</p> {{ page.forcing_variables|linebreaks }}
                   </div>
                 {% endif %}
                 
                 <!-- Hilfsvariablen (hv) -->
                 {% if page.helper_variables %}
                   <div class="list-group-item py-3">
-                    Hilfsvariablen: {{ page.helper_variables }}
+                    <p>Hilfsvariablen:</p> {{ page.helper_variables|linebreaks }}
                   </div>
                 {% endif %}
 
                 <!-- Steuerungsvariablen (sv) -->
                 {% if page.control_variables %}
                   <div class="list-group-item py-3">
-                    Steuerungsvariablen: {{ page.control_variables }}
+                    <p>Steuerungsvariablen:</p> {{ page.control_variables|linebreaks }}
                   </div>
                 {% endif %}
 
                 <!-- Formatierung (fo) -->
                 {% if page.formatting %}
                   <div class="list-group-item py-3">
-                    Formatierung: {{ page.formatting }}
+                    <p>Formatierung:</p> {{ page.formatting|linebreaks }}
                   </div>
                 {% endif %}
 
                 <!-- Programmierhinweise (ph) -->
                 {% if page.page_programming_notes %}
                   <div class="list-group-item py-3">
-                    Programmierhinweise: {{ page.page_programming_notes }}
+                    <p>Programmierhinweise:</p> {{ page.page_programming_notes|linebreaks }}
                   </div>
                 {% endif %}
               </div>
