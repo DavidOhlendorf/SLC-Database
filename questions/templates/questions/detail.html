@@ -157,7 +157,7 @@
 
             {% if question.instruction %}
               <p class="mb-1 mt-4"><strong>Instruktion:</strong></p>
-              <p>{{ question.instruction }}</p>
+              <div class="fst-italic">{{ question.instruction|linebreaks }}</div>
             {% endif %}
           </div>
         </div>
