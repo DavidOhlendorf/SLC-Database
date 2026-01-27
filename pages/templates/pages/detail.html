@@ -292,14 +292,14 @@
                 <!-- visibility conditions (vc)-->
                 {% if page.visibility_conditions %}
                   <div class="list-group-item py-3">
-                    Einblendbedingungen: {{ page.visibility_conditions }}
+                    <p>Einblendbedingungen:</p> {{ page.visibility_conditions|linebreaks }}
                   </div>
                 {% endif %}
 
                 <!-- answer validation (av)-->
                  {% if page.answer_validations %}
                   <div class="list-group-item py-3">
-                    Antwortvalidierung: {{ page.answer_validations }}
+                    <p>Antwortvalidierung:</p> {{ page.answer_validations|linebreaks }}
                   </div>
                 {% endif %}
 
