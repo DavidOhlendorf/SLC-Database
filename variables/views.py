@@ -289,7 +289,7 @@ class VariableQuickCreateView(View):
     def post(self, request, *args, **kwargs):
         varname = (request.POST.get("varname") or "").strip()
 
-        if len(varname) <2:
+        if len(varname) < 2:
             return JsonResponse({"ok": False, "error": "Der Variablenname muss mindestens 2 Zeichen haben."}, status=400)
         
         if Variable.objects.filter(varname__iexact=varname).exists():
