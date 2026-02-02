@@ -19,7 +19,7 @@ def loginpage(request):
     next_url = request.GET.get("next") or request.POST.get("next") or ""
 
     # Falls next auf die Logout-URL zeigt wird auf die Startseite umgeleitet
-    logout_url = reverse("accounts:logout")
+    logout_url = reverse("logout")
     if next_url.startswith(logout_url):
         next_url = ""
 
