@@ -172,6 +172,7 @@ class QuestionDetail(DetailView):
             "active_wave": active_wave,
             "variables": variables,
             "question_variable_wave_links": triad_qs,
+            "question_is_locked": question.waves.filter(is_locked=True).exists(),
             "pages": pages,
             "active_page": active_page, 
             "screenshots": screenshots,
@@ -384,6 +385,23 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
 
 
     # ---- View-Methoden -------------------------------------------
+    def dispatch(self, request, *args, **kwargs):
+
+        self.object = self.get_object()
+
+        # Harte Sperre: sobald Frage in irgendeiner gesperrten Befragung vorkommt → keine Bearbeitung
+        if self.object.waves.filter(is_locked=True).exists():
+            messages.error(
+                request,
+                "Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden."
+            )
+
+            # Fallback: Frage-Detailansicht (oder get_absolute_url, falls vorhanden)
+            return redirect(reverse("questions:question_detail", kwargs={"pk": self.object.pk}))
+
+        return super().dispatch(request, *args, **kwargs)
+    
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
@@ -418,7 +436,6 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return ctx
 
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
         page = self._get_page_from_request(self.object)
         if page is None:
             messages.error(
@@ -471,7 +488,6 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return self._preserve_querystring(url)
 
     def get(self, request, *args, **kwargs):
-        self.object = self.get_object()
         page = self._get_page_from_request(self.object)
 
         # Orphan: keine Seitenverknüpfung → Attach-View
