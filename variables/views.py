@@ -90,6 +90,15 @@ class VariableDetail(DetailView):
                 seen_wids.add(w.id)
                 used_waves.append(w)
 
+        # Sperre prüfen
+        locked_via_triad = QuestionVariableWave.objects.filter(
+            variable=v,
+            wave__is_locked=True,
+        ).exists()
+
+        locked_via_m2m = v.waves.filter(is_locked=True).exists()
+
+
 
         # Fragen: vorbereitet fürs Template
         ctx["triad_links"] = links
@@ -98,6 +107,7 @@ class VariableDetail(DetailView):
         ctx["single_question"] = questions[0] if len(questions) == 1 else None
         ctx["questions_preview"] = questions[:5]
         ctx["questions_more_count"] = max(len(questions) - 5, 0)
+        ctx["variable_is_locked"] = locked_via_triad or locked_via_m2m
 
         ctx["waves_by_question_id"] = waves_by_qid
         ctx["used_waves"] = used_waves  # Waves, in denen die Variable irgendwo genutzt wird
@@ -132,6 +142,27 @@ class VariableUpdateView(EditorRequiredMixin, UpdateView):
     form_class = VariableForm
     template_name = "variables/variable_form.html"
     context_object_name = "variable"
+
+
+    # dispatch-Methode überschreiben, um Sperre bei locked Waves zu implementieren
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        locked_via_triad = QuestionVariableWave.objects.filter(
+            variable=self.object,
+            wave__is_locked=True,
+        ).exists()
+
+        locked_via_m2m = self.object.waves.filter(is_locked=True).exists()
+
+        if locked_via_triad or locked_via_m2m:
+            messages.error(
+                request,
+                "Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden."
+            )
+            return redirect(reverse("variables:variable_detail", kwargs={"pk": self.object.pk}))
+
+        return super().dispatch(request, *args, **kwargs)
 
     # Erweiterung des Formulars um Daten-Attribute für die JS-Validierung
     def get_form(self, form_class=None):

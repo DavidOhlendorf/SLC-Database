@@ -24,13 +24,29 @@
         </h1>
       </div>
       <div class="flex-shrink-0">
+
+        <!-- Edit-Button -->
         {% if perms.accounts.can_edit_slc %}
+          {% if variable_is_locked %}
+            <span class="d-inline-block"
+                  tabindex="0"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+              <button type="button"
+                      class="btn btn-link btn-lg icon-action p-0 text-muted"
+                      disabled>
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            </span>
+          {% else %}
             <a class="btn btn-link btn-lg icon-action p-0"
               title="Variable bearbeiten"
               href="{% url 'variables:variable_edit' variable.pk %}?back={{ request.get_full_path|urlencode }}">
               <i class="fa-solid fa-pen-to-square"></i>
             </a>
+          {% endif %}
         {% endif %}
+
       </div>
     </div>
   </header>

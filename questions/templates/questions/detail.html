@@ -371,11 +371,24 @@
                         <i class="fa-regular fa-eye"></i>
                       </a>
                       {% if perms.accounts.can_edit_slc %}
-                        <a class="btn btn-link px-2 icon-action"
-                          title="Variable bearbeiten"
-                          href="{% url 'variables:variable_edit' v.id %}?back={{ request.get_full_path|urlencode }}">
-                          <i class="fa-solid fa-pen-to-square"></i>
-                        </a>
+                        {% if v.id in locked_variable_ids %}
+                          <span class="d-inline-block"
+                                tabindex="0"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+                            <button type="button"
+                                    class="btn btn-link px-2 icon-action text-muted"
+                                    disabled>
+                              <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                          </span>
+                        {% else %}
+                          <a class="btn btn-link px-2 icon-action"
+                            title="Variable bearbeiten"
+                            href="{% url 'variables:variable_edit' v.id %}?back={{ request.get_full_path|urlencode }}">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </a>
+                        {% endif %}
                       {% endif %}
                     </div>
                   </div>

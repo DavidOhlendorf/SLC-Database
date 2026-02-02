@@ -123,6 +123,7 @@ class QuestionDetail(DetailView):
         # Defaults
         triad_qs = QuestionVariableWave.objects.none()
         variables = Variable.objects.none()
+        locked_variable_ids = set()
         pages = []
         active_page = None
         screenshots = []
@@ -145,6 +146,25 @@ class QuestionDetail(DetailView):
             # Vollständigkeitsinfo ran hängen (nur für Editoren erforderlich)
             if self.can_edit:
                 variables = variables.with_completeness()
+
+            # Variablen, die in der aktiven Wave gesperrt sind
+            var_ids = list(variables.values_list("id", flat=True))
+
+            if var_ids:
+                locked_variable_ids = set(
+                    QuestionVariableWave.objects.filter(
+                        variable_id__in=var_ids,
+                        wave__is_locked=True,
+                    ).values_list("variable_id", flat=True)
+                )
+
+                # auch über M2M
+                locked_variable_ids |= set(
+                    Variable.objects.filter(
+                        id__in=var_ids,
+                        waves__is_locked=True,
+                    ).values_list("id", flat=True)
+                )
 
             # Seite(n) der Frage der aktiven Wave
             page_param = self.request.GET.get("page")
@@ -171,6 +191,7 @@ class QuestionDetail(DetailView):
             "waves": waves,
             "active_wave": active_wave,
             "variables": variables,
+            "locked_variable_ids": locked_variable_ids,
             "question_variable_wave_links": triad_qs,
             "question_is_locked": question.waves.filter(is_locked=True).exists(),
             "pages": pages,
