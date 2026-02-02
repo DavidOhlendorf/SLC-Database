@@ -62,7 +62,7 @@ class CustomUserAdmin(BaseUserAdmin):
                         email_template_name="accounts/password_invite_email.txt",  
                         subject_template_name="accounts/password_invite_subject.txt", 
 
-                    ),
+                    )
 
                     self.message_user(
                         request,
