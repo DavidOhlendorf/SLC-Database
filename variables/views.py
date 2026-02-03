@@ -14,6 +14,8 @@ from django.views.generic import DetailView
 from django.views.generic.edit import UpdateView
 from django.views.decorators.http import require_GET, require_POST
 
+from waves.models import WaveQuestion
+
 from .models import Variable, QuestionVariableWave
 from questions.models import Question
 from django.db.models import Prefetch, Q
@@ -68,13 +70,24 @@ class VariableDetail(DetailView):
         links = list(v.question_variable_wave_links.all())
 
         # --- Frage-IDs aus den Triad-Links ---
-        question_ids = {link.question_id for link in links}  # set => Reihenfolge egal
+        question_ids = {link.question_id for link in links}
 
         questions_qs = Question.objects.filter(id__in=question_ids).order_by("id")
         if self.can_edit:
             questions_qs = questions_qs.with_completeness()
 
         questions = list(questions_qs)
+
+        # --- Gesperrte Fragen-IDs ---
+        locked_question_ids = set()
+        if self.can_edit and question_ids:
+            locked_question_ids = set(
+                WaveQuestion.objects.filter(
+                    question_id__in=question_ids,
+                    wave__is_locked=True,
+                ).values_list("question_id", flat=True)
+            )
+
 
         # Mapping: Frage -> Waves, in denen die Variable bei dieser Frage genutzt wird
         waves_by_qid = {}
@@ -103,6 +116,7 @@ class VariableDetail(DetailView):
         # Fragen: vorbereitet fürs Template
         ctx["triad_links"] = links
         ctx["questions"] = questions
+        ctx["locked_question_ids"] = locked_question_ids
         ctx["questions_count"] = len(questions)
         ctx["single_question"] = questions[0] if len(questions) == 1 else None
         ctx["questions_preview"] = questions[:5]

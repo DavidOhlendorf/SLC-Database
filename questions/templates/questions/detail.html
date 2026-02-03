@@ -499,7 +499,7 @@
                       {% if active_wave and w.id == active_wave.id %}checked{% endif %}>
                 <label class="form-check-label" for="qcq-wave-{{ w.id }}">
                   {{ w.cycle }} {{ w.instrument }}
-                  {% if w.is_locked %}<span class="text-muted">(locked)</span>{% endif %}
+                  {% if w.is_locked %}<span class="text-muted">(gesperrt)</span>{% endif %}
                 </label>
               </div>
             {% endfor %}
