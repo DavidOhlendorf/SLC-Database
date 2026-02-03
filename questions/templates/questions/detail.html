@@ -364,8 +364,8 @@
                         </div>
                       {% endif %}
                     </div>
-                    <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
-                      <a class="btn btn-link px-2 icon-action"
+                    <div class="ms-2 d-flex align-items-center gap-1 flex-shrink-0">
+                      <a class="btn btn-link px-1 icon-action"
                         title="Details anzeigen"
                         href="{% url 'variables:variable_detail' v.id %}?back={{ request.get_full_path|urlencode }}">
                         <i class="fa-regular fa-eye"></i>
@@ -377,13 +377,13 @@
                                 data-bs-toggle="tooltip"
                                 data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
                             <button type="button"
-                                    class="btn btn-link px-2 icon-action text-muted"
+                                    class="btn btn-link px-1 icon-action text-muted"
                                     disabled>
                               <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                           </span>
                         {% else %}
-                          <a class="btn btn-link px-2 icon-action"
+                          <a class="btn btn-link px-1 icon-action"
                             title="Variable bearbeiten"
                             href="{% url 'variables:variable_edit' v.id %}?back={{ request.get_full_path|urlencode }}">
                             <i class="fa-solid fa-pen-to-square"></i>
