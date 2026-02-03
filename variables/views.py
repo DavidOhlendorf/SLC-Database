@@ -14,6 +14,8 @@ from django.views.generic import DetailView
 from django.views.generic.edit import UpdateView
 from django.views.decorators.http import require_GET, require_POST
 
+from waves.models import WaveQuestion
+
 from .models import Variable, QuestionVariableWave
 from questions.models import Question
 from django.db.models import Prefetch, Q
@@ -68,13 +70,24 @@ class VariableDetail(DetailView):
         links = list(v.question_variable_wave_links.all())
 
         # --- Frage-IDs aus den Triad-Links ---
-        question_ids = {link.question_id for link in links}  # set => Reihenfolge egal
+        question_ids = {link.question_id for link in links}
 
         questions_qs = Question.objects.filter(id__in=question_ids).order_by("id")
         if self.can_edit:
             questions_qs = questions_qs.with_completeness()
 
         questions = list(questions_qs)
+
+        # --- Gesperrte Fragen-IDs ---
+        locked_question_ids = set()
+        if self.can_edit and question_ids:
+            locked_question_ids = set(
+                WaveQuestion.objects.filter(
+                    question_id__in=question_ids,
+                    wave__is_locked=True,
+                ).values_list("question_id", flat=True)
+            )
+
 
         # Mapping: Frage -> Waves, in denen die Variable bei dieser Frage genutzt wird
         waves_by_qid = {}
@@ -90,14 +103,25 @@ class VariableDetail(DetailView):
                 seen_wids.add(w.id)
                 used_waves.append(w)
 
+        # Sperre prüfen
+        locked_via_triad = QuestionVariableWave.objects.filter(
+            variable=v,
+            wave__is_locked=True,
+        ).exists()
+
+        locked_via_m2m = v.waves.filter(is_locked=True).exists()
+
+
 
         # Fragen: vorbereitet fürs Template
         ctx["triad_links"] = links
         ctx["questions"] = questions
+        ctx["locked_question_ids"] = locked_question_ids
         ctx["questions_count"] = len(questions)
         ctx["single_question"] = questions[0] if len(questions) == 1 else None
         ctx["questions_preview"] = questions[:5]
         ctx["questions_more_count"] = max(len(questions) - 5, 0)
+        ctx["variable_is_locked"] = locked_via_triad or locked_via_m2m
 
         ctx["waves_by_question_id"] = waves_by_qid
         ctx["used_waves"] = used_waves  # Waves, in denen die Variable irgendwo genutzt wird
@@ -132,6 +156,27 @@ class VariableUpdateView(EditorRequiredMixin, UpdateView):
     form_class = VariableForm
     template_name = "variables/variable_form.html"
     context_object_name = "variable"
+
+
+    # dispatch-Methode überschreiben, um Sperre bei locked Waves zu implementieren
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        locked_via_triad = QuestionVariableWave.objects.filter(
+            variable=self.object,
+            wave__is_locked=True,
+        ).exists()
+
+        locked_via_m2m = self.object.waves.filter(is_locked=True).exists()
+
+        if locked_via_triad or locked_via_m2m:
+            messages.error(
+                request,
+                "Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden."
+            )
+            return redirect(reverse("variables:variable_detail", kwargs={"pk": self.object.pk}))
+
+        return super().dispatch(request, *args, **kwargs)
 
     # Erweiterung des Formulars um Daten-Attribute für die JS-Validierung
     def get_form(self, form_class=None):

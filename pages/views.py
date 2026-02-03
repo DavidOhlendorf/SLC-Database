@@ -196,6 +196,20 @@ class WavePageDetailView(DetailView):
             page_questions_qs.values_list("question_id", flat=True).distinct()
         )
 
+        # locked-Flag setzen
+        locked_question_ids = set()
+        if question_ids:
+            locked_question_ids = set(
+                WaveQuestion.objects.filter(
+                    question_id__in=question_ids,
+                    wave__is_locked=True,
+                ).values_list("question_id", flat=True)
+            )
+
+        for pq in page_questions_qs:
+            pq.question_is_locked = pq.question_id in locked_question_ids
+
+
         if self.can_edit and question_ids:
             questions_by_id = {
                 q.id: q

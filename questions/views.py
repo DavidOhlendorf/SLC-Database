@@ -123,6 +123,7 @@ class QuestionDetail(DetailView):
         # Defaults
         triad_qs = QuestionVariableWave.objects.none()
         variables = Variable.objects.none()
+        locked_variable_ids = set()
         pages = []
         active_page = None
         screenshots = []
@@ -145,6 +146,25 @@ class QuestionDetail(DetailView):
             # Vollständigkeitsinfo ran hängen (nur für Editoren erforderlich)
             if self.can_edit:
                 variables = variables.with_completeness()
+
+            # Variablen, die in der aktiven Wave gesperrt sind
+            var_ids = list(variables.values_list("id", flat=True))
+
+            if var_ids:
+                locked_variable_ids = set(
+                    QuestionVariableWave.objects.filter(
+                        variable_id__in=var_ids,
+                        wave__is_locked=True,
+                    ).values_list("variable_id", flat=True)
+                )
+
+                # auch über M2M
+                locked_variable_ids |= set(
+                    Variable.objects.filter(
+                        id__in=var_ids,
+                        waves__is_locked=True,
+                    ).values_list("id", flat=True)
+                )
 
             # Seite(n) der Frage der aktiven Wave
             page_param = self.request.GET.get("page")
@@ -171,7 +191,9 @@ class QuestionDetail(DetailView):
             "waves": waves,
             "active_wave": active_wave,
             "variables": variables,
+            "locked_variable_ids": locked_variable_ids,
             "question_variable_wave_links": triad_qs,
+            "question_is_locked": question.waves.filter(is_locked=True).exists(),
             "pages": pages,
             "active_page": active_page, 
             "screenshots": screenshots,
@@ -384,6 +406,23 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
 
 
     # ---- View-Methoden -------------------------------------------
+    def dispatch(self, request, *args, **kwargs):
+
+        self.object = self.get_object()
+
+        # Harte Sperre: sobald Frage in irgendeiner gesperrten Befragung vorkommt → keine Bearbeitung
+        if self.object.waves.filter(is_locked=True).exists():
+            messages.error(
+                request,
+                "Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden."
+            )
+
+            # Fallback: Frage-Detailansicht (oder get_absolute_url, falls vorhanden)
+            return redirect(reverse("questions:question_detail", kwargs={"pk": self.object.pk}))
+
+        return super().dispatch(request, *args, **kwargs)
+    
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
@@ -418,7 +457,6 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return ctx
 
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
         page = self._get_page_from_request(self.object)
         if page is None:
             messages.error(
@@ -471,7 +509,6 @@ class QuestionUpdateView(EditorRequiredMixin, UpdateView):
         return self._preserve_querystring(url)
 
     def get(self, request, *args, **kwargs):
-        self.object = self.get_object()
         page = self._get_page_from_request(self.object)
 
         # Orphan: keine Seitenverknüpfung → Attach-View

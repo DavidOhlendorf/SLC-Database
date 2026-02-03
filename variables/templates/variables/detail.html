@@ -24,13 +24,29 @@
         </h1>
       </div>
       <div class="flex-shrink-0">
+
+        <!-- Edit-Button -->
         {% if perms.accounts.can_edit_slc %}
+          {% if variable_is_locked %}
+            <span class="d-inline-block"
+                  tabindex="0"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+              <button type="button"
+                      class="btn btn-link btn-lg icon-action p-0 text-muted"
+                      disabled>
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            </span>
+          {% else %}
             <a class="btn btn-link btn-lg icon-action p-0"
               title="Variable bearbeiten"
               href="{% url 'variables:variable_edit' variable.pk %}?back={{ request.get_full_path|urlencode }}">
               <i class="fa-solid fa-pen-to-square"></i>
             </a>
+          {% endif %}
         {% endif %}
+
       </div>
     </div>
   </header>
@@ -95,18 +111,31 @@
                       {% endif %}
                     </div>
                   </div>
-                  <div class="ms-2 btn-group btn-group-sm" role="group" aria-label="Aktionen">
-                    <a class="btn btn-link px-2 icon-action"
+                  <div class="ms-2 d-flex align-items-center gap-1 flex-shrink-0">
+                    <a class="btn btn-link px-1 icon-action"
                       title="Details anzeigen"
                       href="{% url 'questions:question_detail' q.pk %}">
                       <i class="fa-regular fa-eye"></i>
                     </a>
                     {% if perms.accounts.can_edit_slc %}
-                      <a class="btn btn-link px-2 icon-action"
-                        title="Frage bearbeiten"
-                        href="{% url 'questions:question_edit' q.pk %}">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                      </a>
+                      {% if q.pk in locked_question_ids %}
+                        <span class="d-inline-block"
+                              tabindex="0"
+                              data-bs-toggle="tooltip"
+                              data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+                          <button type="button"
+                                  class="btn btn-link px-1 icon-action text-muted"
+                                  disabled>
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </button>
+                        </span>
+                      {% else %}
+                        <a class="btn btn-link px-1 icon-action"
+                          title="Frage bearbeiten"
+                          href="{% url 'questions:question_edit' q.pk %}">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                      {% endif %}
                     {% endif %}
                   </div>
                 </div>
@@ -119,12 +148,6 @@
       </div>
     </div>
   </div>
-
-
-
-
-
-
 
 
   <!-- Kontext: Accordion-Card-->
