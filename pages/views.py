@@ -305,13 +305,100 @@ class WavePageBaseUpdateView(EditorRequiredMixin, UpdateView):
     context_object_name = "page"
 
     def form_valid(self, form):
-        self.object = form.save()
+        page = self.get_object()
+
+        # Welche Waves waren vorher mit der Page verknüpft?
+        old_wave_ids = set(page.waves.values_list("id", flat=True))
+
+        with transaction.atomic():
+            self.object = form.save()
+            page = self.object
+
+            # Welche Waves sind jetzt verknüpft?
+            new_wave_ids = set(page.waves.values_list("id", flat=True))
+
+            removed_wave_ids = old_wave_ids - new_wave_ids
+
+            if removed_wave_ids:
+                # Fragen, die auf dieser Seite liegen (unabhängig von Waves)
+                page_question_ids = list(
+                    page.page_questions.values_list("question_id", flat=True).distinct()
+                )
+
+                # 1) WaveQuestion bereinigen (Question aus entfernten Waves entfernen,
+                #    sofern sie dort nicht mehr über andere Pages vorkommt)
+                for wid in removed_wave_ids:
+                    cleanup_wavequestions_for_removed_questions(
+                        page=page,
+                        removed_question_ids=page_question_ids,
+                        wave_ids=[wid],
+                    )
+
+                # 2) Variablen / Triad konsistent bereinigen (analog WavePageDeleteView)
+                #    -> aber nur für Questions, die in der entfernten Wave jetzt nirgendwo mehr vorkommen
+                WaveVarThrough = Variable._meta.get_field("waves").remote_field.through
+
+                for wid in removed_wave_ids:
+                    # Fragen, die in dieser Wave nach dem Entfernen der Page-Wave-Verknüpfung
+                    # noch irgendwo auf Pages vorkommen
+                    remaining_qids_in_wave = set(
+                        WavePageQuestion.objects.filter(
+                            wave_page__waves__id=wid
+                        ).values_list("question_id", flat=True).distinct()
+                    )
+
+                    # Fragen dieser Seite, die in dieser Wave jetzt nirgends mehr vorkommen
+                    removed_qids_from_wave = set(page_question_ids) - remaining_qids_in_wave
+                    if not removed_qids_from_wave:
+                        continue
+
+                    triad_qs = QuestionVariableWave.objects.filter(
+                        wave_id=wid,
+                        question_id__in=removed_qids_from_wave,
+                    )
+
+                    affected_var_ids = set(
+                        triad_qs.values_list("variable_id", flat=True).distinct()
+                    )
+
+                    # a) Triad löschen (Q fällt aus Wave => Triad für Q+Wave weg)
+                    triad_qs.delete()
+
+                    if not affected_var_ids:
+                        continue
+
+                    # b) Variablen, die in dieser Wave noch über verbleibende Fragen gebraucht werden
+                    still_used_var_ids = set(
+                        QuestionVariableWave.objects.filter(
+                            wave_id=wid,
+                            question_id__in=remaining_qids_in_wave,
+                            variable_id__in=affected_var_ids,
+                        ).values_list("variable_id", flat=True).distinct()
+                    )
+
+                    to_remove_var_ids = affected_var_ids - still_used_var_ids
+                    if not to_remove_var_ids:
+                        continue
+
+                    # Failsafe: technische Variablen nicht anfassen
+                    non_technical_to_remove = Variable.objects.filter(
+                        id__in=to_remove_var_ids,
+                        is_technical=False,
+                    ).values_list("id", flat=True)
+
+                    # c) Variable↔Wave M2M bereinigen
+                    WaveVarThrough.objects.filter(
+                        wave_id=wid,
+                        variable_id__in=non_technical_to_remove,
+                    ).delete()
+
         messages.success(self.request, "Seitendaten (Name & Wellen) gespeichert.")
         url = reverse("pages:page-edit", kwargs={"pk": self.object.pk})
         wave = self.request.GET.get("wave")
         if wave:
             url = f"{url}?wave={wave}"
         return redirect(url)
+
 
     def form_invalid(self, form):
         page = self.get_object()
