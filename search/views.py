@@ -23,9 +23,20 @@ RESULTS_PER_PAGE = 20
 # Hilfsfunktion: Suche nach Fragen (für Hauptsuche und für API-Endpunkt)
 # Später evtl. auslagern in search/utils.py und für Vars erweitern (aktuell nicht einheitlich)
 def search_questions(q: str, wave_ids=None, include_keywords=True):
+    """
+    Search for questions using full-text search, trigram similarity, and keyword matching.
+    
+    Args:
+        q: Search query string
+        wave_ids: Optional list of wave IDs to filter results
+        include_keywords: Whether to include keyword-based matching in the search
+        
+    Returns:
+        Tuple of (found_questions_list, score_map_dict)
+    """
     q = (q or "").strip()
     if len(q) < 2:
-        return []
+        return [], {}
 
     q_lower = q.lower()
     wave_ids = wave_ids or []
@@ -140,9 +151,11 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
     return found, final_score_map
 
 
-
 # Landing-Page für die Suche
 def search_landing(request):
+    """
+    Render the search landing page.
+    """
     return render(request, "search/landing.html")
 
 # Paginierungs-Hilfsfunktionen
@@ -428,44 +441,10 @@ def search(request):
 
   
     # =========================
-    # CONSTRUCTS
+    # CONSTRUCTS - Currently disabled
     # =========================
-    #f search_type in {"all", "constructs"}:
-    #   q_lower = q.lower()
-
-    #   qs_constructs = (
-    #       Construct.objects
-    #       .annotate(l1=Lower("level_1"), l2=Lower("level_2"))
-    #       .filter(Q(l1__contains=q_lower) | Q(l2__contains=q_lower))
-    #       .distinct()
-    #   )
-
-    #   # Sortierung
-
-    #   if sort == "alpha":
-    #       qs_constructs = qs_constructs.order_by(Lower("level_1").asc(), Lower("level_2").asc(), "id")
-
-    #   else:  # relevance
-    #       qs_constructs = (
-    #           qs_constructs
-    #           .annotate(
-    #               sim_l1=TrigramSimilarity("level_1", q),
-    #               sim_l2=TrigramSimilarity("level_2", q),
-    #               sim=F("sim_l1") * 0.6 + F("sim_l2") * 0.4,
-    #           )
-    #           .order_by(F("sim").desc(nulls_last=True), "id")
-    #       )
-
-    #   if search_type == "all":
-    #       ctx["constructs"] = qs_constructs[:ctx["TOP_N"]]
-    #   else:
-    #       page_obj = paginate_queryset(qs_constructs, request)
-    #       ctx["constructs_page"] = page_obj
-    #       ctx["constructs"] = page_obj.object_list
-
-    #   # Count für Anzeige
-    #   ctx["constructs_count"] = qs_constructs.count()
-    #   ctx.setdefault("constructs_count", 0)
+    # Construct search is currently not implemented
+    # To enable, uncomment this section and ensure Construct model is available
 
 
     # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr
