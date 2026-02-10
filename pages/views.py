@@ -16,7 +16,7 @@ from accounts.mixins import EditorRequiredMixin
 
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, OuterRef, Exists, Max
-from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
+
 from waves.models import Survey, WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion, WavePageWave
 from questions.models import Question, QuestionVariableWave
@@ -24,7 +24,9 @@ from variables.models import Variable
 
 from .forms import WavePageBaseForm, WavePageContentForm, PageQuestionLinkFormSet
 
+from pages.utils import cleanup_wavequestions_for_removed_questions, get_new_orphan_question_ids
 from .services.pv_builder import PVContext, build_pv
+from .services.page_edit_services import sync_wavequestions_for_page
 
 
 # Session-Key für verwaiste Fragen-Review
@@ -528,67 +530,13 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
                 ])
 
 
-            # 4) WaveQuestion sync (Wave ↔ Question)
-            #    - add: erstelle neue WaveQuestion Einträge
-            #    - remove: entferne nicht mehr ausgewählte WaveQuestion Einträge, die in keiner WavePage mehr vorkommen 
-
-            allowed_wave_ids = set(page.waves.values_list("id", flat=True))
-
-            # Defensive: nur Waves zulassen, die aktuell zur Page gehören
-            for qid in list(selected_waves_by_qid.keys()):
-                selected_waves_by_qid[qid] = set(selected_waves_by_qid[qid]) & allowed_wave_ids
-
-            qids = list(selected_waves_by_qid.keys())
-
-            # Existierende WaveQuestion Paare für diese Fragen innerhalb erlaubter Waves
-            existing_by_qid = defaultdict(set)
-            if qids and allowed_wave_ids:
-                for qid, wid in (
-                    WaveQuestion.objects
-                    .filter(question_id__in=qids, wave_id__in=allowed_wave_ids)
-                    .values_list("question_id", "wave_id")
-                ):
-                    existing_by_qid[qid].add(wid)
-
-            # Helper: Existiert Frage auf anderer Seite in der Wave?
-            def _question_occurs_on_other_page_in_wave(*, qid: int, wid: int) -> bool:
-                return (
-                    WavePageQuestion.objects
-                    .filter(
-                        question_id=qid,
-                        wave_page__waves__id=wid,
-                    )
-                    .exclude(wave_page=page)
-                    .exists()
-                )
-
-            # für jede Frage: Differenz bilden (was soll hinzugefügt / entfernt werden)
-            to_create = []
-            to_delete_pairs = [] 
-
-            for qid, desired_wids in selected_waves_by_qid.items():
-                existing_wids = existing_by_qid.get(qid, set())
-
-                add_wids = desired_wids - existing_wids
-                remove_wids = existing_wids - desired_wids
-
-                for wid in add_wids:
-                    to_create.append(WaveQuestion(wave_id=wid, question_id=qid))
-
-                for wid in remove_wids:
-                    # nur entfernen, wenn die Frage auf keiner anderen Seite in der Wave mehr vorkommt
-                    if not _question_occurs_on_other_page_in_wave(qid=qid, wid=wid):
-                        to_delete_pairs.append((qid, wid))
-
-            # Bulk create der neuen Paare
-            if to_create:
-                WaveQuestion.objects.bulk_create(to_create, ignore_conflicts=True)
-
-            # Löschen der zu entfernenden Paare
-            for qid, wid in to_delete_pairs:
-                WaveQuestion.objects.filter(question_id=qid, wave_id=wid).delete()
-
-
+         # 4) WaveQuestion sync (Wave ↔ Question)
+        allowed_wave_ids = set(page.waves.values_list("id", flat=True))
+        sync_wavequestions_for_page(
+            page=page,
+            selected_waves_by_qid=selected_waves_by_qid,
+            allowed_wave_ids=allowed_wave_ids,
+        )
 
 
         messages.success(self.request, "Seiteninhalte gespeichert.")
