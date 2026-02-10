@@ -1,5 +1,4 @@
-# pages/services/page_edit_services.py
-# Service-Funktionen für die Bearbeitung von Pages 
+# pages/services/page_sync.py
 
 from __future__ import annotations
 
@@ -22,11 +21,11 @@ class WaveQuestionSyncResult:
     deleted_pairs: Tuple[Tuple[int, int], ...] = ()
 
 
-
 # Funktion synchronisiert die Zuordnung von Fragen zu Befragungen für eine gegebene Fragebogenseite.
 # Fragen können im Datenmodell über das WaveQuestion-Modell mit Befragungen verknüpft dsein UND gleichzeitig über die Zugehörigkeit der Seite zu Befragungen.
 # Dies ist erforderlich, da Fragen zwar auf Seiten liegen können, aber für bestimmte Befragungsgruppen ausgeblendet sein können.
 # Die Bearbeitung von Seiten erfordert daher ein Synchronisieren der WaveQuestion-Objekte, um die gewünschte Zuordnung von Fragen zu Befragungen korrekt abzubilden.
+
 
 def sync_wavequestions_for_page(
     *,
@@ -35,6 +34,7 @@ def sync_wavequestions_for_page(
     allowed_wave_ids: Set[int],
     write_debug_pairs: bool = False,
 ) -> WaveQuestionSyncResult:
+
 
     # 1) Defensive: nur erlaubte Waves zulassen (Page-waves)
     normalized: Dict[int, Set[int]] = {}
@@ -45,12 +45,14 @@ def sync_wavequestions_for_page(
     if not qids or not allowed_wave_ids:
         return WaveQuestionSyncResult(created=0, deleted=0)
 
+
     # 2) Existierende Paare (qid,wid) laden
     existing_pairs = set(
         WaveQuestion.objects
         .filter(question_id__in=qids, wave_id__in=allowed_wave_ids)
         .values_list("question_id", "wave_id")
     )
+
 
     # 3) Desired Paare bilden
     desired_pairs: Set[Tuple[int, int]] = set()
@@ -63,9 +65,11 @@ def sync_wavequestions_for_page(
     if not to_create and not candidate_deletes:
         return WaveQuestionSyncResult(created=0, deleted=0)
 
+
     # 4) Kandidaten fürs Löschen müssen „Other page“-Check bestehen.
     #
-    #    Die Verknüpfung einer Frage mit einer Befragung über WaveQuestion ist nur dann löschbar, wenn die Frage nicht auf einer anderen Seite derselben Befragung erscheint.
+    # Die Verknüpfung einer Frage mit einer Befragung über WaveQuestion ist nur dann löschbar,
+    # wenn die Frage nicht auf einer anderen Seite derselben Befragung erscheint.
     
     deletable_pairs: List[Tuple[int, int]] = []
     if candidate_deletes:
@@ -87,6 +91,7 @@ def sync_wavequestions_for_page(
             # löschbar = Kandidaten, die nicht auf anderen Seiten derselben Befragung liegen
             for qid in (qid_set - other_qids):
                 deletable_pairs.append((qid, wid))
+
 
     # 5) DB schreiben (bulk create, dann bulk delete)
     created_count = 0
