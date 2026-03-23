@@ -2,6 +2,13 @@
    Global Style Extensions
    ========================================== */
 
+
+/* Zusätzliche Utility-Klasse für das Brechen langer Wörter (z.B. URLs) */
+.text-break-long {
+  overflow-wrap: anywhere;   /* moderner Standard */
+  word-break: break-word;    /* Fallback für ältere Browser */
+}
+
 /* Dreh-Animation für Aufklapp-Buttons (Collapse) */
 button.collapse-toggle[aria-expanded="true"] i {
   transform: rotate(180deg);
