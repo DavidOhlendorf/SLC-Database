@@ -173,7 +173,7 @@
         <div id="questiontextCollapse" class="accordion-collapse collapse show">
           <div class="accordion-body">
             <p class="mb-1"><strong>Fragetext:</strong></p>
-            <p>{{ question.questiontext }}</p>
+            <p>{{ question.questiontext|linebreaks }}</p>
 
             {% if question.instruction %}
               <p class="mb-1 mt-4"><strong>Instruktion:</strong></p>
