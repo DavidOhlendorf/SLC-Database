@@ -1,6 +1,9 @@
 {% extends 'main.html' %}
 {% load static %}
 {% load humanize %}
+{% block extra_js %}
+  <script src="{% static 'js/ui/countup.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column align-items-center justify-content-center" style="min-height:70vh;">
@@ -27,25 +30,25 @@
       <div class="row g-3 justify-content-center">
         <div class="col-6 col-sm-3">
           <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5">{{ wave_count|intcomma }}</div>
+            <div class="fw-semibold fs-5 stat-number" data-target="{{ wave_count }}">0</div>
             <div class="small text-muted">Befragungen</div>
           </div>
         </div>
         <div class="col-6 col-sm-3">
           <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5">{{ page_count|intcomma }}</div>
+            <div class="fw-semibold fs-5 stat-number" data-target="{{ page_count }}">0</div>
             <div class="small text-muted">Fragebogenseiten</div>
           </div>
         </div>
         <div class="col-6 col-sm-3">
           <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5">{{ question_count|intcomma }}</div>
+            <div class="fw-semibold fs-5 stat-number" data-target="{{ question_count }}">0</div>
             <div class="small text-muted">Fragen</div>
           </div>
         </div>
         <div class="col-6 col-sm-3">
           <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5">{{ variable_count|intcomma }}</div>
+            <div class="fw-semibold fs-5 stat-number" data-target="{{ variable_count }}">0</div>
             <div class="small text-muted">Variablen</div>
           </div>
         </div>
