@@ -185,11 +185,24 @@ class Question(models.Model):
     )
 
     def __str__(self):
-        return f"Q{self.id}: {self.questiontext[:100]}"
+        text = (self.questiontext or "").strip()
+
+        if len(text) <= 100:
+            return f"Q{self.id}: {text}"
+
+        truncated = text[:100]
+
+        # letztes ganzes Wort nehmen
+        last_space = truncated.rfind(" ")
+        if last_space > 0:
+            truncated = truncated[:last_space]
+
+        return f"Q{self.id}: {truncated}..."
     
+        
     def get_absolute_url(self):
-        return reverse("questions:question_detail", args=[self.pk])
-    
+            return reverse("questions:question_detail", args=[self.pk])
+        
 
 
 # Legacy: required by old migrations (0007_questionscreenshot)

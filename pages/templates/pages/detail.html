@@ -111,7 +111,12 @@
               {% endif %}
 
               {% if page.introduction %}
-                <p class="mb-1 mt-3">Einleitungstext: {{ page.introduction }}</p>
+                <div class="mt-3">
+                  <strong class="d-block mb-2">Einleitungstext:</strong>
+                  <div class="text-body">
+                    {{ page.introduction|linebreaks }}
+                  </div>
+                </div>
               {% endif %}
             </div>
           </div>
@@ -253,7 +258,7 @@
               Transitionskontrolle
             </button>
           </h2>
-          <div id="transitionControlCollapse-{{ page.id }}" class="accordion-collapse collapse show">
+          <div id="transitionControlCollapse-{{ page.id }}" class="accordion-collapse collapse">
             <div class="accordion-body">
                 {{ page.transition_control|linebreaks }}
             </div>
@@ -275,8 +280,8 @@
               Seitenübergänge
             </button>
           </h2>
-          <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse show">
-            <div class="accordion-body">
+          <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse">
+            <div class="accordion-body text-break-long">
                 {{ page.transitions|linebreaks}}
             </div>
           </div>
@@ -292,69 +297,77 @@
             <button class="accordion-button"
                     type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#transitionsCollapse-{{ page.id }}"
+                    data-bs-target="#otherFieldsCollapse-{{ page.id }}"
                     aria-expanded="true"
-                    aria-controls="transitionsCollapse-{{ page.id }}">
+                    aria-controls="otherFieldsCollapse-{{ page.id }}">
               Sonstige Seitenangaben
             </button>
           </h2>
-          <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse show">
-            <div class="accordion-body p-0">
+          <div id="otherFieldsCollapse-{{ page.id }}" class="accordion-collapse collapse">
+            <div class="accordion-body p-0 text-break-long">
               <div class="list-group list-group-flush">
 
                 <!-- visibility conditions (vc)-->
                 {% if page.visibility_conditions %}
                   <div class="list-group-item py-3">
-                    <p>Einblendbedingungen:</p> {{ page.visibility_conditions|linebreaks }}
+                      <strong class="d-block mb-2">Einblendbedingungen:</strong>
+                      <div>{{ page.visibility_conditions|linebreaks }}</div>
                   </div>
                 {% endif %}
 
                 <!-- answer validation (av)-->
                  {% if page.answer_validations %}
                   <div class="list-group-item py-3">
-                    <p>Antwortvalidierung:</p> {{ page.answer_validations|linebreaks }}
+                      <strong class="d-block mb-2">Antwortvalidierung:</strong>
+                      <div>{{ page.answer_validations|linebreaks }}</div>
                   </div>
                 {% endif %}
 
                 <!-- Korrekturhinweise (kh) -->
                 {% if page.correction_notes %}
                   <div class="list-group-item py-3">
-                    <p>Korrekturhinweise:</p> {{ page.correction_notes|linebreaks }}
+                    <strong class="d-block mb-2">Korrekturhinweise:</strong>
+                    <div>{{ page.correction_notes|linebreaks }}</div>
                   </div>
                 {% endif %}
 
                 <!-- Forcierungsvariablen (fv) -->
                 {% if page.forcing_variables %}
                   <div class="list-group-item py-3">
-                    <p>Forcierungsvariablen:</p> {{ page.forcing_variables|linebreaks }}
+                    <strong class="d-block mb-2">Forcierungsvariablen:</strong>
+                    <div>{{ page.forcing_variables|linebreaks }}</div>
                   </div>
                 {% endif %}
                 
                 <!-- Hilfsvariablen (hv) -->
                 {% if page.helper_variables %}
                   <div class="list-group-item py-3">
-                    <p>Hilfsvariablen:</p> {{ page.helper_variables|linebreaks }}
+                    <strong class="d-block mb-2">Hilfsvariablen:</strong>
+                    <div>{{ page.helper_variables|linebreaks }}</div>
                   </div>
                 {% endif %}
 
                 <!-- Steuerungsvariablen (sv) -->
                 {% if page.control_variables %}
                   <div class="list-group-item py-3">
-                    <p>Steuerungsvariablen:</p> {{ page.control_variables|linebreaks }}
+                    <strong class="d-block mb-2">Steuerungsvariablen:</strong>
+                    <div>{{ page.control_variables|linebreaks }}</div>
                   </div>
                 {% endif %}
 
                 <!-- Formatierung (fo) -->
                 {% if page.formatting %}
                   <div class="list-group-item py-3">
-                    <p>Formatierung:</p> {{ page.formatting|linebreaks }}
+                    <strong class="d-block mb-2">Formatierung:</strong>
+                    <div>{{ page.formatting|linebreaks }}</div>
                   </div>
                 {% endif %}
 
                 <!-- Programmierhinweise (ph) -->
                 {% if page.page_programming_notes %}
                   <div class="list-group-item py-3">
-                    <p>Programmierhinweise:</p> {{ page.page_programming_notes|linebreaks }}
+                    <strong class="d-block mb-2">Programmierhinweise:</strong>
+                    <div>{{ page.page_programming_notes|linebreaks }}</div>
                   </div>
                 {% endif %}
               </div>

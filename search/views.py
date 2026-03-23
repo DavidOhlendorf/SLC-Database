@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector, TrigramWordSimilarity
 
 from collections import defaultdict
+from pages.models import WavePage
 from questions.models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
 from waves.models import Wave, Survey
@@ -18,6 +19,18 @@ from waves.models import Wave, Survey
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
+
+
+
+# Landing-Page für die Suche
+def search_landing(request):
+    ctx = {
+        "page_count": WavePage.objects.count(),
+        "question_count": Question.objects.count(),
+        "variable_count": Variable.objects.count(),
+        "wave_count": Wave.objects.count(),
+    }
+    return render(request, "search/landing.html", ctx)
 
 
 # Hilfsfunktion: Suche nach Fragen (für Hauptsuche und für API-Endpunkt)
@@ -139,11 +152,6 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
 
     return found, final_score_map
 
-
-
-# Landing-Page für die Suche
-def search_landing(request):
-    return render(request, "search/landing.html")
 
 # Paginierungs-Hilfsfunktionen
 def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
