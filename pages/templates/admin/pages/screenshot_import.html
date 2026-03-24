@@ -19,7 +19,8 @@
     <ul>
       <li>Geprüfte Zeilen: {{ summary.total_rows }}</li>
       <li>Importiert: {{ summary.imported }}</li>
-      <li>Bereits vorhanden: {{ summary.skipped_existing }}</li>
+      <li>Bereits vorhanden und nicht ersetzt: {{ summary.skipped_existing }}</li>
+      <li>Bereits vorhanden und ersetzt: {{ summary.replaced }}</li>
       <li>Seite nicht gefunden: {{ summary.missing_page }}</li>
       <li>Datei nicht gefunden: {{ summary.missing_file }}</li>
       <li>Mehrdeutig: {{ summary.ambiguous_page }}</li>

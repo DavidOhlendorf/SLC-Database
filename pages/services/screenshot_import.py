@@ -31,6 +31,7 @@ class ImportRowResult:
 class ImportSummary:
     total_rows: int = 0
     imported: int = 0
+    replaced: int = 0
     skipped_existing: int = 0
     missing_page: int = 0
     missing_file: int = 0
@@ -76,6 +77,7 @@ def import_screenshots_from_csv(
     screenshot_dir: str,
     wave_ids: list[int],
     execute_import: bool,
+    replace_existing: bool = False,
 ) -> ImportSummary:
     """
     screenshot_dir ist relativ zu MEDIA_ROOT, z.B. 'screenshots/EJ2024/AB'
@@ -97,7 +99,7 @@ def import_screenshots_from_csv(
     for page in candidate_pages:
         pages_by_name.setdefault(page.pagename.strip(), []).append(page)
 
-    actions: list[tuple[WavePage, str, str, str]] = []
+    actions: list[dict] = []
 
     for idx, row in enumerate(rows, start=2):  # Kopfzeile ist Zeile 1
         pagename = row.get("pagename", "").strip()
@@ -171,13 +173,15 @@ def import_screenshots_from_csv(
 
         page = matched_pages[0]
 
-        already_exists = WavePageScreenshot.objects.filter(
+        existing_qs = WavePageScreenshot.objects.filter(
             wave_page=page,
             language=language,
             device=device,
-        ).exists()
+        )
 
-        if already_exists:
+        already_exists = existing_qs.exists()
+
+        if already_exists and not replace_existing:
             summary.skipped_existing += 1
             summary.results.append(
                 ImportRowResult(
@@ -195,7 +199,16 @@ def import_screenshots_from_csv(
 
         relative_image_path = str(Path("media") / screenshot_dir / screenshotname).replace("\\", "/")
 
-        actions.append((page, relative_image_path, language, device))
+        actions.append(
+            {
+                "page": page,
+                "image_path": relative_image_path,
+                "language": language,
+                "device": device,
+                "replace": already_exists and replace_existing,
+            }
+        )
+
         summary.results.append(
             ImportRowResult(
                 row_number=idx,
@@ -203,26 +216,36 @@ def import_screenshots_from_csv(
                 screenshotname=screenshotname,
                 language=language,
                 device=device,
-                status="ready" if not execute_import else "imported",
-                message="Importierbar." if not execute_import else "Importiert.",
+                status="replace" if (already_exists and replace_existing and not execute_import)
+                    else "replaced" if (already_exists and replace_existing and execute_import)
+                    else "ready" if not execute_import
+                    else "imported",
+                message="Vorhandener Screenshot wird ersetzt." if (already_exists and replace_existing)
+                        else "Importierbar." if not execute_import
+                        else "Importiert.",
                 matched_page_ids=[page.id],
             )
         )
 
     if execute_import and actions:
         with transaction.atomic():
-            WavePageScreenshot.objects.bulk_create(
-                [
-                    WavePageScreenshot(
-                        wave_page=page,
-                        image_path=image_path,
-                        language=language,
-                        device=device,
-                    )
-                    for page, image_path, language, device in actions
-                ]
-            )
+            for action in actions:
+                if action["replace"]:
+                    deleted_count, _ = WavePageScreenshot.objects.filter(
+                        wave_page=action["page"],
+                        language=action["language"],
+                        device=action["device"],
+                    ).delete()
+                    if deleted_count:
+                        summary.replaced += 1
 
-        summary.imported = len(actions)
+                WavePageScreenshot.objects.create(
+                    wave_page=action["page"],
+                    image_path=action["image_path"],
+                    language=action["language"],
+                    device=action["device"],
+                )
+
+            summary.imported = len(actions)
 
     return summary

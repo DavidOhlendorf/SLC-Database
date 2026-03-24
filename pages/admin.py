@@ -141,12 +141,14 @@ class WavePageScreenshotAdmin(admin.ModelAdmin):
                     screenshot_dir=form.cleaned_data["screenshot_dir"],
                     wave_ids=list(form.cleaned_data["waves"].values_list("id", flat=True)),
                     execute_import=form.cleaned_data["execute_import"],
+                    replace_existing=form.cleaned_data["replace_existing"],
                 )
 
                 if form.cleaned_data["execute_import"]:
                     messages.success(
                         request,
                         f"Import abgeschlossen: {summary.imported} importiert, "
+                        f"{summary.replaced} ersetzt, "
                         f"{summary.skipped_existing} übersprungen, "
                         f"{summary.missing_page} ohne Seite, "
                         f"{summary.missing_file} ohne Datei, "

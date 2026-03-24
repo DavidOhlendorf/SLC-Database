@@ -391,6 +391,13 @@ class ScreenshotImportForm(forms.Form):
         help_text="Wenn nicht gesetzt, wird nur eine Vorschau erzeugt.",
     )
 
+    replace_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Vorhandene Screenshots ersetzen",
+        help_text="Wenn gesetzt, werden bestehende Screenshots für dieselbe Seite/Sprache/Device gelöscht und neu angelegt.",
+    )
+
     def clean(self):
         cleaned = super().clean()
         survey = cleaned.get("survey")
