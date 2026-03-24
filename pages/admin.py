@@ -136,40 +136,45 @@ class WavePageScreenshotAdmin(admin.ModelAdmin):
         if request.method == "POST":
             form = ScreenshotImportForm(request.POST, request.FILES)
             if form.is_valid():
-                summary = import_screenshots_from_csv(
-                    uploaded_file=form.cleaned_data["metadata_file"],
-                    screenshot_dir=form.cleaned_data["screenshot_dir"],
-                    wave_ids=list(form.cleaned_data["waves"].values_list("id", flat=True)),
-                    execute_import=form.cleaned_data["execute_import"],
-                    replace_existing=form.cleaned_data["replace_existing"],
-                )
-
-                if form.cleaned_data["execute_import"]:
-                    messages.success(
-                        request,
-                        f"Import abgeschlossen: {summary.imported} importiert, "
-                        f"{summary.replaced} ersetzt, "
-                        f"{summary.skipped_existing} übersprungen, "
-                        f"{summary.missing_page} ohne Seite, "
-                        f"{summary.missing_file} ohne Datei, "
-                        f"{summary.ambiguous_page} mehrdeutig, "
-                        f"{summary.invalid_rows} ungültig."
+                try:
+                    summary = import_screenshots_from_csv(
+                        uploaded_file=form.cleaned_data["metadata_file"],
+                        screenshot_dir=form.cleaned_data["screenshot_dir"],
+                        wave_ids=list(form.cleaned_data["waves"].values_list("id", flat=True)),
+                        execute_import=form.cleaned_data["execute_import"],
+                        replace_existing=form.cleaned_data["replace_existing"],
                     )
+                except ValueError as e:
+                    form.add_error("metadata_file", str(e))
+                except Exception as e:
+                    form.add_error(None, f"Unerwarteter Fehler beim Import: {e}")
                 else:
-                    messages.info(
-                        request,
-                        f"Vorschau erstellt: {summary.total_rows} Zeilen geprüft."
-                    )
+                    if form.cleaned_data["execute_import"]:
+                        messages.success(
+                            request,
+                            f"Import abgeschlossen: {summary.imported} importiert, "
+                            f"{summary.replaced} ersetzt, "
+                            f"{summary.skipped_existing} übersprungen, "
+                            f"{summary.missing_page} ohne Seite, "
+                            f"{summary.missing_file} ohne Datei, "
+                            f"{summary.ambiguous_page} mehrdeutig, "
+                            f"{summary.invalid_rows} ungültig."
+                        )
+                    else:
+                        messages.info(
+                            request,
+                            f"Vorschau erstellt: {summary.total_rows} Zeilen geprüft."
+                        )
 
-                context["form"] = form
-                context["summary"] = summary
-                return render(request, "admin/pages/screenshot_import.html", context)
+                    context["form"] = form
+                    context["summary"] = summary
+                    return render(request, "admin/pages/screenshot_import.html", context)
         else:
             form = ScreenshotImportForm()
 
         context["form"] = form
         return render(request, "admin/pages/screenshot_import.html", context)
-    
+        
 
 
 @admin.register(WavePageQuestion)

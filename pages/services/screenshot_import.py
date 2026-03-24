@@ -13,6 +13,8 @@ from pages.models import WavePage, WavePageScreenshot
 
 
 REQUIRED_COLUMNS = {"pagename", "screenshotname", "language", "device"}
+VALID_DEVICES = {"desktop", "mobile", "paper"}
+VALID_LANGUAGES = {"de", "en", "fr", "it", "es"}
 
 
 @dataclass
@@ -43,16 +45,25 @@ class ImportSummary:
 def _read_csv(uploaded_file) -> list[dict]:
     raw = uploaded_file.read()
 
+    if not raw:
+        raise ValueError("Die CSV-Datei ist leer.")
+
+    text = None
     for encoding in ("utf-8-sig", "utf-8", "latin-1"):
         try:
             text = raw.decode(encoding)
             break
         except UnicodeDecodeError:
             continue
-    else:
-        raise ValueError("CSV-Datei konnte nicht dekodiert werden.")
+
+    if text is None:
+        raise ValueError(
+            "Die CSV-Datei konnte nicht gelesen werden. Bitte als CSV mit UTF-8 oder ANSI speichern."
+        )
+
 
     reader = csv.DictReader(io.StringIO(text), delimiter=";")
+
     if reader.fieldnames is None:
         raise ValueError("CSV-Datei enthält keine Kopfzeile.")
 
@@ -67,6 +78,9 @@ def _read_csv(uploaded_file) -> list[dict]:
     for row in reader:
         normalized = {str(k).strip(): (str(v).strip() if v is not None else "") for k, v in row.items()}
         rows.append(normalized)
+
+    if not rows:
+        raise ValueError("Die CSV-Datei enthält keine Datenzeilen.")
 
     return rows
 
@@ -97,9 +111,12 @@ def import_screenshots_from_csv(
 
     pages_by_name: dict[str, list[WavePage]] = {}
     for page in candidate_pages:
-        pages_by_name.setdefault(page.pagename.strip(), []).append(page)
+        key = (page.pagename or "").strip()
+        if key:
+            pages_by_name.setdefault(key, []).append(page)
 
     actions: list[dict] = []
+    seen_keys: set[tuple[str, str, str, str]] = set()
 
     for idx, row in enumerate(rows, start=2):  # Kopfzeile ist Zeile 1
         pagename = row.get("pagename", "").strip()
@@ -121,6 +138,56 @@ def import_screenshots_from_csv(
                 )
             )
             continue
+
+
+        if language not in VALID_LANGUAGES:
+            summary.invalid_rows += 1
+            summary.results.append(
+                ImportRowResult(
+                    row_number=idx,
+                    pagename=pagename,
+                    screenshotname=screenshotname,
+                    language=language,
+                    device=device,
+                    status="invalid",
+                    message="Ungültige Sprache. Erlaubt sind: de, en.",
+                )
+            )
+            continue
+
+
+        if device not in VALID_DEVICES:
+            summary.invalid_rows += 1
+            summary.results.append(
+                ImportRowResult(
+                    row_number=idx,
+                    pagename=pagename,
+                    screenshotname=screenshotname,
+                    language=language,
+                    device=device,
+                    status="invalid",
+                    message="Ungültiges Device. Erlaubt sind: desktop, mobile.",
+                )
+            )
+            continue
+
+        row_key = (pagename, screenshotname, language, device)
+        if row_key in seen_keys:
+            summary.invalid_rows += 1
+            summary.results.append(
+                ImportRowResult(
+                    row_number=idx,
+                    pagename=pagename,
+                    screenshotname=screenshotname,
+                    language=language,
+                    device=device,
+                    status="invalid",
+                    message="Doppelte Zeile in der CSV-Datei.",
+                )
+            )
+            continue
+        seen_keys.add(row_key)
+
 
         file_path = base_dir / screenshotname
         if not file_path.exists():
@@ -199,15 +266,28 @@ def import_screenshots_from_csv(
 
         relative_image_path = str(Path("media") / screenshot_dir / screenshotname).replace("\\", "/")
 
+        will_replace = already_exists and replace_existing
+
         actions.append(
             {
                 "page": page,
                 "image_path": relative_image_path,
                 "language": language,
                 "device": device,
-                "replace": already_exists and replace_existing,
+                "replace": will_replace,
             }
         )
+
+        if will_replace:
+            status = "replaced" if execute_import else "replace"
+            message = (
+                "Vorhandener Screenshot wurde ersetzt."
+                if execute_import
+                else "Vorhandener Screenshot wird ersetzt."
+            )
+        else:
+            status = "imported" if execute_import else "ready"
+            message = "Importiert." if execute_import else "Importierbar."
 
         summary.results.append(
             ImportRowResult(
@@ -216,13 +296,8 @@ def import_screenshots_from_csv(
                 screenshotname=screenshotname,
                 language=language,
                 device=device,
-                status="replace" if (already_exists and replace_existing and not execute_import)
-                    else "replaced" if (already_exists and replace_existing and execute_import)
-                    else "ready" if not execute_import
-                    else "imported",
-                message="Vorhandener Screenshot wird ersetzt." if (already_exists and replace_existing)
-                        else "Importierbar." if not execute_import
-                        else "Importiert.",
+                status=status,
+                message=message,
                 matched_page_ids=[page.id],
             )
         )
@@ -246,6 +321,6 @@ def import_screenshots_from_csv(
                     device=action["device"],
                 )
 
-            summary.imported = len(actions)
+        summary.imported = len(actions)
 
     return summary

@@ -369,7 +369,7 @@ class ScreenshotImportForm(forms.Form):
 
     waves = forms.ModelMultipleChoiceField(
         queryset=Wave.objects.select_related("survey").all().order_by("survey__name", "cycle", "instrument"),
-        label="Waves",
+        label="Gruppen (Waves)",
         widget=forms.SelectMultiple(attrs={"size": 12}),
     )
 
