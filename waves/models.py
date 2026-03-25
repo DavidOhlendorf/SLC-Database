@@ -3,6 +3,7 @@
 from django.db import models
 from questions.models import Question
 from django.core.validators import FileExtensionValidator
+from .storage import wave_document_storage
 
 # Das zentrale Modell für eine Befragung
 class Survey(models.Model):
@@ -120,7 +121,8 @@ class WaveDocument(models.Model):
         help_text="Kurzer Anzeigename für das Dokument.",
     )
     pdf_file = models.FileField(
-        upload_to="wave_documents/",
+        storage=wave_document_storage,
+        upload_to="",
         validators=[FileExtensionValidator(allowed_extensions=["pdf"])],
         verbose_name="PDF-Datei",
     )

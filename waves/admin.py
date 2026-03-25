@@ -1,5 +1,8 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
+from .forms import WaveDocumentInlineForm
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import Survey, Wave, WaveQuestion, WaveDocument
 from .resources import WaveResource, WaveQuestionResource
@@ -20,10 +23,18 @@ class SurveyAdmin(admin.ModelAdmin):
 
 class WaveDocumentInline(admin.TabularInline):
     model = WaveDocument
+    form = WaveDocumentInlineForm
     extra = 1
-    fields = ("title", "pdf_file", "sort_order", "uploaded_at")
-    readonly_fields = ("uploaded_at",)
+    fields = ("title", "pdf_file", "open_pdf_link", "sort_order", "uploaded_at")
+    readonly_fields = ("open_pdf_link", "uploaded_at")
 
+    @admin.display(description="PDF öffnen")
+    def open_pdf_link(self, obj):
+        if obj and obj.pk:
+            url = reverse("waves:wave_document_pdf", args=[obj.pk])
+            return format_html('<a href="{}" target="_blank">PDF öffnen</a>', url)
+        return "-"
+    
 
 @admin.register(Wave)
 class WaveAdmin(ImportExportModelAdmin):

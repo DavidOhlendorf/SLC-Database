@@ -5,15 +5,14 @@ import json
 from django.views import View
 from django.views.generic import ListView, TemplateView, CreateView, UpdateView
 from django.urls import reverse, reverse_lazy
-from django.forms import inlineformset_factory
-from django.http import Http404, JsonResponse
+from django.http import Http404, JsonResponse, FileResponse
 from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
 from django.db.models.functions import Substr
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
-from .models import Survey, Wave, WaveModule, WaveQuestion
+from .models import Survey, Wave, WaveModule, WaveQuestion, WaveDocument
 from pages.models import WavePageQuestion, WavePage, WavePageWave
 
 from .forms import SurveyCreateForm, WaveFormSet
@@ -257,6 +256,22 @@ class SurveyDetailView(TemplateView):
         ctx["page_create_form"] = form
         ctx["page_modal_open"] = True
         return self.render_to_response(ctx)
+
+
+# View zum Anzeigen des PDF-Dokuments einer WaveDocument-Instanz
+class WaveDocumentPdfView(View):
+    def get(self, request, pk):
+        document = get_object_or_404(WaveDocument, pk=pk)
+
+        if not document.pdf_file:
+            raise Http404("Kein PDF hinterlegt.")
+
+        response = FileResponse(
+            document.pdf_file.open("rb"),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = f'inline; filename="{document.pdf_file.name.split("/")[-1]}"'
+        return response
     
 
 # API View for reordering WavePages within a Wave    
