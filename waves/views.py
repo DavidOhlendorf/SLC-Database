@@ -58,6 +58,7 @@ class SurveyDetailView(TemplateView):
         waves_qs = (
             Wave.objects
             .filter(survey=survey)
+            .prefetch_related("documents")
             .order_by("cycle", "instrument", "id")
         )
 
@@ -89,6 +90,8 @@ class SurveyDetailView(TemplateView):
 
         ctx["is_all_mode"] = is_all_mode
         ctx["active_wave"] = active_wave
+        ctx["wave_documents"] = list(active_wave.documents.all()) if active_wave else []
+
 
         # ------------------------------------------------------------
         # ALL MODE: Gesamtübersicht, getrennt nach Instrument
