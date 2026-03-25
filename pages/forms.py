@@ -1,4 +1,4 @@
-import os
+from django.core.validators import FileExtensionValidator
 
 from django import forms
 from django.forms import formset_factory, BaseFormSet
@@ -427,14 +427,15 @@ class QmlImportForm(forms.Form):
         queryset=Wave.objects.all(),
         required=False,
         label="Waves (optional)",
-        help_text="Optional: Einschränkung auf bestimmte Waves.",
+        help_text="Optional: Einschränkung auf bestimmte Waves des Surveys.",
         widget=forms.SelectMultiple(attrs={"size": 6}),
     )
 
-    xml_folder = forms.CharField(
+    xml_zip = forms.FileField(
         required=True,
-        label="XML-Ordner",
-        help_text="Pfad zum Ordner mit den XML-Dateien (Serverpfad).",
+        label="ZIP-Datei mit XML-Dateien",
+        help_text="Bitte eine ZIP-Datei hochladen, die die QML/XML-Dateien enthält.",
+        validators=[FileExtensionValidator(allowed_extensions=["zip"])],
     )
 
     replace_existing = forms.BooleanField(
@@ -449,10 +450,23 @@ class QmlImportForm(forms.Form):
         widget=forms.HiddenInput(),
     )
 
-    def clean_xml_folder(self):
-        folder = self.cleaned_data["xml_folder"]
+    def clean_waves(self):
+        waves = self.cleaned_data.get("waves")
+        survey = self.cleaned_data.get("survey")
 
-        if not os.path.isdir(folder):
-            raise forms.ValidationError("Der angegebene Ordner existiert nicht.")
+        if waves and survey:
+            invalid_waves = waves.exclude(survey=survey)
+            if invalid_waves.exists():
+                raise forms.ValidationError(
+                    "Es wurden Gruppen ausgewählt, die nicht zum gewählten Survey gehören."
+                )
 
-        return folder
+        return waves
+
+    def clean_xml_zip(self):
+        uploaded_file = self.cleaned_data["xml_zip"]
+
+        if not uploaded_file.name.lower().endswith(".zip"):
+            raise forms.ValidationError("Bitte eine ZIP-Datei hochladen.")
+
+        return uploaded_file
