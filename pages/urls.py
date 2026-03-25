@@ -30,5 +30,8 @@ urlpatterns = [
     # Seite duplizieren
     path("<int:pk>/copy/", views.WavePageCopyView.as_view(), name="page-copy"),
 
+    # QML-Datei einer Seite anzeigen
+    path("<int:pk>/qml/", views.WavePageQmlView.as_view(), name="page-qml"),
+
 ]
  

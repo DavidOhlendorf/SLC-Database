@@ -14,7 +14,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, OuterRef, Exists, Max
 
 from waves.models import Survey, WaveQuestion, Wave
-from .models import WavePage, WavePageQuestion, WavePageWave
+from .models import WavePage, WavePageQuestion, WavePageWave, WavePageQml
 from questions.models import Question, QuestionVariableWave
 from variables.models import Variable
 
@@ -141,6 +141,7 @@ class WavePageDetailView(DetailView):
 
         qs = (
             WavePage.objects
+            .select_related("qml_file")
             .prefetch_related(
                 "waves", 
                 Prefetch(
@@ -225,6 +226,12 @@ class WavePageDetailView(DetailView):
             for pq in page_questions_qs:
                 pq.question_is_incomplete = False
 
+        # QML-Info mitgeben
+        try:
+            qml_file = page.qml_file
+        except WavePageQml.DoesNotExist:
+            qml_file = None
+
 
         ctx["waves"] = waves_qs
         ctx["active_wave"] = active_wave
@@ -232,6 +239,8 @@ class WavePageDetailView(DetailView):
         ctx["survey"] = active_wave.survey if active_wave and active_wave.survey_id else None 
         ctx["page_is_locked"] = page_is_locked
         ctx["edit_question_allowed_waves"] = waves_qs.filter(is_locked=False)
+        
+        ctx["has_qml"] = qml_file is not None
 
         ctx["has_page_header"] = any([
             page.page_heading,
@@ -248,6 +257,30 @@ class WavePageDetailView(DetailView):
             page.formatting,
             page.page_programming_notes,
         ])
+
+        return ctx
+    
+    
+
+# View zum Anzeigen der QML-Informationen einer Seite
+class WavePageQmlView(DetailView):
+    model = WavePage
+    template_name = "pages/qml_detail.html"
+    context_object_name = "page"
+
+    def get_queryset(self):
+        return WavePage.objects.select_related("qml_file")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        page = self.object
+
+        try:
+            qml_file = page.qml_file
+        except WavePageQml.DoesNotExist:
+            qml_file = None
+
+        ctx["qml_file"] = qml_file
 
         return ctx
     

@@ -1,3 +1,5 @@
+from django.core.validators import FileExtensionValidator
+
 from django import forms
 from django.forms import formset_factory, BaseFormSet
 
@@ -411,3 +413,60 @@ class ScreenshotImportForm(forms.Form):
                 )
 
         return cleaned
+
+
+# Form zum Import von QML/XML-Dateien für Seiten
+class QmlImportForm(forms.Form):
+    survey = forms.ModelChoiceField(
+        queryset=Survey.objects.all(),
+        required=True,
+        label="Survey",
+    )
+
+    waves = forms.ModelMultipleChoiceField(
+        queryset=Wave.objects.all(),
+        required=False,
+        label="Gruppen (optional)",
+        help_text="Optional: Einschränkung auf bestimmte Gruppen des Surveys.",
+        widget=forms.SelectMultiple(attrs={"size": 6}),
+    )
+
+    xml_zip = forms.FileField(
+        required=True,
+        label="ZIP-Datei mit XML-Dateien",
+        help_text="Bitte eine ZIP-Datei hochladen, die die QML/XML-Dateien enthält.",
+        validators=[FileExtensionValidator(allowed_extensions=["zip"])],
+    )
+
+    replace_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Vorhandene QML ersetzen",
+    )
+
+    execute = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.HiddenInput(),
+    )
+
+    def clean_waves(self):
+        waves = self.cleaned_data.get("waves")
+        survey = self.cleaned_data.get("survey")
+
+        if waves and survey:
+            invalid_waves = waves.exclude(survey=survey)
+            if invalid_waves.exists():
+                raise forms.ValidationError(
+                    "Es wurden Gruppen ausgewählt, die nicht zum gewählten Survey gehören."
+                )
+
+        return waves
+
+    def clean_xml_zip(self):
+        uploaded_file = self.cleaned_data["xml_zip"]
+
+        if not uploaded_file.name.lower().endswith(".zip"):
+            raise forms.ValidationError("Bitte eine ZIP-Datei hochladen.")
+
+        return uploaded_file

@@ -123,4 +123,5 @@ select.qc-passive:focus {
                Consolas,
                monospace;          
   letter-spacing: 0.02em;           /* optional, macht es „iconiger“ */
+  padding: 0.3rem 0.2rem;
 }

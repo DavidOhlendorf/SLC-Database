@@ -181,6 +181,49 @@ class WavePageScreenshot(models.Model):
 
     def __str__(self) -> str:
         return f"{self.wave_page} – {self.language}/{self.device}"
+
+
+
+# Modell für QML/XML-Code einer Befragungsseite
+class WavePageQml(models.Model):
+    wave_page = models.OneToOneField(
+        WavePage,
+        on_delete=models.CASCADE,
+        related_name="qml_file",
+    )
+
+    source_filename = models.CharField(
+        max_length=255,
+        help_text="Ursprünglicher Dateiname der importierten XML-Datei, z. B. 'dem_08.xml'.",
+    )
+
+    xml_uid = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="UID aus der XML-Datei, z. B. aus <zofar:page uid='dem_08'>.",
+    )
+
+    xml_content = models.TextField(
+        help_text="Gesamter importierter XML-/QML-Code der Seite.",
+    )
+
+    imported_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Zeitpunkt des ersten Imports.",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Zeitpunkt der letzten Aktualisierung.",
+    )
+
+    class Meta:
+        ordering = ["wave_page"]
+        verbose_name = "QML-Datei (page)"
+        verbose_name_plural = "QML-Dateien (page)"
+
+    def __str__(self) -> str:
+        return f"{self.wave_page} – {self.source_filename}"
     
 
 # Modell für die Verknüpfung von Seiten und Befragungswellen mit Sortierreihenfolge

@@ -1,0 +1,36 @@
+{% extends "main.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">QML-Code</h1>
+      <div class="text-muted">
+        Seite: {{ page.pagename }}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.close();">
+        Fenster schließen
+      </button>
+    </div>
+  </div>
+
+  {% if qml_file %}
+    <div class="mb-3 text-muted small">
+      Datei: {{ qml_file.source_filename }}
+      {% if qml_file.xml_uid %}
+        · UID: {{ qml_file.xml_uid }}
+      {% endif %}
+      · Zuletzt aktualisiert: {{ qml_file.updated_at|date:"d.m.Y H:i" }}
+    </div>
+
+    <pre class="border rounded p-3 bg-light" style="white-space: pre-wrap; overflow-x: auto;"><code>{{ qml_file.xml_content }}</code></pre>
+  {% else %}
+    <div class="alert alert-info mb-0">
+      Für diese Seite ist keine QML-Datei hinterlegt.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
