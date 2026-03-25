@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  <p>
+    Erwartet wird eine <code>.zip</code>-Datei mit XML-/QML-Dateien.
+    Die Zuordnung erfolgt über den Dateinamen (z. B. <code>dem_08.xml</code>)
+    und optional über die <code>uid</code> im Root-Element.
+  </p>
+
+  <form method="post" enctype="multipart/form-data" style="margin-bottom: 2rem;">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <button type="submit" class="button">Nur prüfen / Vorschau</button>
+      <button
+        type="submit"
+        class="default"
+        onclick="document.getElementById('id_execute').value = 'true';"
+      >
+        Import ausführen
+      </button>
+    </div>
+  </form>
+
+  {% if summary %}
+    <h2>Ergebnis</h2>
+    <ul>
+      <li>Geprüfte XML-Dateien: {{ summary.total_files }}</li>
+      <li>Neu importiert: {{ summary.imported }}</li>
+      <li>Ersetzt: {{ summary.replaced }}</li>
+      <li>Bereits vorhanden und nicht ersetzt: {{ summary.skipped_existing }}</li>
+      <li>Keine passende Seite gefunden: {{ summary.missing_page }}</li>
+      <li>Mehrdeutige Seitenzuordnung: {{ summary.ambiguous_page }}</li>
+      <li>Ungültige XML-Dateien: {{ summary.invalid_xml }}</li>
+      <li>Ungültige ZIP-Einträge: {{ summary.invalid_zip_entries }}</li>
+      <li>UID-Konflikte: {{ summary.uid_mismatch }}</li>
+      <li>Doppelte Seitennamen in ZIP: {{ summary.duplicate_pagename_in_zip }}</li>
+    </ul>
+
+    <h2>Details</h2>
+    <table class="adminlist" style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Datei</th>
+          <th>Pagename (Dateiname)</th>
+          <th>XML-UID</th>
+          <th>Status</th>
+          <th>Hinweis</th>
+          <th>Passende Page-ID(s)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.results %}
+          <tr>
+            <td>{{ row.filename }}</td>
+            <td>{{ row.pagename_from_filename }}</td>
+            <td>{{ row.xml_uid }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.message }}</td>
+            <td>
+              {% if row.matched_page_ids %}
+                {{ row.matched_page_ids|join:", " }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock %}

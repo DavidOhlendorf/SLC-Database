@@ -426,8 +426,8 @@ class QmlImportForm(forms.Form):
     waves = forms.ModelMultipleChoiceField(
         queryset=Wave.objects.all(),
         required=False,
-        label="Waves (optional)",
-        help_text="Optional: Einschränkung auf bestimmte Waves des Surveys.",
+        label="Gruppen (optional)",
+        help_text="Optional: Einschränkung auf bestimmte Gruppen des Surveys.",
         widget=forms.SelectMultiple(attrs={"size": 6}),
     )
 

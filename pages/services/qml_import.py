@@ -1,10 +1,11 @@
 from __future__ import annotations
+import re
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
-import xml.etree.ElementTree as ET
+
 
 from django.db import transaction
 
@@ -37,16 +38,22 @@ class QmlImportSummary:
 
 
 def _extract_xml_uid(xml_text: str) -> str:
-    """
-    Liest die UID des Root-Elements aus, z. B. <zofar:page uid="dem_08">.
-    """
-    try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError as exc:
-        raise ValueError(f"XML ist nicht wohlgeformt: {exc}") from exc
+        """
+        Liest die UID aus dem öffnenden zofar:page-Tag.
+        Funktioniert auch dann, wenn Namespace-Präfixe wie 'zofar:' oder 'xsi:'
+        in der Datei nicht vollständig deklariert sind.
+        Hier einfach per regex und ohne XML-Parsing vorgehen, da nur der pagename benötigt wird.
+        """
+        match = re.search(
+            r"<zofar:page\b[^>]*\buid=[\"']([^\"']+)[\"']",
+            xml_text,
+            flags=re.IGNORECASE,
+        )
 
-    uid = (root.attrib.get("uid") or "").strip()
-    return uid
+        if not match:
+            raise ValueError("Keine UID im öffnenden <zofar:page>-Tag gefunden.")
+
+        return match.group(1).strip()
 
 
 def import_qml_from_zip(

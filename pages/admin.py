@@ -3,10 +3,11 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse, path
 from django.shortcuts import render
 
-from .forms import ScreenshotImportForm
+from .forms import ScreenshotImportForm, QmlImportForm
 from .services.screenshot_import import import_screenshots_from_csv
+from .services.qml_import import import_qml_from_zip
 
-from .models import WavePage, WavePageQuestion, WavePageScreenshot
+from .models import WavePage, WavePageQuestion, WavePageScreenshot, WavePageQml
 
 
 # Inline: Fragen auf der Seite
@@ -60,6 +61,11 @@ class WavePageScreenshotInline(admin.TabularInline):
     model = WavePageScreenshot
     extra = 1
 
+class WavePageQmlInline(admin.TabularInline):
+    model = WavePageQml
+    extra = 0
+    max_num = 1
+
 
 
 @admin.register(WavePage)
@@ -68,7 +74,7 @@ class WavePageAdmin(admin.ModelAdmin):
     search_fields = ("pagename",)
     ordering = ("pagename",)
 
-    inlines = [WavePageQuestionInline, WavePageScreenshotInline]
+    inlines = [WavePageQuestionInline, WavePageScreenshotInline, WavePageQmlInline]
 
     def get_inline_instances(self, request, obj=None):
         if obj is None:
@@ -104,11 +110,14 @@ class WavePageAdmin(admin.ModelAdmin):
     get_waves.short_description = "Befragungen"
 
 
-
+# Admin für Screenshots der Seiten
 @admin.register(WavePageScreenshot)
 class WavePageScreenshotAdmin(admin.ModelAdmin):
     list_display = ("wave_page", "language", "device", "image_path")
     search_fields = ("wave_page__pagename", "image_path", "language", "device")
+    list_filter = ("language", "device")
+
+    change_list_template = "admin/pages/screenshot_change_list.html"
 
     def get_urls(self):
         urls = super().get_urls()
@@ -174,6 +183,83 @@ class WavePageScreenshotAdmin(admin.ModelAdmin):
 
         context["form"] = form
         return render(request, "admin/pages/screenshot_import.html", context)
+
+
+# Admin für QML/XML-Code der Seiten
+@admin.register(WavePageQml)
+class WavePageQmlAdmin(admin.ModelAdmin):
+    list_display = ("wave_page", "source_filename", "xml_uid", "updated_at")
+    search_fields = ("wave_page__pagename", "source_filename", "xml_uid")
+    list_select_related = ("wave_page",)
+
+    change_list_template = "admin/pages/qml_change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "import-qml/",
+                self.admin_site.admin_view(self.import_qml_view),
+                name="pages_wavepageqml_import",
+            ),
+        ]
+        return custom_urls + urls
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["qml_import_url"] = "import-qml/"
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def import_qml_view(self, request):
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "QML-Dateien importieren",
+        }
+
+        if request.method == "POST":
+            form = QmlImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                try:
+                    summary = import_qml_from_zip(
+                        uploaded_file=form.cleaned_data["xml_zip"],
+                        survey_id=form.cleaned_data["survey"].id,
+                        wave_ids=list(form.cleaned_data["waves"].values_list("id", flat=True)),
+                        execute_import=form.cleaned_data["execute"],
+                        replace_existing=form.cleaned_data["replace_existing"],
+                    )
+                except ValueError as e:
+                    form.add_error("xml_zip", str(e))
+                except Exception as e:
+                    form.add_error(None, f"Unerwarteter Fehler beim Import: {e}")
+                else:
+                    if form.cleaned_data["execute"]:
+                        messages.success(
+                            request,
+                            f"Import abgeschlossen: "
+                            f"{summary.imported} neu importiert, "
+                            f"{summary.replaced} ersetzt, "
+                            f"{summary.skipped_existing} übersprungen, "
+                            f"{summary.missing_page} ohne passende Seite, "
+                            f"{summary.ambiguous_page} mehrdeutig, "
+                            f"{summary.invalid_xml} ungültige XML, "
+                            f"{summary.uid_mismatch} UID-Konflikte, "
+                            f"{summary.duplicate_pagename_in_zip} Duplikate in ZIP."
+                        )
+                    else:
+                        messages.info(
+                            request,
+                            f"Vorschau erstellt: {summary.total_files} XML-Dateien geprüft."
+                        )
+
+                    context["form"] = form
+                    context["summary"] = summary
+                    return render(request, "admin/pages/qml_import.html", context)
+        else:
+            form = QmlImportForm()
+
+        context["form"] = form
+        return render(request, "admin/pages/qml_import.html", context)
         
 
 
