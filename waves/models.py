@@ -2,6 +2,7 @@
 
 from django.db import models
 from questions.models import Question
+from django.core.validators import FileExtensionValidator
 
 # Das zentrale Modell für eine Befragung
 class Survey(models.Model):
@@ -103,6 +104,43 @@ class Wave(models.Model):
             return "Diese Gruppe kann nicht gelöscht werden, weil bereits Seiten verknüpft sind."
 
         return ""
+
+
+# Modell für Dokumente, die einer Befragungsgruppe zugeordnet werden können
+class WaveDocument(models.Model):
+    wave = models.ForeignKey(
+        Wave,
+        on_delete=models.CASCADE,
+        related_name="documents",
+        verbose_name="Wave",
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name="Titel",
+        help_text="Kurzer Anzeigename für das Dokument.",
+    )
+    pdf_file = models.FileField(
+        upload_to="wave_documents/",
+        validators=[FileExtensionValidator(allowed_extensions=["pdf"])],
+        verbose_name="PDF-Datei",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Sortierung",
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Hochgeladen am",
+    )
+
+    class Meta:
+        ordering = ["sort_order", "title"]
+        verbose_name = "Wave-Dokument"
+        verbose_name_plural = "Wave-Dokumente"
+
+    def __str__(self):
+        return f"{self.wave} - {self.title}"
+
 
 
 class WaveQuestion(models.Model):
