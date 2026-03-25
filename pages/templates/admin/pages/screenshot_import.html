@@ -1,0 +1,58 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  <p>
+    Erwartete CSV-Spalten:
+    <code>pagename</code>, <code>screenshotname</code>, <code>language</code>, <code>device</code>
+  </p>
+
+  <form method="post" enctype="multipart/form-data" style="margin-bottom: 2rem;">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="default">Prüfen / Importieren</button>
+  </form>
+
+  {% if summary %}
+    <h2>Ergebnis</h2>
+    <ul>
+      <li>Geprüfte Zeilen: {{ summary.total_rows }}</li>
+      <li>Importiert: {{ summary.imported }}</li>
+      <li>Bereits vorhanden und nicht ersetzt: {{ summary.skipped_existing }}</li>
+      <li>Bereits vorhanden und ersetzt: {{ summary.replaced }}</li>
+      <li>Seite nicht gefunden: {{ summary.missing_page }}</li>
+      <li>Datei nicht gefunden: {{ summary.missing_file }}</li>
+      <li>Mehrdeutig: {{ summary.ambiguous_page }}</li>
+      <li>Ungültige Zeilen: {{ summary.invalid_rows }}</li>
+    </ul>
+
+    <h2>Details</h2>
+    <table class="adminlist" style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Zeile</th>
+          <th>Pagename</th>
+          <th>Datei</th>
+          <th>Sprache</th>
+          <th>Device</th>
+          <th>Status</th>
+          <th>Hinweis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.results %}
+          <tr>
+            <td>{{ row.row_number }}</td>
+            <td>{{ row.pagename }}</td>
+            <td>{{ row.screenshotname }}</td>
+            <td>{{ row.language }}</td>
+            <td>{{ row.device }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.message }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock %}

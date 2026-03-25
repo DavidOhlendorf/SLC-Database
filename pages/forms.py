@@ -3,7 +3,7 @@ from django.forms import formset_factory, BaseFormSet
 
 from django.core.exceptions import ValidationError
 
-from waves.models import Wave
+from waves.models import Survey, Wave
 from questions.models import Question
 from django.db import transaction
 from django.db.models import Max
@@ -359,3 +359,55 @@ PageQuestionLinkFormSet = formset_factory(
     can_delete=True,
 )
 
+
+# Form zum Import von Screenshots mit Metadaten aus CSV-Datei
+class ScreenshotImportForm(forms.Form):
+    survey = forms.ModelChoiceField(
+        queryset=Survey.objects.all().order_by("-year", "name"),
+        label="Survey",
+    )
+
+    waves = forms.ModelMultipleChoiceField(
+        queryset=Wave.objects.select_related("survey").all().order_by("survey__name", "cycle", "instrument"),
+        label="Gruppen (Waves)",
+        widget=forms.SelectMultiple(attrs={"size": 12}),
+    )
+
+    screenshot_dir = forms.CharField(
+        label="Screenshot-Unterordner relativ zu MEDIA_ROOT",
+        help_text="Beispiel: screenshots/EJ2024/CAWI",
+        max_length=255,
+    )
+
+    metadata_file = forms.FileField(
+        label="CSV-Metadatenliste",
+        help_text="Pflichtspalten: pagename,screenshotname,language,device",
+    )
+
+    execute_import = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Import wirklich ausführen",
+        help_text="Wenn nicht gesetzt, wird nur eine Vorschau erzeugt.",
+    )
+
+    replace_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Vorhandene Screenshots ersetzen",
+        help_text="Wenn gesetzt, werden bestehende Screenshots für dieselbe Seite/Sprache/Device gelöscht und neu angelegt.",
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        survey = cleaned.get("survey")
+        waves = cleaned.get("waves")
+
+        if survey and waves:
+            invalid = [w for w in waves if w.survey_id != survey.id]
+            if invalid:
+                raise forms.ValidationError(
+                    "Mindestens eine ausgewählte Wave gehört nicht zum gewählten Survey."
+                )
+
+        return cleaned
