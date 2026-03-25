@@ -19,3 +19,6 @@ env/
 
 # Logging
 logs/
+
+# private uploads
+private_uploads/

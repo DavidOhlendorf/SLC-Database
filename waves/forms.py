@@ -1,8 +1,11 @@
 from django import forms
+from django.contrib.admin.widgets import AdminFileWidget
+from django.urls import reverse
+from django.utils.html import format_html
 from django.forms import inlineformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.core.exceptions import ValidationError
-from .models import Survey, Wave
+from .models import Survey, Wave, WaveDocument
 import datetime
 
 class SurveyCreateForm(forms.ModelForm):
@@ -162,3 +165,24 @@ WaveFormSet = inlineformset_factory(
     min_num=1,
     validate_min=True,
 )
+
+
+
+
+class PrivatePDFAdminFileWidget(AdminFileWidget):
+    template_name = "admin/widgets/private_pdf_file_input.html"
+
+
+class WaveDocumentInlineForm(forms.ModelForm):
+    class Meta:
+        model = WaveDocument
+        fields = "__all__"
+        widgets = {
+            "pdf_file": PrivatePDFAdminFileWidget,
+        }
+
+    def protected_pdf_link(self):
+        if self.instance and self.instance.pk:
+            url = reverse("waves:wave_document_pdf", args=[self.instance.pk])
+            return format_html('<a href="{}" target="_blank">Geschützt öffnen</a>', url)
+        return "-"

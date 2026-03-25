@@ -18,7 +18,8 @@
   <h1> {{ survey.name }} </h1>
 
   {% if waves %}
-    <ul class="nav nav-pills flex-wrap gap-2 mb-2">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-2">
+      <ul class="nav nav-pills flex-wrap gap-2 mb-0">
         <li class="nav-item">
           <a class="nav-link {% if is_all_mode %}active{% endif %}"
             href="?wave=all">
@@ -26,17 +27,36 @@
           </a>
         </li>
 
-      {% for w in waves %}
-        <li class="nav-item">
-          <a
-            class="nav-link {% if not is_all_mode and active_wave and w.id == active_wave.id %}active{% endif %}"
-            href="?wave={{ w.id }}"
-          >
-            {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
+        {% for w in waves %}
+          <li class="nav-item">
+            <a class="nav-link {% if not is_all_mode and active_wave and w.id == active_wave.id %}active{% endif %}"
+              href="?wave={{ w.id }}">
+              {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="flex-shrink-0">
+        {% if not is_all_mode %}
+          {% if wave_documents|length == 1 %}
+            <a href="{% url 'waves:wave_document_pdf' wave_documents.0.pk %}"
+              target="_blank"
+              rel="noopener"
+              class="btn btn-sm btn-outline-secondary">
+              Fragebogen / flowchart
+            </a>
+          {% elif wave_documents|length > 1 %}
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#waveDocumentsModal">
+              Fragebogen / flowchart
+            </button>
+          {% endif %}
+        {% endif %}  
+      </div>
+    </div>
   {% endif %}
 
   <div class="mb-5">
@@ -58,8 +78,8 @@
       {% endif %}
     </div>
 
-    <div>
 
+    <div>     
       {% if perms.accounts.can_edit_slc and not is_all_mode and active_wave and not active_wave.is_locked %}
         <button type="button"
                 class="btn btn-sm btn-outline-secondary me-2"
@@ -592,6 +612,9 @@
 
     <!-- Module bearbeiten Modal -->
     {% include "waves/_modules_modal.html" %}
+
+    <!-- Fragebögen Modal -->
+    {% include "waves/_documents_modal.html" %}
     
 
     {% if page_modal_open %}
