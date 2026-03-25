@@ -27,29 +27,56 @@
         </div>
         <div class="flex-shrink-0">
           {% if perms.accounts.can_edit_slc %}
-              <a class="btn btn-lg pv-btn text-secondary"
+            <div class="d-flex align-items-center gap-2">
+
+              {# QML #}
+              {% if has_qml %}
+                <a class="btn btn-lg pv-btn text-muted"
+                  target="_blank"
+                  rel="noopener"
+                  title="QML anzeigen"
+                  href="{% url 'pages:page-qml' page.id %}">
+                  QML
+                </a>
+              {% else %}
+                <span class="d-inline-block"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      data-bs-title="Für diese Seite ist keine QML-Datei hinterlegt.">
+                  <span class="btn btn-lg pv-btn text-body-tertiary pe-none" aria-disabled="true">
+                    QML
+                  </span>
+                </span>
+              {% endif %}
+
+              {# PV #}
+              <a class="btn btn-lg pv-btn text-muted"
                 target="_blank"
-                title="Programmiervorlage anzeigen"
                 rel="noopener"
+                title="Programmiervorlage anzeigen"
                 href="{% url 'pages:pv' page.id %}{% if active_wave %}?wave={{ active_wave.id }}{% endif %}">
                 PV 
               </a>
 
+              {# Copy #}
               <button type="button"
-                      class="btn btn-link btn-lg icon-action p-0 js-page-copy-open"
+                      class="btn btn-link btn-lg icon-action p-0"
                       title="Seite in andere Befragung kopieren"
                       data-page-id="{{ page.id }}"
                       data-default-name="{{ page.pagename|escape }}"
                       data-bs-toggle="modal"
                       data-bs-target="#copyPageModal">
-                      <i class="fa-solid fa-copy"></i>
+                <i class="fa-solid fa-copy"></i>
               </button>
 
+              {# Edit #}
               <a class="btn btn-link btn-lg icon-action p-0"
                 title="Fragebogenseite bearbeiten"
                 href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
                 <i class="fa-solid fa-pen-to-square"></i>
               </a>
+
+            </div>
           {% endif %}
         </div>
       </div>
