@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
-from .models import Survey, Wave, WaveQuestion
+from .models import Survey, Wave, WaveQuestion, WaveDocument
 from .resources import WaveResource, WaveQuestionResource
 
 
@@ -18,12 +18,24 @@ class SurveyAdmin(admin.ModelAdmin):
     wave_count.short_description = "Waves"
 
 
+class WaveDocumentInline(admin.TabularInline):
+    model = WaveDocument
+    extra = 1
+    fields = ("title", "pdf_file", "sort_order", "uploaded_at")
+    readonly_fields = ("uploaded_at",)
+
+
 @admin.register(Wave)
 class WaveAdmin(ImportExportModelAdmin):
     resource_class = WaveResource
-    list_display = ("survey", "cycle", "instrument", "start_date", "end_date", "is_locked")
+    list_display = ("survey", "cycle", "instrument", "start_date", "end_date", "is_locked", "document_count")
     list_filter = ("survey", "instrument", "is_locked")
     search_fields = ("cycle", "survey__name",)
+    inlines = [WaveDocumentInline]
+
+    @admin.display(description="Dokumente")
+    def document_count(self, obj):
+        return obj.documents.count()
 
 
 @admin.register(WaveQuestion)
