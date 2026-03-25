@@ -1,3 +1,5 @@
+import os
+
 from django import forms
 from django.forms import formset_factory, BaseFormSet
 
@@ -411,3 +413,46 @@ class ScreenshotImportForm(forms.Form):
                 )
 
         return cleaned
+
+
+# Form zum Import von QML/XML-Dateien für Seiten
+class QmlImportForm(forms.Form):
+    survey = forms.ModelChoiceField(
+        queryset=Survey.objects.all(),
+        required=True,
+        label="Survey",
+    )
+
+    waves = forms.ModelMultipleChoiceField(
+        queryset=Wave.objects.all(),
+        required=False,
+        label="Waves (optional)",
+        help_text="Optional: Einschränkung auf bestimmte Waves.",
+        widget=forms.SelectMultiple(attrs={"size": 6}),
+    )
+
+    xml_folder = forms.CharField(
+        required=True,
+        label="XML-Ordner",
+        help_text="Pfad zum Ordner mit den XML-Dateien (Serverpfad).",
+    )
+
+    replace_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Vorhandene QML ersetzen",
+    )
+
+    execute = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.HiddenInput(),
+    )
+
+    def clean_xml_folder(self):
+        folder = self.cleaned_data["xml_folder"]
+
+        if not os.path.isdir(folder):
+            raise forms.ValidationError("Der angegebene Ordner existiert nicht.")
+
+        return folder
