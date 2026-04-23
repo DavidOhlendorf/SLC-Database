@@ -32,7 +32,7 @@ def backfill_wavepagequestion_sort_order(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("pages", "0015_wavepaqgeqml"),
+        ("pages", "0015_wavepageqml"),
     ]
 
     operations = [
