@@ -29,9 +29,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (deleteInput) {
         deleteInput.checked = true;
         formEl.style.display = "none";
+        container.dispatchEvent(new Event("qfs:changed"));
         return;
       }
       formEl.remove();
+      container.dispatchEvent(new Event("qfs:changed"));
     }
 
     container.addEventListener("click", (e) => {
@@ -54,6 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       container.appendChild(fragment);
       updateTotalForms(index + 1);
+
+      container.dispatchEvent(new Event("qfs:changed"));
 
       const forms = container.querySelectorAll(".qfs-form");
       const last = forms[forms.length - 1];
