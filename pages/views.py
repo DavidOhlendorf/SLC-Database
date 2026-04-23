@@ -79,8 +79,7 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         .select_related("question")
         .order_by("sort_order", "id")
     )
-    page_questions = [x.question for x in wpq_qs]
-    page_question_ids = {q.id for q in page_questions}
+    page_question_ids = {x.question_id for x in wpq_qs}
 
 
     # POST: gebundenes Formset
@@ -100,8 +99,7 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         )
 
     # GET: initial auslesen
-    questions = page_questions
-    q_ids = [q.id for q in questions]
+    q_ids = [x.question_id for x in wpq_qs]
 
     wave_map = {}
     if q_ids and allowed_waves.exists():
@@ -113,7 +111,14 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         for wq in wq_qs:
             wave_map.setdefault(wq.question_id, []).append(wq.wave)
 
-    initial = [{"question": q, "waves": wave_map.get(q.id, [])} for q in questions]
+    initial = [
+    {
+        "question": link.question,
+        "waves": wave_map.get(link.question_id, []),
+        "sort_order": link.sort_order,
+    }
+    for link in wpq_qs
+]
 
     allowed_questions = Question.objects.filter(id__in=page_question_ids)
 
