@@ -280,6 +280,11 @@ class PageQuestionLinkForm(forms.Form):
         },
     )
 
+    sort_order = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+
     def __init__(self, *args, allowed_waves=None,  allowed_questions=None,**kwargs):
         """
         allowed_waves: QuerySet[Wave] – Befragtengruppen, die für diese Page auswählbar sind.
