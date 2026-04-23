@@ -362,7 +362,7 @@ class BasePageQuestionLinkFormSet(BaseFormSet):
 PageQuestionLinkFormSet = formset_factory(
     PageQuestionLinkForm,
     formset=BasePageQuestionLinkFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

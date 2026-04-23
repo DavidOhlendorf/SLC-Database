@@ -130,6 +130,37 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
             "allowed_questions": allowed_questions,
         },
     )
+# Helper: Sortierung eines gebundenen Formsets für die Anzeige nach gepostetem sort_order
+def _sort_bound_question_formset_for_render(formset):
+    """
+    Sortiert ein gebundenes Frage-Formset für die Anzeige nach dem geposteten sort_order.
+    Das ändert nur die Reihenfolge beim Rendern nach einem Validation Error,
+    nicht die technische Formset-Indizierung.
+    """
+    def sort_key(form):
+        cd = getattr(form, "cleaned_data", None) or {}
+
+        # Gelöschte Formulare nach unten
+        if formset.can_delete and formset._should_delete_form(form):
+            return (2, 999999, form.prefix)
+
+        q = cd.get("question")
+        ws = cd.get("waves")
+        sort_order = cd.get("sort_order")
+
+        # Komplett leere Zeilen ebenfalls nach unten
+        if not q and (not ws or len(ws) == 0):
+            return (1, 999999, form.prefix)
+
+        try:
+            so = int(sort_order)
+        except (TypeError, ValueError):
+            so = 999999
+
+        return (0, so, form.prefix)
+
+    formset.forms.sort(key=sort_key)
+    return formset
 
 
 # View zum Anzeigen einer Fragebogenseite
@@ -423,6 +454,7 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
         )
 
         if not question_formset.is_valid():
+            _sort_bound_question_formset_for_render(question_formset)
             ctx = {
                 "page": page,
                 "base_form": WavePageBaseForm(instance=page),
@@ -443,7 +475,7 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
             self.object = form.save()
             page = self.object
 
-            desired_question_ids_in_order = []
+            ordered_forms = []
             selected_waves_by_qid = {}
 
             for f in question_formset.forms:
@@ -453,20 +485,34 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
                 cd = getattr(f, "cleaned_data", None) or {}
                 q = cd.get("question")
                 ws = cd.get("waves")
+                sort_order = cd.get("sort_order")
 
                 # Leere Extra-Zeilen ignorieren
                 if not q and (not ws or len(ws) == 0):
                     continue
 
-                qid = q.id
+                ordered_forms.append({
+                    "question": q,
+                    "waves": ws,
+                    "sort_order": sort_order or 0,
+                })
+
+            # Reihenfolge aus dem versteckten Feld übernehmen
+            ordered_forms.sort(key=lambda x: (x["sort_order"], x["question"].id))
+
+            desired_question_ids_in_order = []
+
+            for item in ordered_forms:
+                qid = item["question"].id
 
                 if qid not in desired_question_ids_in_order:
                     desired_question_ids_in_order.append(qid)
 
-                selected_waves_by_qid[qid] = set(w.id for w in ws)
+                selected_waves_by_qid[qid] = set(w.id for w in item["waves"])
 
             desired_question_ids = set(desired_question_ids_in_order)
 
+            # 3) WavePageQuestion sync (Page ↔ Question)
             existing_links = {
                 link.question_id: link
                 for link in WavePageQuestion.objects.filter(wave_page=page)
@@ -475,8 +521,6 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
             existing_ids = set(existing_links.keys())
 
             to_delete = existing_ids - desired_question_ids
-            to_add = desired_question_ids - existing_ids
-
             removed_qids = list(to_delete)
 
             if to_delete:
@@ -516,7 +560,6 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
 
             if links_to_update:
                 WavePageQuestion.objects.bulk_update(links_to_update, ["sort_order"])
-
 
             # 4) WaveQuestion sync (Wave ↔ Question)
             allowed_wave_ids = set(page.waves.values_list("id", flat=True))
