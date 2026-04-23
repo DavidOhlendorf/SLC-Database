@@ -245,8 +245,19 @@
                     <div id="qfs-container" class="vstack gap-3" data-formset-prefix="qfs">
                         {% for qf in question_formset.forms %}
                             <div class="border rounded p-3 qfs-form {% if qf.errors %}border-danger{% endif %}">
+                                {{ qf.sort_order }}
                                 <div class="row g-3 align-items-end">
-                                    <div class="col-md-6">
+                                    <div class="col-md-1">
+                                        <label class="form-label d-block">&nbsp;</label>
+                                        <span class="js-qfs-drag-handle text-muted"
+                                            role="button"
+                                            title="Reihenfolge ändern"
+                                            style="cursor: grab;">
+                                            <i class="fa-solid fa-up-down"></i>
+                                        </span>
+                                    </div>
+
+                                    <div class="col-md-5">
                                         <label class="form-label">Frage</label>
                                         <div class="input-group">
                                             {{ qf.question }}
@@ -311,8 +322,19 @@
 
                     <template id="qfs-empty-form-template">
                         <div class="border rounded p-3 qfs-form">
+                            {{ question_formset.empty_form.sort_order }}
                             <div class="row g-3 align-items-end">
-                                <div class="col-md-6">
+                                <div class="col-md-1">
+                                    <label class="form-label d-block">&nbsp;</label>
+                                    <span class="js-qfs-drag-handle text-muted"
+                                        role="button"
+                                        title="Reihenfolge ändern"
+                                        style="cursor: grab;">
+                                        <i class="fa-solid fa-up-down"></i>
+                                    </span>
+                                </div>
+
+                                <div class="col-md-5">
                                     <label class="form-label">Frage</label>
                                     <div class="input-group">
                                         {{ question_formset.empty_form.question }}
