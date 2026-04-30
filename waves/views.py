@@ -97,52 +97,366 @@ class SurveyDetailView(TemplateView):
         # ALL MODE: Gesamtübersicht, getrennt nach Instrument
         # ------------------------------------------------------------
         if is_all_mode:
-            instrument_groups = []
+            available_instruments = list(
+                waves_qs
+                .order_by("instrument")
+                .values_list("instrument", flat=True)
+                .distinct()
+            )
 
-            waves_sorted = waves_qs.order_by("instrument", "cycle", "id")
+            active_instrument = self.request.GET.get("instrument")
 
-            def instrument_key(w):
-                return (w.instrument or "Unbekannt")
+            if active_instrument not in available_instruments:
+                active_instrument = available_instruments[0] if available_instruments else None
 
-            for instrument, wgroup in groupby(waves_sorted, key=instrument_key):
-                wlist = list(wgroup)
-                if not wlist:
-                    continue
+            instrument_waves = list(
+                waves_qs
+                .filter(instrument=active_instrument)
+                .order_by("cycle", "id")
+            )
 
-                pages_qs = (
-                    WavePage.objects
-                    .with_completeness()
-                    .filter(waves__in=wlist)
-                    .distinct()
-                    .prefetch_related("waves")
-                    .order_by("pagename")
+            instrument_wave_ids = [w.id for w in instrument_waves]
+
+            def normalize_module_name(name):
+                return (name or "").strip().lower()
+
+            def merge_ordered_sequences(sequences):
+                """
+                Erstellt eine gemeinsame Reihenfolge aus mehreren Wave-spezifischen
+                Reihenfolgen.
+
+                Beispiel:
+                Wave 1: A B C D E
+                Wave 2: A D E F G
+                Ergebnis: A B C D E F G
+
+                Bei echten Widersprüchen, z. B. A B C vs. A C B,
+                wird ein stabiler Fallback genutzt und conflict=True zurückgegeben.
+                """
+                from collections import defaultdict, deque
+
+                nodes = []
+                node_set = set()
+                first_seen_index = {}
+                first_seen_counter = 0
+
+                graph = defaultdict(set)
+                indegree = defaultdict(int)
+
+                # Nodes + Reihenfolge des ersten Auftretens erfassen
+                for seq in sequences:
+                    for node in seq:
+                        if node not in node_set:
+                            node_set.add(node)
+                            nodes.append(node)
+                            first_seen_index[node] = first_seen_counter
+                            first_seen_counter += 1
+                        indegree[node] = indegree[node]
+
+                # Kanten aus direkter Nachbarschaft bilden:
+                # A B C ergibt A < B und B < C
+                for seq in sequences:
+                    for left, right in zip(seq, seq[1:]):
+                        if right not in graph[left]:
+                            graph[left].add(right)
+                            indegree[right] += 1
+
+                queue = deque(
+                    sorted(
+                        [node for node in nodes if indegree[node] == 0],
+                        key=lambda node: first_seen_index[node],
+                    )
                 )
 
-                wave_ids_set = set(w.id for w in wlist)
-                page_wave_tags = {}
-                for p in pages_qs:
-                    page_wave_tags[p.id] = [w for w in p.waves.all() if w.id in wave_ids_set]
+                result = []
 
-                # Gesperrte Befragungsgruppen ermitteln
-                locked_wave_ids = {w.id for w in wlist if w.is_locked}
+                while queue:
+                    node = queue.popleft()
+                    result.append(node)
 
-                # Prüfen, ob Seite mit gesperrter Befragungsgruppe verknüpft ist und in dict speichern
-                page_delete_blocked = {}
-                for p in pages_qs:
-                    waves_for_page_in_group = page_wave_tags[p.id]
-                    page_delete_blocked[p.id] = any(w.id in locked_wave_ids for w in waves_for_page_in_group)
+                    for child in sorted(graph[node], key=lambda n: first_seen_index[n]):
+                        indegree[child] -= 1
+                        if indegree[child] == 0:
+                            queue.append(child)
 
+                    queue = deque(sorted(queue, key=lambda n: first_seen_index[n]))
 
-                instrument_groups.append({
-                    "instrument": instrument,
-                    "waves": wlist,
-                    "pages": pages_qs,
-                    "page_wave_tags": page_wave_tags,
-                    "default_wave_id": wlist[0].id,
-                    "page_delete_blocked": page_delete_blocked,
+                conflict = len(result) != len(nodes)
+
+                if not conflict:
+                    return result, False
+
+                # Fallback bei widersprüchlichen Sequenzen:
+                # stabile Einfüge-Logik, damit trotzdem eine brauchbare Ansicht entsteht
+                fallback = []
+
+                for seq in sequences:
+                    for item in seq:
+                        if item not in fallback:
+                            fallback.append(item)
+
+                        current_index = fallback.index(item)
+
+                        predecessors = seq[:seq.index(item)]
+                        for pred in predecessors:
+                            if pred not in fallback:
+                                fallback.insert(current_index, pred)
+                                current_index += 1
+                            else:
+                                pred_index = fallback.index(pred)
+                                current_index = fallback.index(item)
+
+                                if pred_index > current_index:
+                                    fallback.pop(pred_index)
+                                    current_index = fallback.index(item)
+                                    fallback.insert(current_index, pred)
+
+                return fallback, True
+
+            def find_relative_order_conflicts(sequences):
+                """
+                Prüft, ob Elemente in verschiedenen Sequenzen relativ unterschiedlich
+                sortiert sind.
+
+                Fehlende Elemente sind erlaubt:
+                Sequenz 1: A B C D
+                Sequenz 2: A B D
+                => kein Konflikt
+
+                Echte Umstellung:
+                Sequenz 1: A B C D
+                Sequenz 2: B C D A
+                => Konflikt für die beteiligten Elemente
+                """
+                conflict_ids = set()
+
+                relevant_sequences = [
+                    seq
+                    for seq in sequences
+                    if len(seq) > 1
+                ]
+
+                for i, seq_a in enumerate(relevant_sequences):
+                    pos_a = {item_id: idx for idx, item_id in enumerate(seq_a)}
+
+                    for seq_b in relevant_sequences[i + 1:]:
+                        pos_b = {item_id: idx for idx, item_id in enumerate(seq_b)}
+                        common_item_ids = list(set(pos_a) & set(pos_b))
+
+                        if len(common_item_ids) < 2:
+                            continue
+
+                        for idx, item_id_1 in enumerate(common_item_ids):
+                            for item_id_2 in common_item_ids[idx + 1:]:
+                                order_a = pos_a[item_id_1] < pos_a[item_id_2]
+                                order_b = pos_b[item_id_1] < pos_b[item_id_2]
+
+                                if order_a != order_b:
+                                    conflict_ids.add(item_id_1)
+                                    conflict_ids.add(item_id_2)
+
+                return conflict_ids
+
+            # Modul-Sequenzen pro Wave erfassen
+            module_sequences = []
+
+            for wave in instrument_waves:
+                sequence = []
+
+                modules_for_wave = (
+                    WaveModule.objects
+                    .filter(wave=wave)
+                    .order_by("sort_order", "id")
+                )
+
+                for module in modules_for_wave:
+                    sequence.append(("module", normalize_module_name(module.name)))
+
+                module_sequences.append(sequence)
+
+            merged_module_order, module_order_has_cycle_conflict = merge_ordered_sequences(module_sequences)
+
+            # Modul-Warnungen nur bei echter relativer Reihenfolge-Abweichung,
+            # nicht bei fehlenden Modulen.
+            module_order_conflict_keys = find_relative_order_conflicts(module_sequences)
+            module_order_has_conflicts = bool(module_order_conflict_keys) or module_order_has_cycle_conflict
+
+            module_order_index = {
+                key: idx
+                for idx, key in enumerate(merged_module_order)
+            }
+
+            page_links_qs = (
+                WavePageWave.objects
+                .filter(wave_id__in=instrument_wave_ids)
+                .select_related("wave", "module")
+                .prefetch_related(
+                    Prefetch("page", queryset=WavePage.objects.with_completeness())
+                )
+                .order_by(
+                    "module__sort_order",
+                    "module__name",
+                    "sort_order",
+                    "page__pagename",
+                    "wave__cycle",
+                    "wave__id",
+                )
+            )
+
+            page_ids = list(
+                page_links_qs
+                .values_list("page_id", flat=True)
+                .distinct()
+            )
+
+            instrument_question_ids = (
+                WaveQuestion.objects
+                .filter(wave_id__in=instrument_wave_ids)
+                .values_list("question_id", flat=True)
+                .distinct()
+            )
+
+            counts_qs = (
+                WavePageQuestion.objects
+                .filter(wave_page_id__in=page_ids)
+                .filter(question_id__in=instrument_question_ids)
+                .values("wave_page_id")
+                .annotate(cnt=Count("id"))
+            )
+
+            page_question_counts = {row["wave_page_id"]: row["cnt"] for row in counts_qs}
+            page_question_snippets = defaultdict(list)
+
+            snippets_qs = (
+                WavePageQuestion.objects
+                .filter(wave_page_id__in=page_ids)
+                .filter(question_id__in=instrument_question_ids)
+                .annotate(snippet=Substr("question__questiontext", 1, 100))
+                .values_list("wave_page_id", "snippet")
+                .order_by("wave_page_id", "id")
+            )
+
+            for pid, snip in snippets_qs:
+                snip = (snip or "").replace("\n", " ").strip()
+                if snip:
+                    page_question_snippets[pid].append(snip)
+
+            # Aggregation: gleichnamige Module innerhalb eines Instruments zusammenführen
+            blocks_by_key = {}
+
+            for link in page_links_qs:
+                if link.module_id:
+                    module_name = link.module.name
+                    module_key = ("module", normalize_module_name(module_name))
+                    module_sort = link.module.sort_order
+                    module_label = module_name
+                    is_unassigned = False
+                else:
+                    module_key = ("unassigned", "")
+                    module_sort = 0
+                    module_label = "Ohne Modul"
+                    is_unassigned = True
+
+                if module_key not in blocks_by_key:
+                    blocks_by_key[module_key] = {
+                        "key": module_key,
+                        "name": module_label,
+                        "is_unassigned": is_unassigned,
+                        "module_positions": [],
+                        "pages_by_id": {},
+                        "page_sequences_by_wave": defaultdict(list),
+                    }
+
+                block = blocks_by_key[module_key]
+                block["module_positions"].append(module_sort)
+                block["page_sequences_by_wave"][link.wave_id].append(link.page_id)
+
+                page_entry = block["pages_by_id"].setdefault(
+                    link.page_id,
+                    {
+                        "page": link.page,
+                        "waves": [],
+                        "positions": [],
+                        "min_sort_order": link.sort_order,
+                        "sort_order_varies": False,
+                        "position_tooltip": "",
+                        "delete_blocked": False,
+                    },
+                )
+
+                page_entry["waves"].append(link.wave)
+                page_entry["positions"].append((link.wave, link.sort_order))
+                page_entry["min_sort_order"] = min(page_entry["min_sort_order"], link.sort_order)
+                
+                if link.wave.is_locked:
+                    page_entry["delete_blocked"] = True
+
+            all_mode_module_blocks = []
+
+            for block in blocks_by_key.values():
+                module_positions = block["module_positions"] or [0]
+
+                pages = list(block["pages_by_id"].values())
+
+                page_order_conflict_ids = find_relative_order_conflicts(
+                    block["page_sequences_by_wave"].values()
+                )
+
+                for page_entry in pages:
+                    page_entry["sort_order_varies"] = page_entry["page"].id in page_order_conflict_ids
+
+                    if page_entry["sort_order_varies"]:
+                        page_entry["position_tooltip"] = (
+                            "Die relative Reihenfolge dieser Seite unterscheidet sich zwischen Gruppen."
+                        )
+                    else:
+                        page_entry["position_tooltip"] = ""
+
+                    page_entry["waves"] = sorted(
+                        page_entry["waves"],
+                        key=lambda w: (w.cycle, w.id),
+                    )
+
+                pages.sort(
+                    key=lambda p: (
+                        p["min_sort_order"],
+                        p["page"].pagename.lower(),
+                        p["page"].id,
+                    )
+                )
+
+                module_has_relative_order_conflict = block["key"] in module_order_conflict_keys
+
+                all_mode_module_blocks.append({
+                    "key": block["key"],
+                    "name": block["name"],
+                    "is_unassigned": block["is_unassigned"],
+                    "pages": pages,
+                    "min_module_sort_order": min(module_positions),
+                    "module_sort_varies": module_has_relative_order_conflict,
+                    "module_position_tooltip": (
+                        "Die relative Reihenfolge dieses Moduls unterscheidet sich zwischen Gruppen."
+                        if module_has_relative_order_conflict
+                        else ""
+                    ),
                 })
 
-            ctx["instrument_groups"] = instrument_groups
+            all_mode_module_blocks.sort(
+                key=lambda b: (
+                    1 if b["is_unassigned"] else 0,
+                    module_order_index.get(b["key"], 9999),
+                    b["name"].lower(),
+                )
+            )
+
+            ctx["available_instruments"] = available_instruments
+            ctx["active_instrument"] = active_instrument
+            ctx["instrument_waves"] = instrument_waves
+            ctx["all_mode_module_blocks"] = all_mode_module_blocks
+            ctx["module_order_has_conflicts"] = module_order_has_conflicts
+            ctx["page_question_counts"] = page_question_counts
+            ctx["page_question_snippets"] = page_question_snippets
+
             return ctx
 
         # ------------------------------------------------------------
