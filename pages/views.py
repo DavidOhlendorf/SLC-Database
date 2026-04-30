@@ -77,10 +77,9 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         WavePageQuestion.objects
         .filter(wave_page=page)
         .select_related("question")
-        .order_by("id")
+        .order_by("sort_order", "id")
     )
-    page_questions = [x.question for x in wpq_qs]
-    page_question_ids = {q.id for q in page_questions}
+    page_question_ids = {x.question_id for x in wpq_qs}
 
 
     # POST: gebundenes Formset
@@ -100,8 +99,7 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         )
 
     # GET: initial auslesen
-    questions = page_questions
-    q_ids = [q.id for q in questions]
+    q_ids = [x.question_id for x in wpq_qs]
 
     wave_map = {}
     if q_ids and allowed_waves.exists():
@@ -113,7 +111,14 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         for wq in wq_qs:
             wave_map.setdefault(wq.question_id, []).append(wq.wave)
 
-    initial = [{"question": q, "waves": wave_map.get(q.id, [])} for q in questions]
+    initial = [
+    {
+        "question": link.question,
+        "waves": wave_map.get(link.question_id, []),
+        "sort_order": link.sort_order,
+    }
+    for link in wpq_qs
+]
 
     allowed_questions = Question.objects.filter(id__in=page_question_ids)
 
@@ -125,6 +130,37 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
             "allowed_questions": allowed_questions,
         },
     )
+# Helper: Sortierung eines gebundenen Formsets für die Anzeige nach gepostetem sort_order
+def _sort_bound_question_formset_for_render(formset):
+    """
+    Sortiert ein gebundenes Frage-Formset für die Anzeige nach dem geposteten sort_order.
+    Das ändert nur die Reihenfolge beim Rendern nach einem Validation Error,
+    nicht die technische Formset-Indizierung.
+    """
+    def sort_key(form):
+        cd = getattr(form, "cleaned_data", None) or {}
+
+        # Gelöschte Formulare nach unten
+        if formset.can_delete and formset._should_delete_form(form):
+            return (2, 999999, form.prefix)
+
+        q = cd.get("question")
+        ws = cd.get("waves")
+        sort_order = cd.get("sort_order")
+
+        # Komplett leere Zeilen ebenfalls nach unten
+        if not q and (not ws or len(ws) == 0):
+            return (1, 999999, form.prefix)
+
+        try:
+            so = int(sort_order)
+        except (TypeError, ValueError):
+            so = 999999
+
+        return (0, so, form.prefix)
+
+    formset.forms.sort(key=sort_key)
+    return formset
 
 
 # View zum Anzeigen einer Fragebogenseite
@@ -146,7 +182,7 @@ class WavePageDetailView(DetailView):
                 "waves", 
                 Prefetch(
                     "page_questions",
-                    queryset=WavePageQuestion.objects.select_related("question"),
+                    queryset=WavePageQuestion.objects.select_related("question").order_by("sort_order", "id"),
                 ),
                 "screenshots", 
             )
@@ -174,7 +210,7 @@ class WavePageDetailView(DetailView):
         page_questions_qs = (
             page.page_questions
             .select_related("question")
-            .all()
+            .order_by("sort_order", "id")
         )
 
         # Falls keine wave verknüpft ist, nicht filtern
@@ -418,6 +454,7 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
         )
 
         if not question_formset.is_valid():
+            _sort_bound_question_formset_for_render(question_formset)
             ctx = {
                 "page": page,
                 "base_form": WavePageBaseForm(instance=page),
@@ -438,7 +475,7 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
             self.object = form.save()
             page = self.object
 
-            desired_question_ids = set()
+            ordered_forms = []
             selected_waves_by_qid = {}
 
             for f in question_formset.forms:
@@ -448,25 +485,42 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
                 cd = getattr(f, "cleaned_data", None) or {}
                 q = cd.get("question")
                 ws = cd.get("waves")
+                sort_order = cd.get("sort_order")
 
                 # Leere Extra-Zeilen ignorieren
                 if not q and (not ws or len(ws) == 0):
                     continue
 
-                qid = q.id
-                desired_question_ids.add(qid)
-                selected_waves_by_qid[qid] = set(w.id for w in ws)
+                ordered_forms.append({
+                    "question": q,
+                    "waves": ws,
+                    "sort_order": sort_order or 0,
+                })
+
+            # Reihenfolge aus dem versteckten Feld übernehmen
+            ordered_forms.sort(key=lambda x: (x["sort_order"], x["question"].id))
+
+            desired_question_ids_in_order = []
+
+            for item in ordered_forms:
+                qid = item["question"].id
+
+                if qid not in desired_question_ids_in_order:
+                    desired_question_ids_in_order.append(qid)
+
+                selected_waves_by_qid[qid] = set(w.id for w in item["waves"])
+
+            desired_question_ids = set(desired_question_ids_in_order)
 
             # 3) WavePageQuestion sync (Page ↔ Question)
-            existing_ids = set(
-                WavePageQuestion.objects
-                .filter(wave_page=page)
-                .values_list("question_id", flat=True)
-            )
+            existing_links = {
+                link.question_id: link
+                for link in WavePageQuestion.objects.filter(wave_page=page)
+            }
+
+            existing_ids = set(existing_links.keys())
 
             to_delete = existing_ids - desired_question_ids
-            to_add = desired_question_ids - existing_ids
-
             removed_qids = list(to_delete)
 
             if to_delete:
@@ -483,13 +537,29 @@ class WavePageContentUpdateView(EditorRequiredMixin, UpdateView):
 
                 orphan_qids = list(set(orphan_qids) | set(cleanup_result.orphan_question_ids))
 
+            new_links = []
+            links_to_update = []
 
-            if to_add:
-                WavePageQuestion.objects.bulk_create([
-                    WavePageQuestion(wave_page=page, question_id=qid)
-                    for qid in to_add
-                ])
+            for position, qid in enumerate(desired_question_ids_in_order, start=1):
+                if qid in existing_links:
+                    link = existing_links[qid]
+                    if link.sort_order != position:
+                        link.sort_order = position
+                        links_to_update.append(link)
+                else:
+                    new_links.append(
+                        WavePageQuestion(
+                            wave_page=page,
+                            question_id=qid,
+                            sort_order=position,
+                        )
+                    )
 
+            if new_links:
+                WavePageQuestion.objects.bulk_create(new_links)
+
+            if links_to_update:
+                WavePageQuestion.objects.bulk_update(links_to_update, ["sort_order"])
 
             # 4) WaveQuestion sync (Wave ↔ Question)
             allowed_wave_ids = set(page.waves.values_list("id", flat=True))
@@ -688,7 +758,7 @@ class WavePagePVView(EditorRequiredMixin, DetailView):
 
 
         # Fragen der Seite
-        links = page.page_questions.select_related("question").all()
+        links = page.page_questions.select_related("question").order_by("sort_order", "id")
         questions = [l.question for l in links]
         q_ids = [q.id for q in questions]
 
@@ -874,12 +944,16 @@ class WavePageCopyView(EditorRequiredMixin, View):
             )
         
         # Bestimme alle Fragen auf der Quell-Seite
+        source_page_links = []
         qids: list[int] = []
+
         if include_questions or include_variables:
-            qids = list(
-                WavePageQuestion.objects.filter(wave_page=source_page)
-                .values_list("question_id", flat=True)
+            source_page_links = list(
+                WavePageQuestion.objects
+                .filter(wave_page=source_page)
+                .order_by("sort_order", "id")
             )
+            qids = [link.question_id for link in source_page_links]
 
         # aktuell: ohne Fragen auch keine Vars
         # --> evtl. später anpassen, wenn es technische Vars auf Seiten geben sollte, die unabhängig von Fragen sind
@@ -890,9 +964,15 @@ class WavePageCopyView(EditorRequiredMixin, View):
 
         # --- 2) Fragen übernehmen
         if include_questions:
-            # Links Seite->Fragen kopieren
             WavePageQuestion.objects.bulk_create(
-                [WavePageQuestion(wave_page=new_page, question_id=qid) for qid in qids],
+                [
+                    WavePageQuestion(
+                        wave_page=new_page,
+                        question_id=link.question_id,
+                        sort_order=link.sort_order,
+                    )
+                    for link in source_page_links
+                ],
                 ignore_conflicts=True,
             )
 

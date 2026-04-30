@@ -5,7 +5,9 @@
 
 
 {% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="{% static 'js/builder/page_question_formset.js' %}"></script>
+    <script src="{% static 'js/builder/page_question_reorder.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
     <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
     <script src="{% static 'js/ui/required_badge.js' %}"></script>
@@ -245,8 +247,19 @@
                     <div id="qfs-container" class="vstack gap-3" data-formset-prefix="qfs">
                         {% for qf in question_formset.forms %}
                             <div class="border rounded p-3 qfs-form {% if qf.errors %}border-danger{% endif %}">
+                                {{ qf.sort_order }}
                                 <div class="row g-3 align-items-end">
-                                    <div class="col-md-6">
+                                    <div class="col-md-1">
+                                        <label class="form-label d-block">&nbsp;</label>
+                                        <span class="js-qfs-drag-handle text-muted"
+                                            role="button"
+                                            title="Reihenfolge ändern"
+                                            style="cursor: grab;">
+                                            <i class="fa-solid fa-up-down"></i>
+                                        </span>
+                                    </div>
+
+                                    <div class="col-md-5">
                                         <label class="form-label">Frage</label>
                                         <div class="input-group">
                                             {{ qf.question }}
@@ -311,8 +324,19 @@
 
                     <template id="qfs-empty-form-template">
                         <div class="border rounded p-3 qfs-form">
+                            {{ question_formset.empty_form.sort_order }}
                             <div class="row g-3 align-items-end">
-                                <div class="col-md-6">
+                                <div class="col-md-1">
+                                    <label class="form-label d-block">&nbsp;</label>
+                                    <span class="js-qfs-drag-handle text-muted"
+                                        role="button"
+                                        title="Reihenfolge ändern"
+                                        style="cursor: grab;">
+                                        <i class="fa-solid fa-up-down"></i>
+                                    </span>
+                                </div>
+
+                                <div class="col-md-5">
                                     <label class="form-label">Frage</label>
                                     <div class="input-group">
                                         {{ question_formset.empty_form.question }}

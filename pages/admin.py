@@ -14,6 +14,8 @@ from .models import WavePage, WavePageQuestion, WavePageScreenshot, WavePageQml
 class WavePageQuestionInline(admin.TabularInline):
     model = WavePageQuestion
     extra = 1
+    fields = ("question", "sort_order")
+    ordering = ("sort_order", "id")
     
 
     verbose_name = "Frage auf Seite"
@@ -106,8 +108,29 @@ class WavePageAdmin(admin.ModelAdmin):
 
     def get_waves(self, obj):
         return ", ".join(str(w) for w in obj.waves.all())
+    
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+
+        # Nach dem Speichern: sort_order sauber neu setzen
+        page = form.instance
+
+        links = list(
+            WavePageQuestion.objects
+            .filter(wave_page=page)
+            .order_by("sort_order", "id")
+        )
+
+        for idx, link in enumerate(links, start=1):
+            if link.sort_order != idx:
+                link.sort_order = idx
+
+        WavePageQuestion.objects.bulk_update(links, ["sort_order"])
 
     get_waves.short_description = "Befragungen"
+
+
+    
 
 
 # Admin für Screenshots der Seiten

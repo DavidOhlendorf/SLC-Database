@@ -137,14 +137,27 @@ class WavePageQuestion(models.Model):
         related_name="page_links",
     )
 
+    sort_order = models.PositiveIntegerField(default=0)
+
     class Meta:
-        unique_together = ("wave_page", "question")
-        ordering = ["wave_page", "question"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wave_page", "question"],
+                name="uq_wavepagequestion_page_question",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["wave_page", "sort_order"],
+                name="idx_wpq_page_sort",
+            ),
+        ]
+        ordering = ["wave_page", "sort_order", "id"]
         verbose_name = "questions on page"
         verbose_name_plural = "questions on page"
 
     def __str__(self) -> str:
-        return f"{self.wave_page} – {self.question}"
+        return f"{self.wave_page} – {self.sort_order}: {self.question}"
 
 
 
