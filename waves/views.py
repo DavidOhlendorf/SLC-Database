@@ -333,7 +333,7 @@ class SurveyDetailView(TemplateView):
                 .filter(question_id__in=instrument_question_ids)
                 .annotate(snippet=Substr("question__questiontext", 1, 100))
                 .values_list("wave_page_id", "snippet")
-                .order_by("wave_page_id", "id")
+                .order_by("wave_page_id", "sort_order", "id")
             )
 
             for pid, snip in snippets_qs:
@@ -501,7 +501,7 @@ class SurveyDetailView(TemplateView):
             .filter(question_id__in=wave_question_ids)
             .annotate(snippet=Substr("question__questiontext", 1, 100))
             .values_list("wave_page_id", "snippet")
-            .order_by("wave_page_id", "id")
+            .order_by("wave_page_id", "sort_order", "id")
         )
 
         for pid, snip in snippets_qs:
