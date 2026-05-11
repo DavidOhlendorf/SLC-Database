@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -15,42 +15,21 @@ class PVContext:
 
 def build_pv(ctx: PVContext) -> str:
     """
-    Baut die Programmiervorlage (PV) als Markdown-freundlichen Plain-Text.
+    Baut die Programmiervorlage (PV) als einfachen Plain-Text.
+
+    Ausgabeprinzip:
+    - pro Seite / Frage ein vollständiger Block
+    - Seitenfelder werden bei mehreren Fragen pro Frage wiederholt
+    - Variablen werden je Frage als vn: var1 / var2 / ... ausgegeben
     """
 
     def s(val) -> str:
-        # robust: None -> "", strings trimmen
         return (val or "").strip()
 
     def line(label: str, value) -> str:
         return f"{label}: {s(value)}\n"
 
-    lines: list[str] = []
-    lines.append("## Seitenangaben\n\n")
-
-    p = ctx.page
-    # Seitenfelder
-    lines.append(line("pn", getattr(p, "pagename", "")))
-    lines.append(line("hl", getattr(p, "page_heading", "")))
-    lines.append(line("in", getattr(p, "introduction", "")))
-    lines.append(line("tc", getattr(p, "transition_control", "")))
-    lines.append(line("vc", getattr(p, "visibility_conditions", "")))
-    lines.append(line("av", getattr(p, "answer_validations", "")))
-    lines.append(line("kh", getattr(p, "correction_notes", "")))
-    lines.append(line("fv", getattr(p, "forcing_variables", "")))
-    lines.append(line("hv", getattr(p, "helper_variables", "")))
-    lines.append(line("sv", getattr(p, "control_variables", "")))
-    lines.append(line("fo", getattr(p, "formatting", "")))
-    lines.append(line("tr", getattr(p, "transitions", "")))
-    lines.append(line("hi", getattr(p, "page_programming_notes", "")))
-
-    lines.append("\n---\n\n## Fragen auf der Seite\n")
-
-    total = len(ctx.questions)
-    for i, q in enumerate(ctx.questions, start=1):
-        qid = getattr(q, "id", "")
-        lines.append(f"\n### Q{qid} ({i}/{total})\n")
-
+    def qtype_label(q) -> str:
         qt_value = getattr(q, "question_type", "")
         qt_label = ""
 
@@ -61,94 +40,127 @@ def build_pv(ctx: PVContext) -> str:
         if not qt_label:
             qt_label = qt_value
 
-        # Wenn OTHER, dann Freitext anhängen
         if qt_value == "other":
             other_txt = s(getattr(q, "question_type_other", ""))
             if other_txt:
                 qt_label = f"{qt_label}: {other_txt}"
 
-        lines.append(line("qt", qt_label))
-        lines.append(line("q", getattr(q, "questiontext", "")))
-        lines.append(line("is", getattr(q, "instruction", "")))
-        lines.append(line("st", getattr(q, "item_stem", "")))
-        lines.append(line("mv", getattr(q, "missing_values", "")))
-        lines.append(line("ka", getattr(q, "top_categories", "")))
+        return qt_label
 
-        # Items (JSON)
-        items = getattr(q, "items", None) or []
-        lines.append("it:\n")
+    def format_items(items) -> str:
+        items = items or []
+        item_lines: list[str] = []
 
-        if items:
-            for item in items:
-                item = item or {}
+        for item in items:
+            item = item or {}
+            parts: list[str] = []
 
-                parts = []
+            uid = item.get("uid")
+            if uid:
+                parts.append(str(uid))
 
-                uid = item.get("uid")
-                if uid:
-                    parts.append(str(uid))
+            var = item.get("variable")
+            if var:
+                parts[-1] = f"{parts[-1]}({var})" if parts else f"({var})"
 
-                var = item.get("variable")
-                if var:
-                    parts[-1] = f"{parts[-1]}({var})" if parts else f"({var})"
+            lab = item.get("label")
+            if lab:
+                parts.append(str(lab))
 
-                lab = item.get("label")
-                if lab:
-                    parts.append(str(lab))
+            if parts:
+                item_lines.append(":".join(parts))
 
-                if parts:
-                    lines.append(f"- {':'.join(parts)}\n")
+        return "\n".join(item_lines)
 
+    def format_answer_options(answer_options) -> str:
+        answer_options = answer_options or []
+        ao_lines: list[str] = []
 
-        # Antwortoptionen (JSON)
-        aos = getattr(q, "answer_options", None) or []
-        lines.append("ao:\n")
+        for ao in answer_options:
+            ao = ao or {}
+            parts: list[str] = []
 
-        if aos:
-            for ao in aos:
-                ao = ao or {}
+            uid = ao.get("uid")
+            if uid:
+                parts.append(str(uid))
 
-                parts = []
+            var = ao.get("variable")
+            if var:
+                parts[-1] = f"{parts[-1]}({var})" if parts else f"({var})"
 
-                uid = ao.get("uid")
-                if uid:
-                    parts.append(str(uid))
+            val = ao.get("value")
+            if val is not None and val != "":
+                parts.append(str(val))
 
-                var = ao.get("variable")
-                if var:
-                    parts[-1] = f"{parts[-1]}({var})" if parts else f"({var})"
+            lab = ao.get("label")
+            if lab:
+                parts.append(str(lab))
 
-                val = ao.get("value")
-                if val is not None and val != "":
-                    parts.append(str(val))
+            if parts:
+                ao_lines.append(":".join(parts))
 
-                lab = ao.get("label")
-                if lab:
-                    parts.append(str(lab))
+        return "\n".join(ao_lines)
 
-                if parts:
-                    lines.append(f"- {':'.join(parts)}\n")
-
-    lines.append("\n---\n\n## Variablen auf der Seite\n")
+    p = ctx.page
     vars_by_qid = ctx.vars_by_qid or {}
 
-    any_vars = False
-    for q in ctx.questions:
-        qid = getattr(q, "id", None)
-        if qid is None:
-            continue
+    # Falls eine Seite ausnahmsweise keine Fragen hat, trotzdem einen Seitenblock ausgeben.
+    questions = ctx.questions or [None]
 
-        varnames = vars_by_qid.get(qid, [])
-        if not varnames:
-            continue
+    blocks: list[str] = []
 
-        any_vars = True
+    for q in questions:
+        qid = getattr(q, "id", None) if q is not None else None
+        varnames = vars_by_qid.get(qid, []) if qid is not None else []
+        vn_value = " / ".join(varnames)
 
-        lines.append(f"\n### Q{qid}:\n")
-        for v in varnames:
-            lines.append(f"- {v}\n")
+        lines: list[str] = []
 
-    if not any_vars:
-        lines.append("\n(keine Variablen gefunden)\n")
+        if qid is not None:
+            lines.append(f"qID {qid}\n")
+        else:
+            lines.append("qID \n")
 
-    return "".join(lines)
+        lines.append("***\n")
+
+        lines.append(line("pn", getattr(p, "pagename", "")))
+        lines.append(line("tc", getattr(p, "transition_control", "")))
+        lines.append(line("vn", vn_value))
+
+        lines.append(line("qt", qtype_label(q) if q is not None else ""))
+
+        lines.append(line("hl", getattr(p, "page_heading", "")))
+        lines.append(line("in", getattr(p, "introduction", "")))
+
+        lines.append(line("q", getattr(q, "questiontext", "") if q is not None else ""))
+        lines.append(line("is", getattr(q, "instruction", "") if q is not None else ""))
+
+        lines.append("it:\n")
+        if q is not None:
+            item_text = format_items(getattr(q, "items", None))
+            if item_text:
+                lines.append(f"{item_text}\n")
+
+        lines.append(line("st", getattr(q, "item_stem", "") if q is not None else ""))
+
+        lines.append("ao:\n")
+        if q is not None:
+            ao_text = format_answer_options(getattr(q, "answer_options", None))
+            if ao_text:
+                lines.append(f"{ao_text}\n")
+
+        lines.append(line("mv", getattr(q, "missing_values", "") if q is not None else ""))
+        lines.append(line("ka", getattr(q, "top_categories", "") if q is not None else ""))
+
+        lines.append(line("vc", getattr(p, "visibility_conditions", "")))
+        lines.append(line("av", getattr(p, "answer_validations", "")))
+        lines.append(line("kh", getattr(p, "correction_notes", "")))
+        lines.append(line("fv", getattr(p, "forcing_variables", "")))
+        lines.append(line("hv", getattr(p, "helper_variables", "")))
+        lines.append(line("fo", getattr(p, "formatting", "")))
+        lines.append(line("tr", getattr(p, "transitions", "")))
+        lines.append(line("hi", getattr(p, "page_programming_notes", "")))
+
+        blocks.append("".join(lines).rstrip())
+
+    return "\n\n---\n\n".join(blocks) + "\n"
