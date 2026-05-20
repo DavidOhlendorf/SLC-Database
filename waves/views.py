@@ -120,7 +120,7 @@ class SurveyDetailView(TemplateView):
             def normalize_module_name(name):
                 return (name or "").strip().lower()
 
-            def merge_ordered_sequences(sequences):
+            def merge_ordered_sequences(sequences, tie_breaker=None):
                 """
                 Erstellt eine gemeinsame Reihenfolge aus mehreren Wave-spezifischen
                 Reihenfolgen.
@@ -129,6 +129,10 @@ class SurveyDetailView(TemplateView):
                 Wave 1: A B C D E
                 Wave 2: A D E F G
                 Ergebnis: A B C D E F G
+
+                Wenn mehrere Elemente gleichzeitig einsortiert werden könnten
+                und kein eindeutiger Vorrang aus den Sequenzen ableitbar ist,
+                kann ein tie_breaker genutzt werden, z. B. Seitenname.
 
                 Bei echten Widersprüchen, z. B. A B C vs. A C B,
                 wird ein stabiler Fallback genutzt und conflict=True zurückgegeben.
@@ -161,10 +165,15 @@ class SurveyDetailView(TemplateView):
                             graph[left].add(right)
                             indegree[right] += 1
 
+                def sort_key(node):
+                    if tie_breaker is not None:
+                        return (tie_breaker(node), first_seen_index[node])
+                    return (first_seen_index[node],)
+
                 queue = deque(
                     sorted(
                         [node for node in nodes if indegree[node] == 0],
-                        key=lambda node: first_seen_index[node],
+                        key=sort_key,
                     )
                 )
 
@@ -174,12 +183,12 @@ class SurveyDetailView(TemplateView):
                     node = queue.popleft()
                     result.append(node)
 
-                    for child in sorted(graph[node], key=lambda n: first_seen_index[n]):
+                    for child in sorted(graph[node], key=sort_key):
                         indegree[child] -= 1
                         if indegree[child] == 0:
                             queue.append(child)
 
-                    queue = deque(sorted(queue, key=lambda n: first_seen_index[n]))
+                    queue = deque(sorted(queue, key=sort_key))
 
                 conflict = len(result) != len(nodes)
 
@@ -187,7 +196,8 @@ class SurveyDetailView(TemplateView):
                     return result, False
 
                 # Fallback bei widersprüchlichen Sequenzen:
-                # stabile Einfüge-Logik, damit trotzdem eine brauchbare Ansicht entsteht
+                # stabile Einfüge-Logik, damit trotzdem eine brauchbare Ansicht entsteht.
+                # Auch hier wird bei unklaren Kandidaten der tie_breaker berücksichtigt.
                 fallback = []
 
                 for seq in sequences:
@@ -210,6 +220,14 @@ class SurveyDetailView(TemplateView):
                                     fallback.pop(pred_index)
                                     current_index = fallback.index(item)
                                     fallback.insert(current_index, pred)
+
+                if tie_breaker is not None:
+                    # Wichtig:
+                    # Bei echten Zyklen dürfen wir nicht einfach komplett nach Namen sortieren,
+                    # weil sonst reale Reihenfolgeinformationen verloren gehen könnten.
+                    # Der Fallback bleibt daher stabil. Der tie_breaker greift im Normalfall
+                    # bereits oben in der topologischen Sortierung.
+                    pass
 
                 return fallback, True
 
@@ -387,7 +405,7 @@ class SurveyDetailView(TemplateView):
                 page_entry["waves"].append(link.wave)
                 page_entry["positions"].append((link.wave, link.sort_order))
                 page_entry["min_sort_order"] = min(page_entry["min_sort_order"], link.sort_order)
-                
+
                 if link.wave.is_locked:
                     page_entry["delete_blocked"] = True
 
@@ -398,9 +416,27 @@ class SurveyDetailView(TemplateView):
 
                 pages = list(block["pages_by_id"].values())
 
-                page_order_conflict_ids = find_relative_order_conflicts(
-                    block["page_sequences_by_wave"].values()
+                page_sequences = [
+                    block["page_sequences_by_wave"].get(wave.id, [])
+                    for wave in instrument_waves
+                ]
+
+                page_order_conflict_ids = find_relative_order_conflicts(page_sequences)
+
+                page_name_by_id = {
+                    p["page"].id: (p["page"].pagename or "").lower()
+                    for p in pages
+                }
+
+                merged_page_order, page_order_has_cycle_conflict = merge_ordered_sequences(
+                    page_sequences,
+                    tie_breaker=lambda page_id: page_name_by_id.get(page_id, ""),
                 )
+
+                page_order_index = {
+                    page_id: idx
+                    for idx, page_id in enumerate(merged_page_order)
+                }
 
                 for page_entry in pages:
                     page_entry["sort_order_varies"] = page_entry["page"].id in page_order_conflict_ids
@@ -419,8 +455,9 @@ class SurveyDetailView(TemplateView):
 
                 pages.sort(
                     key=lambda p: (
+                        page_order_index.get(p["page"].id, 9999),
                         p["min_sort_order"],
-                        p["page"].pagename.lower(),
+                        (p["page"].pagename or "").lower(),
                         p["page"].id,
                     )
                 )
