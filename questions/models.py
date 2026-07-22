@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+
 from django.db import models
 from django.urls import reverse
 from django.db.models.functions import Lower 
@@ -74,6 +76,40 @@ class Construct(models.Model):
         return f"{self.level_1} - {self.level_2}"
 
 
+# Versionierungsgruppe für Fragen, z. B. "Geschlecht" oder "Alter"
+class QuestionVersionGroup(models.Model):
+
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Interne Bezeichnung",
+        help_text="Optionale Bezeichnung, z. B. 'Geschlecht'.",
+    )
+    note = models.TextField(
+        blank=True,
+        verbose_name="Notiz",
+        help_text="Optionale interne Erläuterung zur Versionsgruppe.",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Angelegt am",
+    )
+
+    class Meta:
+        ordering = ("name", "id")
+        verbose_name = "QuestionVersionGroup"
+        verbose_name_plural = "QuestionVersionGroups"
+
+    def __str__(self):
+        if self.name:
+            return self.name
+        if self.pk:
+            return f"Versionsgruppe {self.pk}"
+        return "Neue Versionsgruppe"
+
+
+
+
 class Question(models.Model):
 
     objects = QuestionQuerySet.as_manager()
@@ -83,6 +119,24 @@ class Question(models.Model):
         unique=True,
         null=True,
         blank=True
+    )
+
+    # Optionale Zugehörigkeit zu einer Gruppe versionierter Fragen
+    version_group = models.ForeignKey(
+        QuestionVersionGroup,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="questions",
+        verbose_name="Versionsgruppe",
+        help_text="Nur setzen, wenn diese Frage zu einer Versionsfamilie gehört.",
+    )
+
+    # Versionsnummer: 0 = Ursprungsfassung, 1 = erste Version usw.
+    version_number = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Versionsnummer",
+        help_text="0 für die Ursprungsfassung, danach fortlaufend 1, 2, 3 …",
     )
 
     # Fragetext (q)
@@ -183,6 +237,31 @@ class Question(models.Model):
         blank=True,
         related_name="questions",
     )
+
+    class Meta:
+        constraints = [
+            # Innerhalb einer Versionsgruppe darf eine Versionsnummer nur einmal vorkommen.
+            # Eine Frage ohne Versionsgruppe darf keine Versionsnummer größer als 0 haben.
+            models.UniqueConstraint(
+                fields=("version_group", "version_number"),
+                condition=Q(version_group__isnull=False),
+                name="uniq_question_version_number_in_group",
+            ),
+            models.CheckConstraint(
+                condition=Q(version_group__isnull=False) | Q(version_number=0),
+                name="question_without_group_has_version_zero",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if self.version_group_id is None and self.version_number != 0:
+            raise ValidationError({
+                "version_number":
+                    "Eine Frage ohne Versionsgruppe muss die Versionsnummer 0 haben."
+            })
+
 
     def __str__(self):
         text = (self.questiontext or "").strip()
