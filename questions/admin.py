@@ -1,7 +1,7 @@
 from django.contrib import admin 
 from import_export.admin import ImportExportModelAdmin
 
-from django.db import Count
+from django.db.models import Count
 
 from .models import Question, Keyword, Construct, ConstructPaper, QuestionVersionGroup
 from .resources import QuestionResource, KeywordResource, ConstructResource, ConstructPaperResource
