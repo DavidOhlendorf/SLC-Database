@@ -21,9 +21,18 @@ from variables.models import Variable, QuestionVariableWave
 from waves.models import Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion
 
-from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet, AttachWavePageForm, QuestionVariableLinkFormSet
+from .forms import (
+    QuestionEditForm,
+    AnswerOptionFormSet,
+    ItemFormSet,
+    AttachWavePageForm,
+    QuestionVariableLinkFormSet,
+    QuestionVersionLocationForm,
+    QuestionVersionCreateForm,
 
-from .utils import create_question_for_page
+)
+
+from .utils import create_question_for_page, create_question_version
 
 
 # ---- Allgemeine Helper-Funktionen ---------------------------------------
@@ -264,6 +273,125 @@ class QuestionCreateFromPageView(EditorRequiredMixin, View):
 
         return redirect(f"{base}?{params}")
     
+
+# View zum Anlegen einer neuen Version einer bestehenden Frage
+class QuestionVersionCreateView(EditorRequiredMixin, View):
+    template_name = "questions/question_version_form.html"
+    http_method_names = ["get", "post"]
+
+    def _get_selected_location(self, request):
+        source = request.POST if request.method == "POST" else request.GET
+
+        wave_id = source.get("wave")
+        selected_wave = None
+        if wave_id:
+            selected_wave = (
+                Wave.objects
+                .filter(pk=wave_id, is_locked=False)
+                .select_related("survey")
+                .first()
+            )
+
+        page_id = source.get("page") or source.get("wave_page")
+        selected_page = None
+        if selected_wave and page_id:
+            selected_page = (
+                WavePage.objects
+                .filter(pk=page_id, waves=selected_wave)
+                .exclude(waves__is_locked=True)
+                .distinct()
+                .first()
+            )
+
+        return selected_wave, selected_page
+
+    def _render(self, request, question, *, create_form=None):
+        selected_wave, selected_page = self._get_selected_location(request)
+
+        location_form = QuestionVersionLocationForm(
+            selected_wave=selected_wave,
+            initial={
+                "wave": selected_wave,
+                "wave_page": selected_page,
+            },
+        )
+
+        if create_form is None:
+            initial_waves = [selected_wave] if selected_page and selected_wave else None
+            create_form = QuestionVersionCreateForm(
+                selected_page=selected_page,
+                initial={"waves": initial_waves} if initial_waves else None,
+            )
+
+        return render(request, self.template_name, {
+            "question": question,
+            "location_form": location_form,
+            "create_form": create_form,
+            "selected_wave": selected_wave,
+            "selected_page": selected_page,
+        })
+
+    def get(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(
+            Question.objects.select_related("version_group"),
+            pk=pk,
+        )
+        return self._render(request, question)
+
+    def post(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(
+            Question.objects.select_related("version_group"),
+            pk=pk,
+        )
+        selected_wave, selected_page = self._get_selected_location(request)
+
+        if selected_page is None:
+            messages.error(
+                request,
+                "Bitte wähle zuerst eine zulässige Zielseite aus.",
+            )
+            return self._render(request, question)
+
+        create_form = QuestionVersionCreateForm(
+            request.POST,
+            selected_page=selected_page,
+        )
+        if not create_form.is_valid():
+            return self._render(request, question, create_form=create_form)
+
+        selected_waves = list(create_form.cleaned_data["waves"])
+
+        try:
+            result = create_question_version(
+                source_question=question,
+                page=selected_page,
+                wave_ids=[wave.id for wave in selected_waves],
+            )
+        except ValueError as exc:
+            create_form.add_error(None, str(exc))
+            return self._render(request, question, create_form=create_form)
+
+        new_question = result.question
+        active_wave = (
+            selected_wave
+            if selected_wave and any(w.id == selected_wave.id for w in result.waves)
+            else result.waves[0]
+        )
+
+        messages.success(
+            request,
+            f"Version {new_question.version_number} wurde angelegt. "
+            "Bitte prüfe die kopierten Inhalte und lege neue Variablen an.",
+        )
+
+        edit_url = reverse(
+            "questions:question_edit",
+            kwargs={"pk": new_question.pk},
+        )
+        return redirect(
+            f"{edit_url}?page={selected_page.pk}&wave={active_wave.pk}"
+        )
+
 
 # View zum Bearbeiten einer Frage    
 class QuestionUpdateView(EditorRequiredMixin, UpdateView):

@@ -1,0 +1,118 @@
+{% extends "main.html" %}
+
+{% block content %}
+  <div class="container my-4">
+    <header class="mb-4">
+      <h1 class="h3 mb-1">Neue Fragenversion anlegen</h1>
+      <p class="text-muted mb-0">
+        Ausgangsfrage #{{ question.id }}
+        {% if question.version_group %}
+          · {{ question.version_group }} · Version {{ question.version_number }}
+        {% endif %}
+      </p>
+    </header>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2 class="h5 card-title">Ausgangsfrage</h2>
+        <p class="card-text mb-0">
+          {{ question.questiontext|default:"(ohne Fragetext)"|truncatechars:400 }}
+        </p>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      Fragetext, Fragetyp, Instruktionen, Items, Antwortoptionen, Konstrukt und
+      Schlagwörter werden kopiert. Bestehende Variablen-, Seiten- und
+      Befragungszuordnungen werden nicht übernommen. Variablennamen innerhalb
+      von Items und Antwortoptionen werden in der neuen Version geleert.
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2 class="h5 card-title">1. Zielseite auswählen</h2>
+
+        <form method="get" class="vstack gap-3">
+          <div>
+            {{ location_form.wave.label_tag }}
+            {{ location_form.wave }}
+            <div class="form-text">
+              Die Auswahl dient dazu, die verfügbaren Seiten einzugrenzen.
+            </div>
+          </div>
+
+          <div>
+            {{ location_form.wave_page.label_tag }}
+            {{ location_form.wave_page }}
+          </div>
+
+          <noscript>
+            <button class="btn btn-outline-primary" type="submit">
+              Auswahl laden
+            </button>
+          </noscript>
+        </form>
+      </div>
+    </div>
+
+    {% if selected_page %}
+      <div class="card">
+        <div class="card-body">
+          <h2 class="h5 card-title">2. Befragtengruppen auswählen</h2>
+          <p class="text-muted">
+            Zielseite: <strong>{{ selected_page.pagename }}</strong>
+          </p>
+
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="wave" value="{{ selected_wave.id }}">
+            <input type="hidden" name="page" value="{{ selected_page.id }}">
+
+            {% if create_form.non_field_errors %}
+              <div class="alert alert-danger mb-0">
+                {{ create_form.non_field_errors }}
+              </div>
+            {% endif %}
+
+            <div>
+              <div class="form-label">{{ create_form.waves.label }}</div>
+              <div class="vstack gap-1">
+                {% for checkbox in create_form.waves %}
+                  <label class="form-check">
+                    {{ checkbox.tag }}
+                    <span class="form-check-label">{{ checkbox.choice_label }}</span>
+                  </label>
+                {% empty %}
+                  <p class="text-muted mb-0">
+                    Für diese Seite stehen keine nicht abgeschlossenen Befragtengruppen zur Verfügung.
+                  </p>
+                {% endfor %}
+              </div>
+              {% if create_form.waves.errors %}
+                <div class="text-danger small mt-1">{{ create_form.waves.errors }}</div>
+              {% endif %}
+              <div class="form-text">
+                Nur nicht abgeschlossene Befragtengruppen der gewählten Seite sind auswählbar.
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" type="submit">
+                Version anlegen und bearbeiten
+              </button>
+              <a class="btn btn-outline-secondary"
+                 href="{% url 'questions:question_detail' question.id %}">
+                Abbrechen
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <a class="btn btn-outline-secondary"
+         href="{% url 'questions:question_detail' question.id %}">
+        Abbrechen
+      </a>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -312,3 +312,77 @@ QuestionVariableLinkFormSet = formset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+
+# Formular zur Auswahl des Zielorts für eine neue Fragenversion
+class QuestionVersionLocationForm(forms.Form):
+    wave = forms.ModelChoiceField(
+        label="Befragungsgruppe zur Seitenauswahl",
+        queryset=Wave.objects.filter(is_locked=False).order_by(
+            "survey__year", "survey__name", "cycle", "instrument", "id"
+        ),
+        widget=forms.Select(
+            attrs={
+                "class": "form-select",
+                "onchange": "this.form.submit();",
+            }
+        ),
+        empty_label="Bitte auswählen …",
+        required=False,
+    )
+
+    wave_page = forms.ModelChoiceField(
+        label="Zielseite",
+        queryset=WavePage.objects.none(),
+        widget=forms.Select(
+            attrs={
+                "class": "form-select",
+                "onchange": "this.form.submit();",
+            }
+        ),
+        empty_label="Bitte zuerst eine Befragungsgruppe auswählen …",
+        required=False,
+    )
+
+    def __init__(self, *args, **kwargs):
+        selected_wave = kwargs.pop("selected_wave", None)
+        super().__init__(*args, **kwargs)
+
+        if selected_wave:
+            self.fields["wave_page"].queryset = (
+                WavePage.objects
+                .filter(waves=selected_wave)
+                .exclude(waves__is_locked=True)
+                .order_by("pagename", "id")
+                .distinct()
+            )
+
+
+# Formular zur Auswahl der Befragungsgruppen der Zielseite
+class QuestionVersionCreateForm(forms.Form):
+    waves = forms.ModelMultipleChoiceField(
+        label="Befragtengruppe(n) für die neue Version",
+        queryset=Wave.objects.none(),
+        required=True,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        error_messages={
+            "required": "Bitte wähle mindestens eine Befragungsgruppe aus.",
+        },
+    )
+
+    def __init__(self, *args, **kwargs):
+        selected_page = kwargs.pop("selected_page", None)
+        super().__init__(*args, **kwargs)
+
+        if selected_page:
+            self.fields["waves"].queryset = (
+                selected_page.waves
+                .filter(is_locked=False)
+                .order_by(
+                    "survey__year", "survey__name", "cycle", "instrument", "id"
+                )
+            )
+
+
+
