@@ -38,7 +38,7 @@ def search_landing(request):
 def search_questions(q: str, wave_ids=None, include_keywords=True):
     q = (q or "").strip()
     if len(q) < 2:
-        return []
+        return [], {}
 
     q_lower = q.lower()
     wave_ids = wave_ids or []
@@ -145,12 +145,129 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
     found = list(
         base_qs_q
         .filter(id__in=final_score_map.keys())
-        .only("id", "questiontext")
+        .only("id", "questiontext", "version_group_id", "version_number")
         .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
         .distinct()
     )
 
     return found, final_score_map
+
+def build_question_groups(matched_questions, score_map, wave_ids=None):
+    """
+    Fasst Suchtreffer zu Ergebniskarten zusammen.
+
+    Für Treffer mit Versionsgruppe werden alle Fragen dieser Gruppe geladen.
+    Bei aktivem Wellenfilter werden nur Gruppenmitglieder berücksichtigt, die
+    mindestens einer ausgewählten Welle zugeordnet sind. Ungruppierte Fragen
+    bleiben eigenständige Karten.
+    """
+    matched_questions = list(matched_questions)
+    wave_ids = list(wave_ids or [])
+
+    if not matched_questions:
+        return []
+
+    matched_group_ids = {
+        question.version_group_id
+        for question in matched_questions
+        if question.version_group_id is not None
+    }
+    matched_ungrouped_ids = {
+        question.id
+        for question in matched_questions
+        if question.version_group_id is None
+    }
+
+    display_filter = Q()
+    if matched_group_ids:
+        display_filter |= Q(version_group_id__in=matched_group_ids)
+    if matched_ungrouped_ids:
+        display_filter |= Q(id__in=matched_ungrouped_ids)
+
+    display_qs = Question.objects.filter(display_filter)
+    if wave_ids:
+        display_qs = display_qs.filter(waves__id__in=wave_ids)
+
+    displayed_questions = list(
+        display_qs
+        .select_related("version_group")
+        .prefetch_related(
+            Prefetch("waves", queryset=Wave.objects.select_related("survey"))
+        )
+        .distinct()
+    )
+
+    grouped = {}
+    for question in displayed_questions:
+        question.relevance = score_map.get(question.id, 0.0)
+
+        if question.version_group_id is not None:
+            group_key = ("version_group", question.version_group_id)
+            group_name = (question.version_group.name or "").strip()
+            is_version_group = True
+        else:
+            group_key = ("question", question.id)
+            group_name = ""
+            is_version_group = False
+
+        if group_key not in grouped:
+            grouped[group_key] = {
+                "key": group_key,
+                "name": group_name,
+                "is_version_group": is_version_group,
+                "questions": [],
+                "relevance": 0.0,
+                "sort_label": "",
+            }
+
+        grouped[group_key]["questions"].append(question)
+
+    result = []
+    for group in grouped.values():
+        group["questions"].sort(
+            key=lambda question: (
+                -score_map.get(question.id, 0.0),
+                question.version_number,
+                question.id,
+            )
+        )
+
+        group["relevance"] = max(
+            (score_map.get(question.id, 0.0) for question in group["questions"]),
+            default=0.0,
+        )
+
+        if group["name"]:
+            group["sort_label"] = group["name"].lower()
+        else:
+            first_version = min(
+                group["questions"],
+                key=lambda question: (question.version_number, question.id),
+            )
+            group["sort_label"] = (first_version.questiontext or "").lower()
+
+        result.append(group)
+
+    return result
+
+
+def sort_question_groups(question_groups, sort):
+    """Sortiert Ergebniskarten, ohne die Reihenfolge in der Karte zu ändern."""
+    if sort == "alpha":
+        return sorted(
+            question_groups,
+            key=lambda group: (group["sort_label"], group["key"]),
+        )
+
+    return sorted(
+        question_groups,
+        key=lambda group: (
+            -group["relevance"],
+            group["sort_label"],
+            group["key"],
+        ),
+    )
+
 
 
 # Paginierungs-Hilfsfunktionen
@@ -235,27 +352,25 @@ def search(request):
         include_keywords=True,
         )
 
-        if sort == "alpha":
-            questions_sorted = sorted(
-                questions_found,
-                key=lambda obj: (obj.questiontext or "").lower()
-            )
-        else:
-            questions_sorted = sorted(
-                questions_found,
-                key=lambda obj: final_score_map.get(obj.id, 0.0),
-                reverse=True
-            )
+        question_groups = build_question_groups(
+            matched_questions=questions_found,
+            score_map=final_score_map,
+            wave_ids=wave_ids,
+        )
+        questions_sorted = sort_question_groups(question_groups, sort)
+ 
+        # Facetten-Zähler: Eine Versionsgruppe zählt pro Welle nur einmal.
+        for group in question_groups:
+            group_waves = {}
+            for question in group["questions"]:
+                for wave in question.waves.all():
+                    group_waves[wave.id] = wave
 
-        # Facetten-Zähler
-        for obj in questions_found:
-            for w in obj.waves.all():
-                facet_counter[w.id] += 1
-                facet_waves_set.add(w)
+            for wave in group_waves.values():
+                facet_counter[wave.id] += 1
+                facet_waves_set.add(wave)
 
-        # Debug/Anzeige
-        for obj in questions_sorted:
-            obj.relevance = final_score_map.get(obj.id, 0.0)
+
 
         if search_type == "all":
             ctx["questions"] = questions_sorted[:ctx["TOP_N"]]
@@ -264,6 +379,7 @@ def search(request):
             ctx["questions_page"] = page_obj
             ctx["questions"] = page_obj.object_list
 
+        # Anzahl der Ergebniskarten, nicht Anzahl einzelner Fragenversionen.
         ctx["questions_count"] = len(questions_sorted)
         ctx.setdefault("questions_count", 0)
 

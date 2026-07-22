@@ -1,51 +1,67 @@
 <div class="card mb-2 shadow-sm">
   <div class="card-body">
 
-    <h6 class="card-title mb-2">
-      {{ item.questiontext|truncatechars:300 }}
-    </h6>
-    {% if show_relevance %}
-      <p class="text-muted mb-0 small">
-          Relevanz: {{ item.relevance }}
-      </p>
-    {% endif %}
+    {% if item.name or item.is_version_group %}
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        {% if item.name %}
+          <h5 class="card-title mb-0">{{ item.name }}</h5>
+        {% endif %}
 
     <!-- Wellen Badges -->
-    {% if item.waves.all %}
-      <div class="mb-2">
-        {% for wave in item.waves.all %}
-          <span class="badge bg-light text-dark border">
-            {{ wave }}
+
+        {% if item.is_version_group %}
+          <span class="badge bg-secondary-subtle text-secondary-emphasis border flex-shrink-0">
+            {{ item.questions|length }}
+            {% if item.questions|length == 1 %}Version{% else %}Versionen{% endif %}
           </span>
-        {% endfor %}
+        {% endif %}
       </div>
     {% endif %}
 
-    <div class="d-flex align-items-center gap-2 mt-2">
+    {% for question in item.questions %}
+      <div{% if not forloop.last %} class="border-bottom pb-3 mb-3"{% endif %}>
 
-      <div class="btn-group btn-group-sm flex-shrink-0"
-           role="group"
-           aria-label="Aktionen">
-        <a class="btn btn-link px-2 icon-action"
-           title="Details anzeigen"
-            href="{% url 'questions:question_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
-            target="_blank"
-          rel="noopener noreferrer">
-          <i class="fa-regular fa-eye"></i>
-        </a>
-
-        {% if perms.accounts.can_edit_slc %}
-          <a class="btn btn-link px-2 icon-action"
-             title="Bearbeiten"
-              href="{% url 'questions:question_edit' item.id %}?back={{ request.get_full_path|urlencode }}"
-              target="_blank"
-              rel="noopener noreferrer">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </a>
+        {% if item.is_version_group %}
+          <p class="text-muted small mb-1">
+            Version {{ question.version_number }}
+          </p>
         {% endif %}
-      </div>
 
-    </div>
+        <h6 class="card-title mb-2">
+          {{ question.questiontext|truncatechars:300 }}
+        </h6>
+
+        {% if show_relevance %}
+          <p class="text-muted mb-2 small">
+            Relevanz: {{ question.relevance }}
+          </p>
+        {% endif %}
+
+        {% if question.waves.all %}
+          <div class="mb-2">
+            {% for wave in question.waves.all %}
+              <span class="badge bg-light text-dark border">
+                {{ wave }}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="d-flex align-items-center gap-2 mt-2">
+          <div class="btn-group btn-group-sm flex-shrink-0"
+               role="group"
+               aria-label="Aktionen">
+            <a class="btn btn-link px-2 icon-action"
+               title="Details anzeigen"
+               href="{% url 'questions:question_detail' question.id %}?back={{ request.get_full_path|urlencode }}"
+               target="_blank"
+               rel="noopener noreferrer">
+              <i class="fa-regular fa-eye"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
   </div>
 </div>
 
