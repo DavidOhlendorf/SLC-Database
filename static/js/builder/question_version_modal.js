@@ -103,7 +103,8 @@
       input.name = "wave_ids";
       input.value = String(wave.id);
       input.id = `questionVersionWave_${wave.id}`;
-      input.checked = String(wave.id) === targetWaveSelect.value;
+      input.checked = Boolean(preferredWaveId)
+        && String(wave.id) === String(preferredWaveId);
 
       const label = document.createElement("label");
       label.className = "form-check-label";
@@ -198,7 +199,10 @@
 
     if (preferredPageId && pagesById.has(String(preferredPageId))) {
       targetPageSelect.value = String(preferredPageId);
-      renderPageWaves(pagesById.get(String(preferredPageId)));
+      renderPageWaves(
+        pagesById.get(String(preferredPageId)),
+        preferredWaveId
+      );
     }
   }
 
