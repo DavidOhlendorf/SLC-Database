@@ -4,6 +4,7 @@
 
 {% block extra_js %}
     <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
+    <script src="{% static 'js/builder/question_version_modal.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
@@ -29,11 +30,13 @@
         <div class="flex-shrink-0">
           {% if perms.accounts.can_edit_slc %}
             <div class="d-flex align-items-center gap-2">
-              <a class="btn btn-link btn-lg icon-action p-0"
-                 title="Neue Version dieser Frage anlegen"
-                 href="{% url 'questions:question_version_create' question.id %}{% if active_wave %}?wave={{ active_wave.id }}{% if active_page %}&page={{ active_page.id }}{% endif %}{% endif %}">
+              <button type="button"
+                      class="btn btn-link btn-lg icon-action p-0"
+                      title="Neue Version dieser Frage anlegen"
+                      data-bs-toggle="modal"
+                      data-bs-target="#questionVersionModal">
                 <i class="fa-solid fa-code-branch"></i>
-              </a>
+              </button>
 
               {% if question_is_locked %}
                 <span class="d-inline-block"
@@ -465,6 +468,11 @@
       </div>
     {% endif %}
   </div>
+
+  {% if perms.accounts.can_edit_slc %}
+    {% include "questions/_question_version_modal.html" %}
+  {% endif %}
+
 
   <!-- Modal: Variable-Schnellerstellung für Question -->
   <div class="modal fade"

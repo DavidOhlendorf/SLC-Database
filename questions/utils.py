@@ -93,6 +93,7 @@ def create_question_version(
     source_question: Question,
     page: WavePage,
     wave_ids: Sequence[int],
+    group_name: str | None = None,
 ) -> CreateQuestionVersionResult:
     """
     Erstellt eine eigenständige neue Version einer bestehenden Frage.
@@ -100,7 +101,8 @@ def create_question_version(
     Kopiert werden die fachlichen Inhalte der Frage sowie Konstrukt und
     Keywords. Nicht übernommen werden Legacy-ID, Variablenverknüpfungen und
     bestehende Seiten-/Wellenzuordnungen. Variablennamen in Items und
-    Antwortoptionen werden geleert.
+    Antwortoptionen werden geleert. Beim ersten Versionieren muss ein Name für
+    die neu angelegte Versionsgruppe übergeben werden.
     """
 
     wave_ids_unique = _unique_ids(wave_ids)
@@ -132,7 +134,21 @@ def create_question_version(
         )
 
         if source.version_group_id is None:
-            version_group = QuestionVersionGroup.objects.create()
+
+            cleaned_group_name = (group_name or "").strip()
+            if not cleaned_group_name:
+                raise ValueError(
+                    "Bitte gib einen Namen für die neue Versionsgruppe an."
+                )
+            if len(cleaned_group_name) > 255:
+                raise ValueError(
+                    "Der Name der Versionsgruppe darf höchstens 255 Zeichen lang sein."
+                )
+
+            version_group = QuestionVersionGroup.objects.create(
+                name=cleaned_group_name,
+            )
+            
             source.version_group = version_group
             source.version_number = 0
             source.save(update_fields=("version_group", "version_number"))

@@ -18,7 +18,7 @@ from django.db import transaction
 
 from .models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
-from waves.models import Wave, WaveQuestion
+from waves.models import Survey, Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion
 
 from .forms import (
@@ -27,8 +27,6 @@ from .forms import (
     ItemFormSet,
     AttachWavePageForm,
     QuestionVariableLinkFormSet,
-    QuestionVersionLocationForm,
-    QuestionVersionCreateForm,
 
 )
 
@@ -98,7 +96,7 @@ class QuestionDetail(DetailView):
     def get_queryset(self):
         qs = (
             Question.objects
-            .select_related("construct")  
+            .select_related("construct", "version_group")  
             .prefetch_related(
                 Prefetch(
                     "waves",
@@ -276,107 +274,200 @@ class QuestionCreateFromPageView(EditorRequiredMixin, View):
 
 # View zum Anlegen einer neuen Version einer bestehenden Frage
 class QuestionVersionCreateView(EditorRequiredMixin, View):
-    template_name = "questions/question_version_form.html"
+    """AJAX-Endpunkt für den Modal-Workflow zur Fragenversionierung."""
+
     http_method_names = ["get", "post"]
 
-    def _get_selected_location(self, request):
-        source = request.POST if request.method == "POST" else request.GET
-
-        wave_id = source.get("wave")
-        selected_wave = None
-        if wave_id:
-            selected_wave = (
-                Wave.objects
-                .filter(pk=wave_id, is_locked=False)
-                .select_related("survey")
-                .first()
-            )
-
-        page_id = source.get("page") or source.get("wave_page")
-        selected_page = None
-        if selected_wave and page_id:
-            selected_page = (
-                WavePage.objects
-                .filter(pk=page_id, waves=selected_wave)
-                .exclude(waves__is_locked=True)
-                .distinct()
-                .first()
-            )
-
-        return selected_wave, selected_page
-
-    def _render(self, request, question, *, create_form=None):
-        selected_wave, selected_page = self._get_selected_location(request)
-
-        location_form = QuestionVersionLocationForm(
-            selected_wave=selected_wave,
-            initial={
-                "wave": selected_wave,
-                "wave_page": selected_page,
-            },
-        )
-
-        if create_form is None:
-            initial_waves = [selected_wave] if selected_page and selected_wave else None
-            create_form = QuestionVersionCreateForm(
-                selected_page=selected_page,
-                initial={"waves": initial_waves} if initial_waves else None,
-            )
-
-        return render(request, self.template_name, {
-            "question": question,
-            "location_form": location_form,
-            "create_form": create_form,
-            "selected_wave": selected_wave,
-            "selected_page": selected_page,
-        })
+    @staticmethod
+    def _wave_label(wave: Wave) -> str:
+        return f"{wave.cycle} – {wave.instrument}"
+    
+    @staticmethod
+    def _page_label(page: WavePage) -> str:
+        heading = (page.page_heading or "").strip()
+        return f"{page.pagename} – {heading}" if heading else page.pagename
 
     def get(self, request, pk, *args, **kwargs):
-        question = get_object_or_404(
-            Question.objects.select_related("version_group"),
-            pk=pk,
+        # Die Frage wird auch beim Optionsabruf geprüft, damit der Endpunkt
+        # nicht mit beliebigen IDs verwendet werden kann.
+        get_object_or_404(Question, pk=pk)
+
+        survey_id = request.GET.get("survey")
+        if not survey_id:
+            surveys = (
+                Survey.objects
+                .filter(
+                    waves__is_locked=False,
+                    waves__pages__isnull=False,
+                 )
+                .order_by("-year", "name", "id")
+                .distinct()
+            )
+
+
+            return JsonResponse({
+                "ok": True,
+                "surveys": [
+                    {
+                        "id": survey.id,
+                        "label": str(survey),
+                    }
+                    for survey in surveys
+                ],
+            })
+
+        try:
+            survey_id = int(survey_id)
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"ok": False, "error": "Ungültige Befragung."},
+                status=400,
+            )
+
+        selected_survey = (
+            Survey.objects
+            .filter(pk=survey_id, waves__is_locked=False)
+            .distinct()
+            .first()
         )
-        return self._render(request, question)
+
+        if selected_survey is None:
+            return JsonResponse(
+                {"ok": False, "error": "Ungültige oder abgeschlossene Befragung."},
+                status=400,
+            )
+
+        available_waves = (
+            Wave.objects
+            .filter(
+                survey=selected_survey,
+                is_locked=False,
+             )
+            .order_by("cycle", "instrument", "id")
+        )
+
+        pages = (
+            WavePage.objects
+            .filter(
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            # Das Hinzufügen einer Frage verändert das gemeinsame Seitenobjekt.
+            # Seiten, die auch in einer abgeschlossenen Gruppe verwendet werden,
+            # bleiben deshalb wie bisher ausgeschlossen.
+            .exclude(waves__is_locked=True)
+            .prefetch_related(
+                Prefetch(
+                    "waves",
+                    queryset=available_waves,
+                    to_attr="version_target_waves",
+                )
+            )
+            .order_by("pagename", "id")
+            .distinct()
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "pages": [
+                {
+                    "id": page.id,
+                    "name": self._page_label(page),
+                    "waves": [
+                        {
+                            "id": wave.id,
+                            "label": self._wave_label(wave),
+                        }
+                        for wave in page.version_target_waves
+                    ],
+                }
+                for page in pages
+            ],
+        })
 
     def post(self, request, pk, *args, **kwargs):
         question = get_object_or_404(
             Question.objects.select_related("version_group"),
             pk=pk,
         )
-        selected_wave, selected_page = self._get_selected_location(request)
 
-        if selected_page is None:
-            messages.error(
-                request,
-                "Bitte wähle zuerst eine zulässige Zielseite aus.",
+        def error_response(message, status=400):
+            return JsonResponse(
+                {"ok": False, "error": message},
+                status=status,
             )
-            return self._render(request, question)
 
-        create_form = QuestionVersionCreateForm(
-            request.POST,
-            selected_page=selected_page,
+        survey_id = request.POST.get("survey_id")
+        page_id = request.POST.get("page_id")
+        selected_wave_ids = request.POST.getlist("wave_ids")
+        group_name = (request.POST.get("group_name") or "").strip()
+
+        if not survey_id:
+            return error_response("Bitte wähle eine Zielbefragung aus.")
+        if not page_id:
+            return error_response("Bitte wähle eine Zielseite aus.")
+        if not selected_wave_ids:
+            return error_response("Bitte wähle mindestens eine Befragtengruppe aus.")
+ 
+        try:
+            survey_id = int(survey_id)
+            page_id = int(page_id)
+            selected_wave_ids = [int(wave_id) for wave_id in selected_wave_ids]
+        except (TypeError, ValueError):
+            return error_response(
+                "Ungültige Befragungs-, Seiten- oder Befragtengruppenauswahl."
+            )
+        
+        if question.version_group_id is None and not group_name:
+            return error_response("Bitte gib einen Namen für die neue Versionsgruppe an.")
+        
+        selected_survey = Survey.objects.filter(pk=survey_id).first()
+        if selected_survey is None:
+            return error_response("Die ausgewählte Zielbefragung existiert nicht.")
+
+        page = (
+            WavePage.objects
+            .filter(
+                pk=page_id,
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            .exclude(waves__is_locked=True)
+            .distinct()
+            .first()
         )
-        if not create_form.is_valid():
-            return self._render(request, question, create_form=create_form)
 
-        selected_waves = list(create_form.cleaned_data["waves"])
+
+        if page is None:
+            return error_response(
+                "Die ausgewählte Zielseite gehört nicht zur Zielbefragung oder ist nicht bearbeitbar."
+            )
+
+        allowed_wave_ids = set(
+            page.waves
+            .filter(survey=selected_survey, is_locked=False)
+            .values_list("id", flat=True)
+        )
+        if not set(selected_wave_ids).issubset(allowed_wave_ids):
+            return error_response(
+                "Mindestens eine ausgewählte Befragtengruppe gehört nicht zur "
+                "Zielbefragung und Zielseite oder ist abgeschlossen."
+            )
 
         try:
             result = create_question_version(
                 source_question=question,
-                page=selected_page,
-                wave_ids=[wave.id for wave in selected_waves],
+                page=page,
+                wave_ids=selected_wave_ids,
+                group_name=group_name,
+
             )
         except ValueError as exc:
-            create_form.add_error(None, str(exc))
-            return self._render(request, question, create_form=create_form)
+            return error_response(str(exc))
 
         new_question = result.question
-        active_wave = (
-            selected_wave
-            if selected_wave and any(w.id == selected_wave.id for w in result.waves)
-            else result.waves[0]
-        )
+        active_wave = result.waves[0]
+
 
         messages.success(
             request,
@@ -388,9 +479,15 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
             "questions:question_edit",
             kwargs={"pk": new_question.pk},
         )
-        return redirect(
-            f"{edit_url}?page={selected_page.pk}&wave={active_wave.pk}"
+        
+        redirect_url = (
+            f"{edit_url}?page={page.pk}&wave={active_wave.pk}"
         )
+
+        return JsonResponse({
+            "ok": True,
+            "redirect_url": redirect_url,
+        })
 
 
 # View zum Bearbeiten einer Frage    
