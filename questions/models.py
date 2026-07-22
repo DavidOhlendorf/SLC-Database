@@ -97,8 +97,8 @@ class QuestionVersionGroup(models.Model):
 
     class Meta:
         ordering = ("name", "id")
-        verbose_name = "Fragen-Versionsgruppe"
-        verbose_name_plural = "Fragen-Versionsgruppen"
+        verbose_name = "QuestionVersionGroup"
+        verbose_name_plural = "QuestionVersionGroups"
 
     def __str__(self):
         if self.name:
