@@ -1,5 +1,6 @@
 # questions/views.py
 
+from unittest import result
 from urllib import request
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
@@ -14,7 +15,7 @@ from django.views.generic import DetailView, UpdateView
 from accounts.mixins import EditorRequiredMixin
 
 from django.db.models import Prefetch, Q
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from .models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
@@ -30,7 +31,16 @@ from .forms import (
 
 )
 
-from .utils import create_question_for_page, create_question_version
+from .utils import (
+    VariableVersionRequest,
+    create_question_for_page,
+    create_question_version,
+)
+from variables.versioning import (
+    VariableNameSchemaError,
+    suggest_next_variable_name,
+)
+
 
 
 # ---- Allgemeine Helper-Funktionen ---------------------------------------
@@ -287,13 +297,64 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
         heading = (page.page_heading or "").strip()
         return f"{page.pagename} – {heading}" if heading else page.pagename
 
+    @staticmethod
+    def _variable_payload(question: Question) -> tuple[list[dict], list[str]]:
+        source_variables = list(
+            Variable.objects
+            .filter(question_variable_wave_links__question=question)
+            .distinct()
+            .order_by("varname", "id")
+        )
+
+        payload = []
+        reserved_names: set[str] = set()
+        for variable in source_variables:
+            try:
+                suggested_name = suggest_next_variable_name(
+                    variable.varname,
+                    reserved_names=reserved_names,
+                )
+                suggestion_error = ""
+                reserved_names.add(suggested_name)
+            except VariableNameSchemaError as exc:
+                suggested_name = ""
+                suggestion_error = str(exc)
+
+            payload.append({
+                "id": variable.id,
+                "varname": variable.varname,
+                "varlab": variable.varlab or "",
+                "suggested_name": suggested_name,
+                "suggestion_error": suggestion_error,
+            })
+
+        linked_names = {
+            variable.varname.casefold()
+            for variable in source_variables
+        }
+        json_variable_names = {
+            str(row.get("variable") or "").strip()
+            for rows in (question.items or [], question.answer_options or [])
+            for row in rows
+            if isinstance(row, dict) and str(row.get("variable") or "").strip()
+        }
+        unlinked_names = sorted(
+            name
+            for name in json_variable_names
+            if name.casefold() not in linked_names
+        )
+
+        return payload, unlinked_names
+
+
     def get(self, request, pk, *args, **kwargs):
         # Die Frage wird auch beim Optionsabruf geprüft, damit der Endpunkt
         # nicht mit beliebigen IDs verwendet werden kann.
-        get_object_or_404(Question, pk=pk)
+        question = get_object_or_404(Question, pk=pk)
 
         survey_id = request.GET.get("survey")
         if not survey_id:
+            variables, unlinked_variable_names = self._variable_payload(question)
             surveys = (
                 Survey.objects
                 .filter(
@@ -314,6 +375,8 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
                     }
                     for survey in surveys
                 ],
+                "variables": variables,
+                "unlinked_variable_names": unlinked_variable_names,
             })
 
         try:
@@ -401,6 +464,34 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
         page_id = request.POST.get("page_id")
         selected_wave_ids = request.POST.getlist("wave_ids")
         group_name = (request.POST.get("group_name") or "").strip()
+        variable_versions_raw = request.POST.get("variable_versions") or "[]"
+
+        try:
+            variable_versions_data = json.loads(variable_versions_raw)
+        except json.JSONDecodeError:
+            return error_response("Die Variablenauswahl ist ungültig.")
+
+        if not isinstance(variable_versions_data, list):
+            return error_response("Die Variablenauswahl ist ungültig.")
+
+        variable_versions = []
+        try:
+            for item in variable_versions_data:
+                if not isinstance(item, dict):
+                    raise TypeError
+                source_variable_id = int(item.get("source_variable_id"))
+                new_varname = str(item.get("new_varname") or "").strip()
+                if not new_varname:
+                    raise ValueError
+                variable_versions.append(
+                    VariableVersionRequest(
+                        source_variable_id=source_variable_id,
+                        new_varname=new_varname,
+                    )
+                )
+        except (TypeError, ValueError):
+            return error_response("Die Variablenauswahl ist unvollständig oder ungültig.")
+
 
         if not survey_id:
             return error_response("Bitte wähle eine Zielbefragung aus.")
@@ -460,19 +551,35 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
                 page=page,
                 wave_ids=selected_wave_ids,
                 group_name=group_name,
+                variable_versions=variable_versions,
 
             )
         except ValueError as exc:
             return error_response(str(exc))
+        
+        except IntegrityError:
+            return error_response(
+                "Mindestens ein Variablenname wurde inzwischen vergeben. "
+                "Bitte öffne den Dialog erneut.",
+                status=409,
+            )
 
         new_question = result.question
         active_wave = result.waves[0]
+
+        variable_count = len(result.variables)
+        if variable_count == 1:
+            variable_message = " Eine Variablenversion wurde angelegt."
+        elif variable_count > 1:
+            variable_message = f" {variable_count} Variablenversionen wurden angelegt."
+        else:
+            variable_message = " Es wurden keine Variablenversionen angelegt."
 
 
         messages.success(
             request,
             f"Version {new_question.version_number} wurde angelegt. "
-            "Bitte prüfe die kopierten Inhalte und lege neue Variablen an.",
+            f"{variable_message} Bitte prüfe die kopierten Inhalte.",
         )
 
         edit_url = reverse(

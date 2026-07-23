@@ -6,16 +6,20 @@
      id="questionVersionModal"
      data-options-url="{% url 'questions:question_version_create' question.id %}"
      data-create-url="{% url 'questions:question_version_create' question.id %}"
+     data-varname-check-url="{% url 'variables:variable_varname_check' %}"
      data-has-version-group="{% if question.version_group_id %}1{% else %}0{% endif %}"
      data-default-survey-id="{% if active_wave and active_wave.survey_id %}{{ active_wave.survey_id }}{% endif %}"
      data-default-wave-id="{% if active_wave %}{{ active_wave.id }}{% endif %}"
      data-default-page-id="{% if active_page %}{{ active_page.id }}{% endif %}"
      tabindex="-1"
      aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Neue Fragenversion anlegen</h5>
+        <div>
+          <h5 class="modal-title">Neue Fragenversion anlegen</h5>
+          <div class="small text-muted" id="questionVersionStepLabel">Schritt 1 von 2</div>
+        </div>
         <button type="button"
                 class="btn-close"
                 data-bs-dismiss="modal"
@@ -25,100 +29,143 @@
       <div class="modal-body">
         <div class="alert alert-danger d-none" id="questionVersionError"></div>
 
-        <div class="mb-3">
-          <div class="small text-muted mb-1">Ausgangsfrage</div>
-          <div class="border rounded bg-body-tertiary px-3 py-2">
-            {{ question.questiontext|default:"(ohne Fragetext)"|truncatechars:350 }}
+        <div id="questionVersionTargetStep"></div>
+          <div class="mb-3">
+            <div class="small text-muted mb-1">Ausgangsfrage</div>
+            <div class="border rounded bg-body-tertiary px-3 py-2">
+              {{ question.questiontext|default:"(ohne Fragetext)"|truncatechars:350 }}
+            </div>
+          </div>
+          {% if question.version_group_id %}
+            <div class="mb-3">
+              <label class="form-label">Versionsgruppe</label>
+              <button type="button"
+                      class="btn btn-sm p-0 ms-1 text-muted"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Die neue Frage wird derselben Versionsgruppe zugeordnet.">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+              <input type="text"
+                     class="form-control"
+                     value="{{ question.version_group.name|default:'(ohne Bezeichnung)' }}"
+                     disabled>
+            </div>
+          {% else %}
+            <div class="mb-3" id="questionVersionGroupNameWrap">
+              <label class="form-label" for="questionVersionGroupName">
+                Name der Versionsgruppe
+              </label>
+              <button type="button"
+                      class="btn btn-sm p-0 ms-1 text-muted"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Eine Versionsgruppe fasst alle Fassungen einer Frage zusammen. Der Name erscheint in den Suchergebnissen.">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+              <input type="text"
+                     class="form-control"
+                     id="questionVersionGroupName"
+                     maxlength="255"
+                     autocomplete="off"
+                     placeholder="z. B. Geschlecht">
+            </div>
+          {% endif %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="questionVersionTargetSurvey">
+                  Zielbefragung
+                </label>
+                <button type="button"
+                        class="btn btn-sm p-0 ms-1 text-muted"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Abgeschlossene Befragungen werden nicht angezeigt.">
+                  <i class="fa-solid fa-circle-info"></i>
+                </button>
+                <select class="form-select" id="questionVersionTargetSurvey">
+                  <option value="">Wird geladen …</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="questionVersionTargetPage">
+                  Zielseite
+                </label>
+                <button type="button"
+                        class="btn btn-sm p-0 ms-1 text-muted"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Die Frage wird am Ende der ausgewählten Seite eingefügt.">
+                  <i class="fa-solid fa-circle-info"></i>
+                </button>
+                <select class="form-select" id="questionVersionTargetPage" disabled>
+                  <option value="">Bitte zuerst eine Zielbefragung auswählen …</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Befragtengruppe(n)</label>
+                <button type="button"
+                        class="btn btn-sm p-0 ms-1 text-muted"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Auswählbar sind nur Gruppen der Zielbefragung, die die Zielseite enthalten.">
+                  <i class="fa-solid fa-circle-info"></i>
+                </button>
+                <div class="border rounded p-2"
+                    id="questionVersionWavesBox"
+                    style="max-height: 220px; overflow: auto;">
+                <div class="text-muted small">Bitte zuerst eine Zielseite auswählen.</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {% if question.version_group_id %}
-          <div class="mb-3">
-            <label class="form-label">Versionsgruppe</label>
-            <input type="text"
-                   class="form-control"
-                   value="{{ question.version_group.name|default:'(ohne Bezeichnung)' }}"
-                   disabled>
-            <div class="form-text">
-              Die neue Frage wird derselben Versionsgruppe zugeordnet.
+        <div class="d-none" id="questionVersionVariablesStep">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <h6 class="mb-1">Variablen versionieren</h6>
+              <div class="small text-muted">
+                Ausgewählte Variablen werden neu angelegt und allen gewählten Befragtengruppen zugeordnet.
+              </div>
             </div>
-          </div>
-        {% else %}
-          <div class="mb-3" id="questionVersionGroupNameWrap">
-            <label class="form-label" for="questionVersionGroupName">
-              Name der Versionsgruppe
-            </label>
-
             <button type="button"
-              class="btn btn-sm p-0 ms-1 text-muted"
-              data-bs-toggle="tooltip"
-              data-bs-placement="top"
-              title="Eine Versiongruppe fasst alle Versionen einer Frage zusammen. Der gewählte Name erscheint in den Suchergebnissen und sollte daher möglichst aussagekräftig sein.">
-              <i class="fa-solid fa-circle-info"></i>
+                    class="btn btn-sm p-0 text-muted"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="left"
+                    title="Der Vorschlag verwendet die höchste vorhandene v-Nummer der Variablenfamilie plus eins. g-, p- und f-Suffixe bleiben erhalten. Variablenlabel und Kommentar werden kopiert; Wertelabel und weitere Statuskennzeichen nicht.">
+               <i class="fa-solid fa-circle-info"></i>
             </button>
-
-            <input type="text"
-                   class="form-control"
-                   id="questionVersionGroupName"
-                   maxlength="255"
-                   autocomplete="off"
-                   placeholder="z. B. Geschlecht, Beruf der Eltern, etc.">
           </div>
-        {% endif %}
+          <div class="alert alert-warning d-none py-2" id="questionVersionUnlinkedVariables"></div>
 
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label" for="questionVersionTargetSurvey">
-              Zielbefragung
-            </label>
-            <button type="button"
-              class="btn btn-sm p-0 ms-1 text-muted"
-              data-bs-toggle="tooltip"
-              data-bs-placement="top"
-              title="Die Zielbefragung, in der die neue Fragenversion erscheinen soll. Abgeschlossene (gesperrte) Befragungen werden nicht angezeigt.">
-              <i class="fa-solid fa-circle-info"></i>
-            </button>
-
-            <select class="form-select" id="questionVersionTargetSurvey">
-              <option value="">Wird geladen …</option>
-            </select>
+          <div class="table-responsive" id="questionVersionVariablesTableWrap">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col" class="text-center" style="width: 4rem;">Neu</th>
+                  <th scope="col">Ausgangsvariable</th>
+                  <th scope="col">Variablenlabel</th>
+                  <th scope="col" style="min-width: 15rem;">Neuer Variablenname</th>
+                </tr>
+              </thead>
+              <tbody id="questionVersionVariablesBody"></tbody>
+            </table>
           </div>
 
-          <div class="col-md-6">
-            <label class="form-label" for="questionVersionTargetPage">
-              Zielseite
-            </label>
-            <button type="button"
-              class="btn btn-sm p-0 ms-1 text-muted"
-              data-bs-toggle="tooltip"
-              data-bs-placement="top"
-              title="Die Fragebogenseite, auf der die neue Fragenversion erscheinen soll.">
-              <i class="fa-solid fa-circle-info"></i>
-            </button>
-            <select class="form-select" id="questionVersionTargetPage" disabled>
-              <option value="">Bitte zuerst eine Zielbefragung auswählen …</option>
-            </select>
-          </div>
-
-          <div class="col-12">
-            <label class="form-label">Befragtengruppe(n)</label>
-            <button type="button"
-              class="btn btn-sm p-0 ms-1 text-muted"
-              data-bs-toggle="tooltip"
-              data-bs-placement="top"
-              title="Die Befragtengruppe(n), die die versionierte Frage erhalten soll. Es können nur Befragtengruppen ausgewählt werden, die die Zielseite sehen.">
-              <i class="fa-solid fa-circle-info"></i>
-            </button>
-            <div class="border rounded p-2"
-                 id="questionVersionWavesBox"
-                 style="max-height: 220px; overflow: auto;">
-              <div class="text-muted small">Bitte zuerst eine Zielseite auswählen.</div>
-            </div>
+          <div class="border rounded p-3 text-muted d-none"
+               id="questionVersionNoVariables">
+            Mit der Ausgangsfrage sind keine Variablen verknüpft. Die neue
+            Fragenversion kann ohne Variablen angelegt werden.
           </div>
         </div>
       </div>
 
       <div class="modal-footer">
+        <button type="button"
+                class="btn btn-outline-secondary d-none"
+                id="questionVersionBack">
+          Zurück
+        </button>
         <button type="button"
                 class="btn btn-outline-secondary"
                 data-bs-dismiss="modal">
@@ -127,7 +174,7 @@
         <button type="button"
                 class="btn btn-primary"
                 id="questionVersionSubmit">
-          Version anlegen und bearbeiten
+          Weiter zu den Variablen
         </button>
       </div>
     </div>

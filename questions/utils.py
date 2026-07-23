@@ -12,6 +12,8 @@ from django.db.models import Max
 
 from pages.models import WavePage, WavePageQuestion
 from questions.models import Question, QuestionVersionGroup
+from variables.models import Variable, QuestionVariableWave
+from variables.versioning import normalize_variable_name
 from waves.models import WaveQuestion, Wave
 
 
@@ -20,12 +22,17 @@ class CreateQuestionForPageResult:
     question: Question
     waves: list[Wave]
 
+@dataclass(frozen=True)
+class VariableVersionRequest:
+    source_variable_id: int
+    new_varname: str
 
 @dataclass(frozen=True)
 class CreateQuestionVersionResult:
     question: Question
     version_group: QuestionVersionGroup
     waves: list[Wave]
+    variables: list[Variable]
 
 
 def _unique_ids(ids: Sequence[int]) -> list[int]:
@@ -39,17 +46,30 @@ def _unique_ids(ids: Sequence[int]) -> list[int]:
     return unique_ids
 
 
-def _copy_rows_without_variables(rows: list[dict] | None) -> list:
+def _copy_rows_with_variable_mapping(
+    rows: list[dict] | None,
+    variable_mapping: dict[str, str],
+) -> list:
     """
-    Kopiert JSON-Zeilen vollständig, leert aber vorhandene Variablennamen.
+    Kopiert JSON-Zeilen und ersetzt ausgewählte alte Variablennamen.
+ 
 
-    Nicht-dict-Einträge werden defensiv unverändert tief kopiert. Regulär
-    enthalten die JSON-Felder ausschließlich Dictionaries.
+    Variablenfelder ohne neue Variablenversion werden geleert. Der Abgleich
+    erfolgt case-insensitive, die gespeicherten neuen Namen sind kanonisch.
+    Nicht-dict-Einträge werden defensiv unverändert tief kopiert.
     """
     copied_rows = deepcopy(rows or [])
+    normalized_mapping = {
+        old_name.casefold(): new_name
+        for old_name, new_name in variable_mapping.items()
+    }
+
     for row in copied_rows:
-        if isinstance(row, dict) and "variable" in row:
-            row["variable"] = ""
+        if not isinstance(row, dict) or "variable" not in row:
+            continue
+        old_name = str(row.get("variable") or "").strip()
+        row["variable"] = normalized_mapping.get(old_name.casefold(), "")
+
     return copied_rows
 
 
@@ -94,15 +114,18 @@ def create_question_version(
     page: WavePage,
     wave_ids: Sequence[int],
     group_name: str | None = None,
+    variable_versions: Sequence[VariableVersionRequest] = (),
 ) -> CreateQuestionVersionResult:
     """
     Erstellt eine eigenständige neue Version einer bestehenden Frage.
 
     Kopiert werden die fachlichen Inhalte der Frage sowie Konstrukt und
-    Keywords. Nicht übernommen werden Legacy-ID, Variablenverknüpfungen und
-    bestehende Seiten-/Wellenzuordnungen. Variablennamen in Items und
-    Antwortoptionen werden geleert. Beim ersten Versionieren muss ein Name für
-    die neu angelegte Versionsgruppe übergeben werden.
+    Keywords. Nicht übernommen werden Legacy-ID und bestehende Seiten-/
+    Wellenzuordnungen. Optional ausgewählte Variablen werden als neue,
+    versionierte Variablen angelegt, mit allen Zielgruppen verknüpft und in
+    Items bzw. Antwortoptionen eingesetzt. Nicht ausgewählte Variablennamen
+    werden geleert. Beim ersten Versionieren muss ein Name für die neu
+    angelegte Versionsgruppe übergeben werden.
     """
 
     wave_ids_unique = _unique_ids(wave_ids)
@@ -124,6 +147,38 @@ def create_question_version(
             "Zielseite oder ist abgeschlossen."
         )
 
+    normalized_variable_versions: list[VariableVersionRequest] = []
+    seen_source_ids: set[int] = set()
+    seen_new_names: set[str] = set()
+
+    for variable_version in variable_versions:
+        source_variable_id = int(variable_version.source_variable_id)
+        if source_variable_id in seen_source_ids:
+            raise ValueError(
+                "Eine Ausgangsvariable wurde mehrfach zur Versionierung ausgewählt."
+            )
+
+        try:
+            new_varname = normalize_variable_name(variable_version.new_varname)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+        normalized_key = new_varname.casefold()
+        if normalized_key in seen_new_names:
+            raise ValueError(
+                f"Der neue Variablenname '{new_varname}' wurde mehrfach vergeben."
+            )
+
+        seen_source_ids.add(source_variable_id)
+        seen_new_names.add(normalized_key)
+        normalized_variable_versions.append(
+            VariableVersionRequest(
+                source_variable_id=source_variable_id,
+                new_varname=new_varname,
+            )
+        )
+
+
     with transaction.atomic():
         # Ausgangsfrage sperren, damit parallele Requests nicht gleichzeitig
         # unterschiedliche Versionsgruppen oder dieselbe Versionsnummer erzeugen.
@@ -132,6 +187,36 @@ def create_question_version(
             .select_for_update()
             .get(pk=source_question.pk)
         )
+
+        selected_source_ids = {
+            item.source_variable_id
+            for item in normalized_variable_versions
+        }
+        linked_source_ids = set(
+            QuestionVariableWave.objects
+            .filter(question=source, variable_id__in=selected_source_ids)
+            .values_list("variable_id", flat=True)
+        )
+        if selected_source_ids != linked_source_ids:
+            raise ValueError(
+                "Mindestens eine ausgewählte Ausgangsvariable gehört nicht zur Frage."
+            )
+
+        source_variables = {
+            variable.id: variable
+            for variable in (
+                Variable.objects
+                .select_for_update()
+                .filter(id__in=selected_source_ids)
+            )
+        }
+
+        for item in normalized_variable_versions:
+            if Variable.objects.filter(varname__iexact=item.new_varname).exists():
+                raise ValueError(
+                    f"Der Variablenname '{item.new_varname}' ist bereits vergeben."
+                )
+
 
         if source.version_group_id is None:
 
@@ -166,6 +251,25 @@ def create_question_version(
         )
         next_version_number = (max_version_number or 0) + 1
 
+        created_variables: list[Variable] = []
+        variable_mapping: dict[str, str] = {}
+
+        for item in normalized_variable_versions:
+            source_variable = source_variables[item.source_variable_id]
+            new_variable = Variable.objects.create(
+                legacy_id=None,
+                varname=item.new_varname,
+                varlab=source_variable.varlab,
+                vallab=None,
+                ver=True,
+                reason_ver=f"Version von {source_variable.varname}",
+                is_technical=source_variable.is_technical,
+                comment=source_variable.comment,
+            )
+            created_variables.append(new_variable)
+            variable_mapping[source_variable.varname] = new_variable.varname
+
+
         new_question = Question.objects.create(
             legacy_id=None,
             version_group=version_group,
@@ -175,10 +279,13 @@ def create_question_version(
             question_type_other=source.question_type_other,
             instruction=source.instruction,
             item_stem=source.item_stem,
-            items=_copy_rows_without_variables(source.items),
+            items=_copy_rows_with_variable_mapping(source.items, variable_mapping),
             missing_values=source.missing_values,
             top_categories=source.top_categories,
-            answer_options=_copy_rows_without_variables(source.answer_options),
+            answer_options=_copy_rows_with_variable_mapping(
+                source.answer_options,
+                variable_mapping,
+            ),
             construct_id=source.construct_id,
         )
         new_question.keywords.set(source.keywords.all())
@@ -200,6 +307,33 @@ def create_question_version(
                 for wave_id in wave_ids_unique
             ]
         )
+
+        if created_variables:
+            QuestionVariableWave.objects.bulk_create(
+                [
+                    QuestionVariableWave(
+                        question=new_question,
+                        variable=variable,
+                        wave_id=wave_id,
+                    )
+                    for variable in created_variables
+                    for wave_id in wave_ids_unique
+                ]
+            )
+
+            VariableWaveThrough = Variable.waves.through
+            VariableWaveThrough.objects.bulk_create(
+                [
+                    VariableWaveThrough(
+                        variable_id=variable.id,
+                        wave_id=wave_id,
+                    )
+                    for variable in created_variables
+                    for wave_id in wave_ids_unique
+                ],
+                ignore_conflicts=True,
+            )
+
 
     selected_waves_by_id = {
         wave.id: wave
