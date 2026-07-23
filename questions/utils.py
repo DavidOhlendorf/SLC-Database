@@ -349,4 +349,5 @@ def create_question_version(
         question=new_question,
         version_group=version_group,
         waves=selected_waves,
+        variables=created_variables,
     )
