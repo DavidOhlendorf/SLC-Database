@@ -114,6 +114,7 @@ def create_question_version(
     page: WavePage,
     wave_ids: Sequence[int],
     group_name: str | None = None,
+    version_reason: str | None = None,
     variable_versions: Sequence[VariableVersionRequest] = (),
 ) -> CreateQuestionVersionResult:
     """
@@ -127,6 +128,8 @@ def create_question_version(
     werden geleert. Beim ersten Versionieren muss ein Name für die neu
     angelegte Versionsgruppe übergeben werden.
     """
+
+    cleaned_version_reason = (version_reason or "").strip()
 
     wave_ids_unique = _unique_ids(wave_ids)
     if not wave_ids_unique:
@@ -262,7 +265,10 @@ def create_question_version(
                 varlab=source_variable.varlab,
                 vallab=None,
                 ver=True,
-                reason_ver=f"Version von {source_variable.varname}",
+                reason_ver=(
+                    cleaned_version_reason
+                    or f"Version von {source_variable.varname}"
+                ),
                 is_technical=source_variable.is_technical,
                 comment=source_variable.comment,
             )
@@ -274,6 +280,7 @@ def create_question_version(
             legacy_id=None,
             version_group=version_group,
             version_number=next_version_number,
+            version_reason=cleaned_version_reason,
             questiontext=source.questiontext,
             question_type=source.question_type,
             question_type_other=source.question_type_other,

@@ -72,6 +72,22 @@
                      placeholder="z. B. Geschlecht">
             </div>
           {% endif %}
+          <div class="mb-3">
+              <label class="form-label" for="questionVersionReason">
+                Versionierungsgrund
+              </label>
+              <button type="button"
+                      class="btn btn-sm p-0 ms-1 text-muted"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Beschreibe kurz, warum eine neue Fassung benötigt wird. Der Text wird auch für alle im nächsten Schritt neu angelegten Variablen als Versionierungsgrund gespeichert.">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+              <textarea class="form-control"
+                        id="questionVersionReason"
+                        rows="3"
+                        placeholder="z. B. Ergänzung einer neuen Antwortkategorie"></textarea>
+            </div>
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label" for="questionVersionTargetSurvey">

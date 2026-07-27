@@ -10,6 +10,7 @@
   const targetStep = document.getElementById("questionVersionTargetStep");
   const variablesStep = document.getElementById("questionVersionVariablesStep");
   const groupNameInput = document.getElementById("questionVersionGroupName");
+  const versionReasonInput = document.getElementById("questionVersionReason");
   const targetSurveySelect = document.getElementById("questionVersionTargetSurvey");
   const targetPageSelect = document.getElementById("questionVersionTargetPage");
   const wavesBox = document.getElementById("questionVersionWavesBox");
@@ -537,6 +538,10 @@
     formData.append("page_id", targetPageSelect.value);
     formData.append("group_name", groupNameInput ? groupNameInput.value.trim() : "");
     formData.append(
+      "version_reason",
+      versionReasonInput ? versionReasonInput.value.trim() : ""
+    );
+    formData.append(
       "variable_versions",
       JSON.stringify(sourceVariables.length ? getVariableVersionsPayload() : [])
     );
@@ -612,6 +617,7 @@
     sourceVariables = [];
     unlinkedVariableNames = [];
     if (groupNameInput) groupNameInput.value = "";
+    if (versionReasonInput) versionReasonInput.value = "";
     setStep(1);
     setLoading(false);
 

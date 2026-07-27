@@ -463,6 +463,7 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
         page_id = request.POST.get("page_id")
         selected_wave_ids = request.POST.getlist("wave_ids")
         group_name = (request.POST.get("group_name") or "").strip()
+        version_reason = (request.POST.get("version_reason") or "").strip()
         variable_versions_raw = request.POST.get("variable_versions") or "[]"
 
         try:
@@ -550,6 +551,7 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
                 page=page,
                 wave_ids=selected_wave_ids,
                 group_name=group_name,
+                version_reason=version_reason,
                 variable_versions=variable_versions,
 
             )
