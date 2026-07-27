@@ -13,7 +13,7 @@ from django.db.models import Max
 from pages.models import WavePage, WavePageQuestion
 from questions.models import Question, QuestionVersionGroup
 from variables.models import Variable, QuestionVariableWave
-from variables.versioning import normalize_variable_name
+from variables.versioning import normalize_variable_name, parse_variable_name
 from waves.models import WaveQuestion, Wave
 
 
@@ -26,6 +26,7 @@ class CreateQuestionForPageResult:
 class VariableVersionRequest:
     source_variable_id: int
     new_varname: str
+    inherit_suffix_metadata: bool = True
 
 @dataclass(frozen=True)
 class CreateQuestionVersionResult:
@@ -174,10 +175,17 @@ def create_question_version(
 
         seen_source_ids.add(source_variable_id)
         seen_new_names.add(normalized_key)
+        inherit_suffix_metadata = variable_version.inherit_suffix_metadata
+        if not isinstance(inherit_suffix_metadata, bool):
+            raise ValueError(
+                "Die Auswahl zur Übernahme der Suffixe ist ungültig."
+            )
+
         normalized_variable_versions.append(
             VariableVersionRequest(
                 source_variable_id=source_variable_id,
                 new_varname=new_varname,
+                inherit_suffix_metadata=inherit_suffix_metadata,
             )
         )
 
@@ -215,10 +223,32 @@ def create_question_version(
         }
 
         for item in normalized_variable_versions:
+            source_variable = source_variables[item.source_variable_id]
+
             if Variable.objects.filter(varname__iexact=item.new_varname).exists():
                 raise ValueError(
                     f"Der Variablenname '{item.new_varname}' ist bereits vergeben."
                 )
+            
+            try:
+                source_suffixes = parse_variable_name(
+                    source_variable.varname
+                ).non_version_suffixes
+                target_suffixes = parse_variable_name(
+                    item.new_varname
+                ).non_version_suffixes
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
+
+            if (
+                item.inherit_suffix_metadata
+                and source_suffixes != target_suffixes
+            ):
+                raise ValueError(
+                    f"Bei '{item.new_varname}' wurden Suffixe verändert. "
+                    "Deaktiviere die Übernahme der Zusatzmerkmale, wenn diese Änderung beabsichtigt ist."
+                )
+
 
 
         if source.version_group_id is None:
@@ -259,15 +289,30 @@ def create_question_version(
 
         for item in normalized_variable_versions:
             source_variable = source_variables[item.source_variable_id]
+            inherit_suffix_metadata = item.inherit_suffix_metadata
             new_variable = Variable.objects.create(
                 legacy_id=None,
                 varname=item.new_varname,
                 varlab=source_variable.varlab,
                 vallab=None,
                 ver=True,
+                gen=source_variable.gen if inherit_suffix_metadata else False,
+                plausi=(
+                    source_variable.plausi if inherit_suffix_metadata else False
+                ),
+                flag=source_variable.flag if inherit_suffix_metadata else False,
                 reason_ver=(
                     cleaned_version_reason
                     or f"Version von {source_variable.varname}"
+                ),
+                reason_gen=(
+                    source_variable.reason_gen if inherit_suffix_metadata else None
+                ),
+                reason_plausi=(
+                    source_variable.reason_plausi if inherit_suffix_metadata else None
+                ),
+                reason_flag=(
+                    source_variable.reason_flag if inherit_suffix_metadata else None
                 ),
                 is_technical=source_variable.is_technical,
                 comment=source_variable.comment,

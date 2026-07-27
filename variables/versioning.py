@@ -42,6 +42,16 @@ class ParsedVariableName:
         """Nicht versionierte Variablen werden als Version 0 behandelt."""
         return self.suffixes.get("v", 0)
 
+    @property
+    def non_version_suffixes(self) -> dict[str, int]:
+        """Liefert ausschließlich die fachlichen Suffixe g, p und f."""
+        return {
+            suffix: self.suffixes[suffix]
+            for suffix in ("g", "p", "f")
+            if suffix in self.suffixes
+        }
+
+
     def with_version(self, version_number: int) -> "ParsedVariableName":
         if not 1 <= version_number <= 99:
             raise VariableNameSchemaError(

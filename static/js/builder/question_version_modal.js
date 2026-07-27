@@ -166,18 +166,18 @@
     }
   }
 
-  function validateVariableName(name) {
+  function parseVariableName(name) {
     const normalized = (name || "").trim().toLowerCase();
     const match = normalized.match(
       /^(?:[a-z]{2}_)?[a-z]{3}\d{3}(?:_((?:[vgpf]\d{1,2})+))?$/
     );
-    if (!match) return false;
+    if (!match) return null;
 
     const suffixText = match[1] || "";
-    if (!suffixText) return true;
 
     const rank = { v: 0, g: 1, p: 2, f: 3 };
     const seen = new Set();
+    const suffixes = {};
     let previousRank = -1;
     let consumed = "";
     const tokenRegex = /([vgpf])(\d{1,2})/g;
@@ -187,15 +187,44 @@
       const suffix = token[1];
       const number = Number(token[2]);
       consumed += token[0];
-      if (seen.has(suffix) || rank[suffix] < previousRank || number < 1 || number > 99) {
-        return false;
-      }
+      if (
+        seen.has(suffix)
+        || rank[suffix] < previousRank
+        || number < 1
+        || number > 99
+      ) {
+        return null;
+       }
       seen.add(suffix);
+      suffixes[suffix] = number;
       previousRank = rank[suffix];
     }
 
-    return consumed === suffixText;
+  if (consumed !== suffixText) return null;
+    return { normalized, suffixes };
   }
+
+  function validateVariableName(name) {
+    return parseVariableName(name) !== null;
+  }
+
+  function nonVersionSuffixes(name) {
+    const parsed = parseVariableName(name);
+    if (!parsed) return null;
+    const result = {};
+    for (const suffix of ["g", "p", "f"]) {
+      if (Object.prototype.hasOwnProperty.call(parsed.suffixes, suffix)) {
+        result[suffix] = parsed.suffixes[suffix];
+      }
+    }
+    return result;
+  }
+
+  function sameSuffixes(first, second) {
+    return ["g", "p", "f"].every(
+      (suffix) => (first?.[suffix] ?? null) === (second?.[suffix] ?? null)
+    );
+   }
 
   function setVariableStatus(input, message = "", type = "") {
     const status = input.closest("td")?.querySelector(".question-version-variable-status");
@@ -212,6 +241,80 @@
     }
   }
 
+  function setSuffixStatus(row, message = "", type = "") {
+    const status = row.querySelector(".question-version-suffix-status");
+    const checkbox = row.querySelector(
+      ".question-version-inherit-suffix-metadata"
+    );
+    checkbox?.classList.remove("is-invalid");
+    if (type === "invalid") checkbox?.classList.add("is-invalid");
+
+    if (!status) return;
+    status.textContent = message;
+    status.className = "question-version-suffix-status small";
+    if (type === "invalid") status.classList.add("text-danger");
+    else if (type === "warning") status.classList.add("text-warning-emphasis");
+    else status.classList.add("text-muted");
+  }
+
+  function validateSuffixMetadataRow(row) {
+    const versionCheckbox = row.querySelector(
+      ".question-version-variable-check"
+    );
+    const inheritCheckbox = row.querySelector(
+      ".question-version-inherit-suffix-metadata"
+    );
+    const input = row.querySelector(".question-version-variable-name");
+
+    if (!versionCheckbox?.checked || !inheritCheckbox || !input) {
+      setSuffixStatus(row);
+      return true;
+    }
+
+    const sourceSuffixes = nonVersionSuffixes(row.dataset.sourceVarname || "");
+    const targetSuffixes = nonVersionSuffixes(input.value);
+    if (sourceSuffixes === null || targetSuffixes === null) {
+      setSuffixStatus(row);
+      return true;
+    }
+
+    const suffixesChanged = !sameSuffixes(sourceSuffixes, targetSuffixes);
+    if (inheritCheckbox.checked && suffixesChanged) {
+      setSuffixStatus(
+        row,
+        "g-, p- oder f-Suffixe wurden verändert. Deaktiviere die Übernahme, wenn dies beabsichtigt ist.",
+        "invalid"
+      );
+      return false;
+    }
+
+    if (!inheritCheckbox.checked) {
+      const targetHasSuffixes = Object.keys(targetSuffixes).length > 0;
+      const sourceHasMetadata = row.dataset.hasSuffixMetadata === "1";
+
+      if (targetHasSuffixes) {
+        setSuffixStatus(
+          row,
+          "Die g-/p-/f-Angaben werden nicht übernommen, obwohl der neue Name entsprechende Suffixe enthält. Dadurch kann eine Inkonsistenz entstehen.",
+          "warning"
+        );
+      } else if (suffixesChanged || sourceHasMetadata) {
+        setSuffixStatus(
+          row,
+          "Die bisherigen g-/p-/f-Kennzeichnungen und Begründungen werden nicht übernommen. Bitte prüfe die Variable anschließend.",
+          "warning"
+        );
+      } else {
+        setSuffixStatus(row);
+      }
+    } else {
+      setSuffixStatus(row);
+    }
+
+    return true;
+  }
+
+
   function selectedVariableRows() {
     return Array.from(
       variablesBody.querySelectorAll("tr.question-version-variable-row")
@@ -226,6 +329,11 @@
       const input = row.querySelector(".question-version-variable-name");
       const name = (input?.value || "").trim().toLowerCase();
       if (!input) continue;
+
+      if (!validateSuffixMetadataRow(row)) {
+        valid = false;
+      }
+
 
       if (!validateVariableName(name)) {
         setVariableStatus(
@@ -330,6 +438,8 @@
       const row = document.createElement("tr");
       row.className = "question-version-variable-row";
       row.dataset.sourceVariableId = String(variable.id);
+      row.dataset.sourceVarname = variable.varname;
+      row.dataset.hasSuffixMetadata = variable.has_suffix_metadata ? "1" : "0";
 
       const checkCell = document.createElement("td");
       checkCell.className = "text-center";
@@ -348,6 +458,33 @@
 
       const labelCell = document.createElement("td");
       labelCell.textContent = variable.varlab || "–";
+
+      const metadataCell = document.createElement("td");
+      metadataCell.className = "text-center";
+      const metadataCheck = document.createElement("input");
+      metadataCheck.type = "checkbox";
+      metadataCheck.className =
+        "form-check-input question-version-inherit-suffix-metadata";
+      metadataCheck.checked = true;
+      metadataCheck.disabled = !checkbox.checked;
+      metadataCheck.setAttribute(
+        "aria-label",
+        `g-/p-/f-Angaben von ${variable.varname} übernehmen`
+      );
+      metadataCell.appendChild(metadataCheck);
+
+      const suffixLabel = document.createElement("div");
+      suffixLabel.className = "small text-muted mt-1";
+      const sourceSuffixes = variable.source_suffixes || {};
+      suffixLabel.textContent = ["g", "p", "f"]
+        .filter((suffix) => sourceSuffixes[suffix])
+        .map((suffix) => `${suffix}${sourceSuffixes[suffix]}`)
+        .join(" · ") || "keine Suffixe";
+      metadataCell.appendChild(suffixLabel);
+
+      const suffixStatus = document.createElement("div");
+      suffixStatus.className = "question-version-suffix-status small text-muted";
+      metadataCell.appendChild(suffixStatus);
 
       const nameCell = document.createElement("td");
       const input = document.createElement("input");
@@ -372,6 +509,7 @@
       row.appendChild(checkCell);
       row.appendChild(sourceCell);
       row.appendChild(labelCell);
+      row.appendChild(metadataCell);
       row.appendChild(nameCell);
       variablesBody.appendChild(row);
     }
@@ -509,6 +647,11 @@
       new_varname: (
         row.querySelector(".question-version-variable-name")?.value || ""
       ).trim().toLowerCase(),
+      inherit_suffix_metadata: Boolean(
+        row.querySelector(
+          ".question-version-inherit-suffix-metadata"
+        )?.checked
+      ),
     }));
   }
 
@@ -582,14 +725,32 @@
     if (!checkbox) return;
     const row = checkbox.closest("tr");
     const input = row?.querySelector(".question-version-variable-name");
+    const metadataCheck = row?.querySelector(
+      ".question-version-inherit-suffix-metadata"
+    );
     if (!input) return;
     input.disabled = !checkbox.checked;
+    if (metadataCheck) metadataCheck.disabled = !checkbox.checked;
     if (!checkbox.checked) {
       setVariableStatus(input);
+      setSuffixStatus(row);
       validateLocalVariableRows();
     } else {
       input.focus();
       scheduleAvailabilityCheck(input);
+      validateSuffixMetadataRow(row);
+    }
+  });
+
+  variablesBody.addEventListener("change", function (event) {
+    const metadataCheck = event.target.closest(
+      ".question-version-inherit-suffix-metadata"
+    );
+    if (!metadataCheck) return;
+    const row = metadataCheck.closest("tr");
+    if (row) {
+      validateSuffixMetadataRow(row);
+      validateLocalVariableRows();
     }
   });
 

@@ -37,6 +37,7 @@ from .utils import (
 )
 from variables.versioning import (
     VariableNameSchemaError,
+    parse_variable_name,
     suggest_next_variable_name,
 )
 
@@ -319,12 +320,29 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
                 suggested_name = ""
                 suggestion_error = str(exc)
 
+            try:
+                source_suffixes = parse_variable_name(
+                    variable.varname
+                ).non_version_suffixes
+            except VariableNameSchemaError:
+                source_suffixes = {}
+
             payload.append({
                 "id": variable.id,
                 "varname": variable.varname,
                 "varlab": variable.varlab or "",
                 "suggested_name": suggested_name,
                 "suggestion_error": suggestion_error,
+                "source_suffixes": source_suffixes,
+                "has_suffix_metadata": bool(
+                    source_suffixes
+                    or variable.gen
+                    or variable.plausi
+                    or variable.flag
+                    or variable.reason_gen
+                    or variable.reason_plausi
+                    or variable.reason_flag
+                ),
             })
 
         linked_names = {
@@ -481,12 +499,20 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
                     raise TypeError
                 source_variable_id = int(item.get("source_variable_id"))
                 new_varname = str(item.get("new_varname") or "").strip()
-                if not new_varname:
+                inherit_suffix_metadata = item.get(
+                    "inherit_suffix_metadata",
+                    True,
+                )
+                if not new_varname or not isinstance(
+                    inherit_suffix_metadata,
+                    bool,
+                ):
                     raise ValueError
                 variable_versions.append(
                     VariableVersionRequest(
                         source_variable_id=source_variable_id,
                         new_varname=new_varname,
+                        inherit_suffix_metadata=inherit_suffix_metadata,
                     )
                 )
         except (TypeError, ValueError):

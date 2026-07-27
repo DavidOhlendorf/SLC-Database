@@ -149,7 +149,7 @@
                     class="btn btn-sm p-0 text-muted"
                     data-bs-toggle="tooltip"
                     data-bs-placement="left"
-                    title="Der Vorschlag verwendet die höchste vorhandene v-Nummer der Variablenfamilie plus eins. g-, p- und f-Suffixe bleiben erhalten. Variablenlabel und Kommentar werden kopiert; Wertelabel und weitere Statuskennzeichen nicht.">
+                    title="Der Vorschlag verwendet die höchste vorhandene v-Nummer der Variablenfamilie plus eins. g-, p- und f-Suffixe bleiben erhalten. Die zugehörigen Kennzeichnungen und Begründungen werden standardmäßig übernommen und können pro Variable abgewählt werden.">
                <i class="fa-solid fa-circle-info"></i>
             </button>
           </div>
@@ -162,6 +162,16 @@
                   <th scope="col" class="text-center" style="width: 4rem;">Neu</th>
                   <th scope="col">Ausgangsvariable</th>
                   <th scope="col">Variablenlabel</th>
+                  <th scope="col" class="text-center" style="min-width: 10rem;">
+                    Suffixe übernehmen
+                    <button type="button"
+                            class="btn btn-sm p-0 ms-1 text-muted"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Übernimmt die Kennzeichnungen generiert, plausibilisiert und Flag sowie die zugehörigen Begründungen. Bei aktivierter Übernahme dürfen nur v-Suffixe verändert werden.">
+                      <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                  </th>
                   <th scope="col" style="min-width: 15rem;">Neuer Variablenname</th>
                 </tr>
               </thead>
