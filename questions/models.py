@@ -139,6 +139,15 @@ class Question(models.Model):
         help_text="0 für die Ursprungsfassung, danach fortlaufend 1, 2, 3 …",
     )
 
+    # Begründung für die Versionierung
+    version_reason = models.TextField(
+    blank=True,
+    default="",
+    verbose_name="Versionierungsgrund",
+    help_text="Begründung für die Anlage dieser konkreten Fragenversion.",
+    )
+
+
     # Fragetext (q)
     questiontext = models.TextField(
         blank=True,
