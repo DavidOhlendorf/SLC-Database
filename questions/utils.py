@@ -1,7 +1,8 @@
 # questions/utils.py
 # Utility-Funktionen zum Anlegen und Versionieren von Fragen
-
 from __future__ import annotations
+
+import re
 
 from copy import deepcopy
 from dataclasses import dataclass
@@ -52,24 +53,65 @@ def _copy_rows_with_variable_mapping(
     variable_mapping: dict[str, str],
 ) -> list:
     """
-    Kopiert JSON-Zeilen und ersetzt ausgewählte alte Variablennamen.
- 
+    Kopiert Items oder Antwortoptionen und ersetzt alte Variablennamen.
 
-    Variablenfelder ohne neue Variablenversion werden geleert. Der Abgleich
-    erfolgt case-insensitive, die gespeicherten neuen Namen sind kanonisch.
-    Nicht-dict-Einträge werden defensiv unverändert tief kopiert.
+    Ersetzt werden:
+    - das strukturierte Feld ``variable``
+    - vollständige Variablennamen innerhalb des Feldes ``label``
+
+    Variablenfelder ohne ausgewählte neue Variablenversion werden geleert.
+    Der Abgleich erfolgt ohne Beachtung der Groß-/Kleinschreibung.
     """
     copied_rows = deepcopy(rows or [])
+
     normalized_mapping = {
-        old_name.casefold(): new_name
+        old_name.strip().casefold(): new_name
         for old_name, new_name in variable_mapping.items()
+        if old_name and new_name
     }
 
+    variable_pattern = None
+
+    if normalized_mapping:
+        # Längere Namen zuerst, damit z. B. dem123_v1 vor dem123 geprüft wird.
+        escaped_names = [
+            re.escape(old_name)
+            for old_name in sorted(
+                normalized_mapping,
+                key=len,
+                reverse=True,
+            )
+        ]
+
+        variable_pattern = re.compile(
+            rf"(?<![A-Za-z0-9_])"
+            rf"(?:{'|'.join(escaped_names)})"
+            rf"(?![A-Za-z0-9_])",
+            flags=re.IGNORECASE,
+        )
+
     for row in copied_rows:
-        if not isinstance(row, dict) or "variable" not in row:
+        if not isinstance(row, dict):
             continue
-        old_name = str(row.get("variable") or "").strip()
-        row["variable"] = normalized_mapping.get(old_name.casefold(), "")
+
+        # Das strukturierte Variablenfeld wie bisher ersetzen oder leeren.
+        if "variable" in row:
+            old_name = str(row.get("variable") or "").strip()
+            row["variable"] = normalized_mapping.get(
+                old_name.casefold(),
+                "",
+            )
+
+        # Variablenreferenzen im Antwort- oder Itemtext ersetzen.
+        label = row.get("label")
+
+        if variable_pattern is not None and isinstance(label, str):
+            row["label"] = variable_pattern.sub(
+                lambda match: normalized_mapping[
+                    match.group(0).casefold()
+                ],
+                label,
+            )
 
     return copied_rows
 
