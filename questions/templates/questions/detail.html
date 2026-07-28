@@ -117,6 +117,25 @@
       </ul>
     {% endif %}
 
+    {% if other_version_wave_items %}
+      <div class="small text-muted mt-2 mb-1">Andere Versionen:</div>
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small" style="white-space: nowrap;">
+        {% for item in other_version_wave_items %}
+          <li class="nav-item">
+            <a href="{% url 'questions:question_detail' item.question_id %}?wave={{ item.wave.id }}"
+              class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border d-inline-flex align-items-center"
+              title="Andere Fragenversion auswählen">
+              <span>{{ item.wave }}</span>
+              <span class="badge rounded-pill bg-light text-dark border ms-1">
+                V{{ item.version_number }}
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+
     {% if survey and active_wave %}
       <div class="mb-3">
         <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"

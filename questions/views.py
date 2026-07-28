@@ -110,7 +110,7 @@ class QuestionDetail(DetailView):
             .prefetch_related(
                 Prefetch(
                     "waves",
-                    queryset=Wave.objects.order_by("-id"),
+                    queryset=Wave.objects.select_related("survey").order_by("-id"),
                 )
             )
         )
@@ -129,6 +129,46 @@ class QuestionDetail(DetailView):
 
         waves = list(question.waves.all().order_by("-id"))
         wave_param = self.request.GET.get("wave")
+
+        # Konkrete Wave-Zuordnungen der übrigen Fragenversionen.
+        other_version_wave_items = []
+
+        if question.version_group_id:
+            other_versions = (
+                Question.objects
+                .filter(version_group_id=question.version_group_id)
+                .exclude(pk=question.pk)
+                .prefetch_related(
+                    Prefetch(
+                        "waves",
+                        queryset=(
+                            Wave.objects
+                            .select_related("survey")
+                            .order_by("-id")
+                        ),
+                    )
+                )
+                .order_by("version_number", "id")
+            )
+
+            for version in other_versions:
+                for wave in version.waves.all():
+                    other_version_wave_items.append({
+                        "question_id": version.id,
+                        "version_number": version.version_number,
+                        "wave": wave,
+                    })
+
+            # Analog zur bisherigen Wave-Reihe: neuere Waves zuerst.
+            # Bei derselben Wave sortieren wir stabil nach Versionsnummer und ID.
+            other_version_wave_items.sort(
+                key=lambda item: (
+                    -item["wave"].id,
+                    item["version_number"],
+                    item["question_id"],
+                )
+            )
+
 
         active_wave = None
         if waves:
@@ -206,6 +246,7 @@ class QuestionDetail(DetailView):
         ctx.update({
             "survey": active_wave.survey if active_wave and active_wave.survey_id else None,
             "waves": waves,
+            "other_version_wave_items": other_version_wave_items,
             "active_wave": active_wave,
             "variables": variables,
             "locked_variable_ids": locked_variable_ids,
