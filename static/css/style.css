@@ -125,3 +125,50 @@ select.qc-passive:focus {
   letter-spacing: 0.02em;           /* optional, macht es „iconiger“ */
   padding: 0.3rem 0.2rem;
 }
+
+
+
+/* ==========================================
+   Einheitliche Kontext-Pills
+   ========================================== */
+
+/*
+ * Gemeinsame Grundform für kompakte Navigations-Pills,
+ * insbesondere für Befragtengruppen und Fragebogenseiten.
+ */
+.context-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+
+  box-sizing: border-box;
+  height: 1.55rem;
+  padding: 0 0.45rem !important;
+
+  border-radius: var(--bs-border-radius-pill) !important;
+
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/*
+ * Zusatzbadge innerhalb einer Pill, zum Beispiel „V1“.
+ * Seine feste Höhe verändert die Außenhöhe der Pill nicht.
+ */
+.context-pill__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+
+  height: 1rem;
+  min-width: 1.2rem;
+  padding: 0 0.25rem !important;
+
+  border-radius: var(--bs-border-radius-pill) !important;
+
+  font-size: 0.58rem;
+  line-height: 1;
+}

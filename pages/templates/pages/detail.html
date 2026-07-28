@@ -87,10 +87,10 @@
 
     <!-- Wellen-Pills -->
     {% if waves %}
-      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small" style="white-space: nowrap;">
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto" style="white-space: nowrap;">
         {% for w in waves %}
           <li class="nav-item">
-            <a class="nav-link rounded-pill py-1 px-2 border
+            <a class="nav-link context-pill wave-pill border
                       {% if active_wave and w.id == active_wave.id %}
                         active
                       {% else %}
