@@ -1,6 +1,6 @@
 # questions/views.py
 
-from urllib import request
+import json
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -14,16 +14,33 @@ from django.views.generic import DetailView, UpdateView
 from accounts.mixins import EditorRequiredMixin
 
 from django.db.models import Prefetch, Q
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from .models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
-from waves.models import Wave, WaveQuestion
+from waves.models import Survey, Wave, WaveQuestion
 from pages.models import WavePage, WavePageQuestion
 
-from .forms import QuestionEditForm, AnswerOptionFormSet, ItemFormSet, AttachWavePageForm, QuestionVariableLinkFormSet
+from .forms import (
+    QuestionEditForm,
+    AnswerOptionFormSet,
+    ItemFormSet,
+    AttachWavePageForm,
+    QuestionVariableLinkFormSet,
 
-from .utils import create_question_for_page
+)
+
+from .utils import (
+    VariableVersionRequest,
+    create_question_for_page,
+    create_question_version,
+)
+from variables.versioning import (
+    VariableNameSchemaError,
+    parse_variable_name,
+    suggest_next_variable_name,
+)
+
 
 
 # ---- Allgemeine Helper-Funktionen ---------------------------------------
@@ -89,11 +106,11 @@ class QuestionDetail(DetailView):
     def get_queryset(self):
         qs = (
             Question.objects
-            .select_related("construct")  
+            .select_related("construct", "version_group")  
             .prefetch_related(
                 Prefetch(
                     "waves",
-                    queryset=Wave.objects.order_by("-id"),
+                    queryset=Wave.objects.select_related("survey").order_by("-id"),
                 )
             )
         )
@@ -112,6 +129,46 @@ class QuestionDetail(DetailView):
 
         waves = list(question.waves.all().order_by("-id"))
         wave_param = self.request.GET.get("wave")
+
+        # Konkrete Wave-Zuordnungen der übrigen Fragenversionen.
+        other_version_wave_items = []
+
+        if question.version_group_id:
+            other_versions = (
+                Question.objects
+                .filter(version_group_id=question.version_group_id)
+                .exclude(pk=question.pk)
+                .prefetch_related(
+                    Prefetch(
+                        "waves",
+                        queryset=(
+                            Wave.objects
+                            .select_related("survey")
+                            .order_by("-id")
+                        ),
+                    )
+                )
+                .order_by("version_number", "id")
+            )
+
+            for version in other_versions:
+                for wave in version.waves.all():
+                    other_version_wave_items.append({
+                        "question_id": version.id,
+                        "version_number": version.version_number,
+                        "wave": wave,
+                    })
+
+            # Analog zur bisherigen Wave-Reihe: neuere Waves zuerst.
+            # Bei derselben Wave sortieren wir stabil nach Versionsnummer und ID.
+            other_version_wave_items.sort(
+                key=lambda item: (
+                    -item["wave"].id,
+                    item["version_number"],
+                    item["question_id"],
+                )
+            )
+
 
         active_wave = None
         if waves:
@@ -189,6 +246,7 @@ class QuestionDetail(DetailView):
         ctx.update({
             "survey": active_wave.survey if active_wave and active_wave.survey_id else None,
             "waves": waves,
+            "other_version_wave_items": other_version_wave_items,
             "active_wave": active_wave,
             "variables": variables,
             "locked_variable_ids": locked_variable_ids,
@@ -264,6 +322,348 @@ class QuestionCreateFromPageView(EditorRequiredMixin, View):
 
         return redirect(f"{base}?{params}")
     
+
+# View zum Anlegen einer neuen Version einer bestehenden Frage
+class QuestionVersionCreateView(EditorRequiredMixin, View):
+    """AJAX-Endpunkt für den Modal-Workflow zur Fragenversionierung."""
+
+    http_method_names = ["get", "post"]
+
+    @staticmethod
+    def _wave_label(wave: Wave) -> str:
+        return f"{wave.cycle} – {wave.instrument}"
+    
+    @staticmethod
+    def _page_label(page: WavePage) -> str:
+        heading = (page.page_heading or "").strip()
+        return f"{page.pagename} – {heading}" if heading else page.pagename
+
+    @staticmethod
+    def _variable_payload(question: Question) -> tuple[list[dict], list[str]]:
+        source_variables = list(
+            Variable.objects
+            .filter(question_variable_wave_links__question=question)
+            .distinct()
+            .order_by("varname", "id")
+        )
+
+        payload = []
+        reserved_names: set[str] = set()
+        for variable in source_variables:
+            try:
+                suggested_name = suggest_next_variable_name(
+                    variable.varname,
+                    reserved_names=reserved_names,
+                )
+                suggestion_error = ""
+                reserved_names.add(suggested_name)
+            except VariableNameSchemaError as exc:
+                suggested_name = ""
+                suggestion_error = str(exc)
+
+            try:
+                source_suffixes = parse_variable_name(
+                    variable.varname
+                ).non_version_suffixes
+            except VariableNameSchemaError:
+                source_suffixes = {}
+
+            payload.append({
+                "id": variable.id,
+                "varname": variable.varname,
+                "varlab": variable.varlab or "",
+                "suggested_name": suggested_name,
+                "suggestion_error": suggestion_error,
+                "source_suffixes": source_suffixes,
+                "has_suffix_metadata": bool(
+                    source_suffixes
+                    or variable.gen
+                    or variable.plausi
+                    or variable.flag
+                    or variable.reason_gen
+                    or variable.reason_plausi
+                    or variable.reason_flag
+                ),
+            })
+
+        linked_names = {
+            variable.varname.casefold()
+            for variable in source_variables
+        }
+        json_variable_names = {
+            str(row.get("variable") or "").strip()
+            for rows in (question.items or [], question.answer_options or [])
+            for row in rows
+            if isinstance(row, dict) and str(row.get("variable") or "").strip()
+        }
+        unlinked_names = sorted(
+            name
+            for name in json_variable_names
+            if name.casefold() not in linked_names
+        )
+
+        return payload, unlinked_names
+
+
+    def get(self, request, pk, *args, **kwargs):
+        # Die Frage wird auch beim Optionsabruf geprüft, damit der Endpunkt
+        # nicht mit beliebigen IDs verwendet werden kann.
+        question = get_object_or_404(Question, pk=pk)
+
+        survey_id = request.GET.get("survey")
+        if not survey_id:
+            variables, unlinked_variable_names = self._variable_payload(question)
+            surveys = (
+                Survey.objects
+                .filter(
+                    waves__is_locked=False,
+                    waves__pages__isnull=False,
+                 )
+                .order_by("-year", "name", "id")
+                .distinct()
+            )
+
+
+            return JsonResponse({
+                "ok": True,
+                "surveys": [
+                    {
+                        "id": survey.id,
+                        "label": str(survey),
+                    }
+                    for survey in surveys
+                ],
+                "variables": variables,
+                "unlinked_variable_names": unlinked_variable_names,
+            })
+
+        try:
+            survey_id = int(survey_id)
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"ok": False, "error": "Ungültige Befragung."},
+                status=400,
+            )
+
+        selected_survey = (
+            Survey.objects
+            .filter(pk=survey_id, waves__is_locked=False)
+            .distinct()
+            .first()
+        )
+
+        if selected_survey is None:
+            return JsonResponse(
+                {"ok": False, "error": "Ungültige oder abgeschlossene Befragung."},
+                status=400,
+            )
+
+        available_waves = (
+            Wave.objects
+            .filter(
+                survey=selected_survey,
+                is_locked=False,
+             )
+            .order_by("cycle", "instrument", "id")
+        )
+
+        pages = (
+            WavePage.objects
+            .filter(
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            # Das Hinzufügen einer Frage verändert das gemeinsame Seitenobjekt.
+            # Seiten, die auch in einer abgeschlossenen Gruppe verwendet werden,
+            # bleiben deshalb wie bisher ausgeschlossen.
+            .exclude(waves__is_locked=True)
+            .prefetch_related(
+                Prefetch(
+                    "waves",
+                    queryset=available_waves,
+                    to_attr="version_target_waves",
+                )
+            )
+            .order_by("pagename", "id")
+            .distinct()
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "pages": [
+                {
+                    "id": page.id,
+                    "name": self._page_label(page),
+                    "waves": [
+                        {
+                            "id": wave.id,
+                            "label": self._wave_label(wave),
+                        }
+                        for wave in page.version_target_waves
+                    ],
+                }
+                for page in pages
+            ],
+        })
+
+    def post(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(
+            Question.objects.select_related("version_group"),
+            pk=pk,
+        )
+
+        def error_response(message, status=400):
+            return JsonResponse(
+                {"ok": False, "error": message},
+                status=status,
+            )
+
+        survey_id = request.POST.get("survey_id")
+        page_id = request.POST.get("page_id")
+        selected_wave_ids = request.POST.getlist("wave_ids")
+        group_name = (request.POST.get("group_name") or "").strip()
+        version_reason = (request.POST.get("version_reason") or "").strip()
+        variable_versions_raw = request.POST.get("variable_versions") or "[]"
+
+        try:
+            variable_versions_data = json.loads(variable_versions_raw)
+        except json.JSONDecodeError:
+            return error_response("Die Variablenauswahl ist ungültig.")
+
+        if not isinstance(variable_versions_data, list):
+            return error_response("Die Variablenauswahl ist ungültig.")
+
+        variable_versions = []
+        try:
+            for item in variable_versions_data:
+                if not isinstance(item, dict):
+                    raise TypeError
+                source_variable_id = int(item.get("source_variable_id"))
+                new_varname = str(item.get("new_varname") or "").strip()
+                inherit_suffix_metadata = item.get(
+                    "inherit_suffix_metadata",
+                    True,
+                )
+                if not new_varname or not isinstance(
+                    inherit_suffix_metadata,
+                    bool,
+                ):
+                    raise ValueError
+                variable_versions.append(
+                    VariableVersionRequest(
+                        source_variable_id=source_variable_id,
+                        new_varname=new_varname,
+                        inherit_suffix_metadata=inherit_suffix_metadata,
+                    )
+                )
+        except (TypeError, ValueError):
+            return error_response("Die Variablenauswahl ist unvollständig oder ungültig.")
+
+
+        if not survey_id:
+            return error_response("Bitte wähle eine Zielbefragung aus.")
+        if not page_id:
+            return error_response("Bitte wähle eine Zielseite aus.")
+        if not selected_wave_ids:
+            return error_response("Bitte wähle mindestens eine Befragtengruppe aus.")
+ 
+        try:
+            survey_id = int(survey_id)
+            page_id = int(page_id)
+            selected_wave_ids = [int(wave_id) for wave_id in selected_wave_ids]
+        except (TypeError, ValueError):
+            return error_response(
+                "Ungültige Befragungs-, Seiten- oder Befragtengruppenauswahl."
+            )
+        
+        if question.version_group_id is None and not group_name:
+            return error_response("Bitte gib einen Namen für die neue Versionsgruppe an.")
+        
+        selected_survey = Survey.objects.filter(pk=survey_id).first()
+        if selected_survey is None:
+            return error_response("Die ausgewählte Zielbefragung existiert nicht.")
+
+        page = (
+            WavePage.objects
+            .filter(
+                pk=page_id,
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            .exclude(waves__is_locked=True)
+            .distinct()
+            .first()
+        )
+
+
+        if page is None:
+            return error_response(
+                "Die ausgewählte Zielseite gehört nicht zur Zielbefragung oder ist nicht bearbeitbar."
+            )
+
+        allowed_wave_ids = set(
+            page.waves
+            .filter(survey=selected_survey, is_locked=False)
+            .values_list("id", flat=True)
+        )
+        if not set(selected_wave_ids).issubset(allowed_wave_ids):
+            return error_response(
+                "Mindestens eine ausgewählte Befragtengruppe gehört nicht zur "
+                "Zielbefragung und Zielseite oder ist abgeschlossen."
+            )
+
+        try:
+            result = create_question_version(
+                source_question=question,
+                page=page,
+                wave_ids=selected_wave_ids,
+                group_name=group_name,
+                version_reason=version_reason,
+                variable_versions=variable_versions,
+
+            )
+        except ValueError as exc:
+            return error_response(str(exc))
+        
+        except IntegrityError:
+            return error_response(
+                "Mindestens ein Variablenname wurde inzwischen vergeben. "
+                "Bitte öffne den Dialog erneut.",
+                status=409,
+            )
+
+        new_question = result.question
+        active_wave = result.waves[0]
+
+        variable_count = len(result.variables)
+        if variable_count == 1:
+            variable_message = " Eine Variablenversion wurde angelegt."
+        elif variable_count > 1:
+            variable_message = f" {variable_count} Variablenversionen wurden angelegt."
+        else:
+            variable_message = " Es wurden keine Variablenversionen angelegt."
+
+
+        messages.success(
+            request,
+            f"Version {new_question.version_number} wurde angelegt. "
+            f"{variable_message} Bitte prüfe die kopierten Inhalte.",
+        )
+
+        edit_url = reverse(
+            "questions:question_edit",
+            kwargs={"pk": new_question.pk},
+        )
+        
+        redirect_url = (
+            f"{edit_url}?page={page.pk}&wave={active_wave.pk}"
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "redirect_url": redirect_url,
+        })
+
 
 # View zum Bearbeiten einer Frage    
 class QuestionUpdateView(EditorRequiredMixin, UpdateView):

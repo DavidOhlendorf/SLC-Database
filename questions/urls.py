@@ -9,6 +9,7 @@ urlpatterns = [
     path("<int:pk>/edit/", views.QuestionUpdateView.as_view(), name="question_edit"),
     path("<int:pk>/delete/", views.QuestionDeleteView.as_view(), name="question_delete"),
     path("<int:pk>/attach-page/", views.QuestionAttachPageView.as_view(), name="question_attach_page"),
+    path("<int:pk>/version/", views.QuestionVersionCreateView.as_view(), name="question_version_create"),
 
     # Keywords
     path("keywords/search/", views.KeywordSearchView.as_view(), name="keyword_search"),

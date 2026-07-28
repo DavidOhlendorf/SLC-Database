@@ -55,7 +55,7 @@
               <div class="d-flex flex-wrap gap-2">
                 {% for w in survey.waves_list %}
                   <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ w.id }}"
-                    class="btn btn-sm btn-dark">
+                    class="btn btn-dark context-pill wave-pil">
                     {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
                   </a>
                 {% endfor %}

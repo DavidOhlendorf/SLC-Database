@@ -4,6 +4,7 @@
 
 {% block extra_js %}
     <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
+    <script src="{% static 'js/builder/question_version_modal.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
@@ -28,39 +29,48 @@
         </div>
         <div class="flex-shrink-0">
           {% if perms.accounts.can_edit_slc %}
+            <div class="d-flex align-items-center gap-2">
+              <button type="button"
+                      class="btn btn-link btn-lg icon-action p-0"
+                      title="Neue Version dieser Frage anlegen"
+                      data-bs-toggle="modal"
+                      data-bs-target="#questionVersionModal">
+                <i class="fa-solid fa-code-branch"></i>
+              </button>
 
-            {% if question_is_locked %}
-              <span class="d-inline-block"
-                    tabindex="0"
-                    data-bs-toggle="tooltip"
-                    data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
-                <button type="button"
-                        class="btn btn-link btn-lg icon-action p-0 text-muted"
-                        disabled>
+              {% if question_is_locked %}
+                <span class="d-inline-block"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+                  <button type="button"
+                          class="btn btn-link btn-lg icon-action p-0 text-muted"
+                          disabled>
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                </span>
+
+              {% elif active_wave and active_page %}
+                <a class="btn btn-link btn-lg icon-action p-0"
+                  title="Frage bearbeiten"
+                  href="{% url 'questions:question_edit' question.id %}?page={{ active_page.id }}&wave={{ active_wave.id }}">
                   <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-              </span>
+                </a>
 
-            {% elif active_wave and active_page %}
-              <a class="btn btn-link btn-lg icon-action p-0"
-                title="Frage bearbeiten"
-                href="{% url 'questions:question_edit' question.id %}?page={{ active_page.id }}&wave={{ active_wave.id }}">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </a>
-
-            {% else %}
-              <span class="d-inline-block"
-                    tabindex="0"
-                    data-bs-toggle="tooltip"
-                    data-bs-title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Befragung einer Seite zugeordnet ist.">
-                <button type="button"
-                        class="btn btn-link btn-lg icon-action p-0 text-muted"
-                        disabled>
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-              </span>
-            {% endif %}
-
+              {% else %}
+                <span class="d-inline-block"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      data-bs-title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Befragung einer Seite zugeordnet ist.">
+                  <button type="button"
+                          class="btn btn-link btn-lg icon-action p-0 text-muted"
+                          disabled>
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                </span>
+              
+              {% endif %}
+            </div>
           {% endif %}
         </div>
       </div>
@@ -85,19 +95,19 @@
 
     <!-- Wellen-Pills -->
     {% if waves %}
-      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small" style="white-space: nowrap;">
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto" style="white-space: nowrap;">
         {% for w in waves %}
           <li class="nav-item">
             {% if active_wave and w.id == active_wave.id %}
               <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
-                class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
+                class="nav-link context-pill wave-pill bg-primary text-white"
                 aria-current="page"
                 title="Aktive Befragung">
                 {{ w }}
               </a>
             {% else %}
               <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
-                class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border"
+                class="nav-link context-pill wave-pill bg-secondary-subtle text-secondary-emphasis border"
                 title="Befragung auswählen">
                 {{ w }}
               </a>
@@ -106,6 +116,25 @@
         {% endfor %}
       </ul>
     {% endif %}
+
+    {% if other_version_wave_items %}
+      <div class="small text-muted mt-2 mb-1">Andere Versionen:</div>
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto" style="white-space: nowrap;">
+        {% for item in other_version_wave_items %}
+          <li class="nav-item">
+            <a href="{% url 'questions:question_detail' item.question_id %}?wave={{ item.wave.id }}"
+              class="nav-link context-pill wave-pill bg-secondary-subtle text-secondary-emphasis border"
+              title="Andere Fragenversion auswählen">
+              <span>{{ item.wave }}</span>
+              <span class="badge bg-light text-dark border context-pill__badge">
+                V{{ item.version_number }}
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
 
     {% if survey and active_wave %}
       <div class="mb-3">
@@ -122,19 +151,19 @@
     <!-- Seiten-Pills -->
     {% if active_wave %}
       {% if pages %}
-          <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small m-0" style="white-space: nowrap;">
+          <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto" style="white-space: nowrap;">
             {% for p in pages %}
               <li class="nav-item">
                 {% if active_page and p.id == active_page.id %}
                   <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
-                    class="nav-link rounded-pill py-1 px-2 bg-primary text-white"
+                    class="nav-link context-pill page-pill bg-primary text-white"
                     aria-current="page"
                     title="Aktive Seite">
                     Seite: {{ p.pagename }}
                   </a>
                 {% else %}
                   <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
-                    class="nav-link rounded-pill py-1 px-2 bg-secondary-subtle text-secondary-emphasis border"
+                    class="nav-link context-pill page-pill bg-secondary-subtle text-secondary-emphasis border"
                     title="Seite auswählen">
                     Seite: {{ p.pagename }}
                   </a>
@@ -458,6 +487,11 @@
       </div>
     {% endif %}
   </div>
+
+  {% if perms.accounts.can_edit_slc %}
+    {% include "questions/_question_version_modal.html" %}
+  {% endif %}
+
 
   <!-- Modal: Variable-Schnellerstellung für Question -->
   <div class="modal fade"
