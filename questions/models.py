@@ -147,6 +147,14 @@ class Question(models.Model):
     help_text="Begründung für die Anlage dieser konkreten Fragenversion.",
     )
 
+    # Bearbeitungszeit in Sekunden
+    completion_time_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Bearbeitungszeit (Sekunden)",
+        help_text="Bearbeitungszeit der Frage in Sekunden.",
+    )
+
 
     # Fragetext (q)
     questiontext = models.TextField(
@@ -167,6 +175,7 @@ class Question(models.Model):
         SEMANTIC_DIFF = "semantic_diff", "Semantisches Differenzial"
         MATRIX_DOUBLE = "matrix_double", "Doppel-Matrix"
         DATEPICKER = "datepicker", "Datepicker"
+        SLIDER = "slider", "Schieberegler"
         OTHER = "other", "Sonstiger Fragetyp / Mischtypen"
 
     # Fragetyp (qt)
