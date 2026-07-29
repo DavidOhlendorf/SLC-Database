@@ -13,6 +13,7 @@
   <script src="{% static 'js/builder/answeroptions_formset.js' %}"></script>
   <script src="{% static 'js/builder/item_formset.js' %}"></script>
   <script src="{% static 'js/builder/question_type_other.js' %}"></script>
+  <script src="{% static 'js/builder/pv_text_formatting.js' %}"></script>
   <script src="{% static 'js/ui/tooltips.js' %}"></script>
   <script src="{% static 'js/ui/accordion_auto_open.js' %}"></script>
   <script src="{% static 'js/ui/required_badge.js' %}"></script>
@@ -106,6 +107,7 @@
               <div id="col-qt"
                 class="accordion-collapse collapse show">
                 <div class="accordion-body">
+                    {% include "components/pv_format_toolbar.html" with target_id="id_questiontext" help_text="Text markieren und eine Formatierung auswählen oder die Sonderzeichen direkt eingeben." %}
                     {{ form.questiontext }}
                     {% if form.questiontext.errors %}
                       <div class="invalid-feedback d-block mt-2">

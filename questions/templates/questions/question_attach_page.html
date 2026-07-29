@@ -1,3 +1,4 @@
+{% load pv_formatting %}
 {% extends "main.html" %}
 
 {% block content %}
@@ -11,7 +12,7 @@
     <div class="card-body">
       <h5 class="card-title">Frage #{{ question.id }}</h5>
       <p class="card-text">
-        {{ question.questiontext|default:"(ohne Fragetext)"|truncatechars:240 }}
+        {{ question.questiontext|default:"(ohne Fragetext)"|pv_plain|truncatechars:240 }}
       </p>
 
       <form method="post" class="vstack gap-3">

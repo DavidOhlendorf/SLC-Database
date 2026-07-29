@@ -8,12 +8,12 @@ from django.urls import reverse, reverse_lazy
 from django.http import Http404, JsonResponse, FileResponse
 from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
-from django.db.models.functions import Substr
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
 from .models import Survey, Wave, WaveModule, WaveQuestion, WaveDocument
 from pages.models import WavePageQuestion, WavePage, WavePageWave
+from questions.formatting import strip_pv_formatting
 
 from .forms import SurveyCreateForm, WaveFormSet
 from pages.forms import WavePageCreateForm
@@ -348,14 +348,15 @@ class SurveyDetailView(TemplateView):
             snippets_qs = (
                 WavePageQuestion.objects
                 .filter(wave_page_id__in=page_ids)
-                .filter(question_id__in=instrument_question_ids)
-                .annotate(snippet=Substr("question__questiontext", 1, 100))
-                .values_list("wave_page_id", "snippet")
+                .filter(question_id__in=instrument_question_ids) 
+                .values_list("wave_page_id", "question__questiontext")
                 .order_by("wave_page_id", "sort_order", "id")
             )
 
-            for pid, snip in snippets_qs:
-                snip = (snip or "").replace("\n", " ").strip()
+            for pid, questiontext in snippets_qs:
+                snip = strip_pv_formatting(questiontext)
+                snip = snip.replace("\r", " ").replace("\n", " ").strip()
+                snip = snip[:100]
                 if snip:
                     page_question_snippets[pid].append(snip)
 
@@ -536,13 +537,14 @@ class SurveyDetailView(TemplateView):
             WavePageQuestion.objects
             .filter(wave_page_id__in=page_ids)
             .filter(question_id__in=wave_question_ids)
-            .annotate(snippet=Substr("question__questiontext", 1, 100))
-            .values_list("wave_page_id", "snippet")
+            .values_list("wave_page_id", "question__questiontext")
             .order_by("wave_page_id", "sort_order", "id")
         )
 
-        for pid, snip in snippets_qs:
-            snip = (snip or "").replace("\n", " ").strip()
+        for pid, questiontext in snippets_qs:
+            snip = strip_pv_formatting(questiontext)
+            snip = snip.replace("\r", " ").replace("\n", " ").strip()
+            snip = snip[:100]
             if snip:
                 page_question_snippets[pid].append(snip)
 

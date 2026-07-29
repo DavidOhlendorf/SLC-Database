@@ -1,5 +1,5 @@
 {% extends "main.html" %}
-{% load static %}
+{% load static pv_formatting %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
@@ -18,7 +18,7 @@
     <div>
       <h1 class="h4 mb-1">Variablen zuordnen</h1>
       <div class="text-muted">
-        Frage #{{ question.id }} – {{ question.questiontext|truncatechars:120 }}
+        Frage #{{ question.id }} – {{ question.questiontext|pv_plain|truncatechars:120 }}
       </div>
     </div>
   </div>

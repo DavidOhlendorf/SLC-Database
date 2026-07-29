@@ -6,6 +6,7 @@
 
 {% block extra_js %}
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="{% static 'js/builder/pv_text_formatting.js' %}"></script>
     <script src="{% static 'js/builder/page_question_formset.js' %}"></script>
     <script src="{% static 'js/builder/page_question_reorder.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
@@ -188,6 +189,7 @@
                             <div id="col-in"
                                 class="accordion-collapse collapse {% if content_form.introduction.errors %}show{% endif %}">
                                 <div class="accordion-body">
+                                    {% include "components/pv_format_toolbar.html" with target_id=content_form.introduction.id_for_label help_text="Text markieren und eine Formatierung auswählen oder die Sonderzeichen direkt eingeben." %}
                                     {{ content_form.introduction }}
                                 </div>
                             </div>

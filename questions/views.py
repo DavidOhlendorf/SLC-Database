@@ -16,6 +16,8 @@ from accounts.mixins import EditorRequiredMixin
 from django.db.models import Prefetch, Q
 from django.db import transaction, IntegrityError
 
+from questions.formatting import strip_pv_formatting
+
 from .models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
 from waves.models import Survey, Wave, WaveQuestion
@@ -1141,7 +1143,7 @@ class QuestionQuickCreateForPageAjaxView(EditorRequiredMixin, View):
             "ok": True,
             "question": {
                 "id": q.id,
-                "label": q.questiontext[:200],
+                "label": strip_pv_formatting(q.questiontext)[:200],
             },
         })
     
