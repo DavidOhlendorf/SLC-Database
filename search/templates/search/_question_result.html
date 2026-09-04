@@ -1,6 +1,6 @@
 
-    {% load pv_formatting %}
-
+{% load pv_formatting %}
+    {# Anzeige der Versionsgruppe, falls vorhanden #}
     {% if item.is_version_group %}
         <p class="text-muted small mb-1">
         Version {{ question.version_number }}
@@ -11,6 +11,7 @@
         {{ question.questiontext|pv_plain|truncatechars:1200 }}
     </h6>
 
+    {# Anzeige des Fragetexts #}
     {% if question.question_type %}
         <p class="text-muted small mb-2">
         {% if question.question_type == "other" and question.question_type_other %}
@@ -21,6 +22,7 @@
         </p>
     {% endif %}
 
+    {# Anzeige des Item-Stems und der Items #}
     {% if question.item_stem or question.items %}
         <div class="mb-2">
 
@@ -80,21 +82,71 @@
         </div>
     {% endif %}
 
+
+    {# Anzeige der keywords #}
+    {% if question.keywords.all %}
+        <div class="keyword-list mb-2">
+            {% for keyword in question.keywords.all %}
+            <span class="keyword-tag">#{{ keyword.name }}</span>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+
+    {# Anzeige der Relevanz #}
     {% if show_relevance %}
         <p class="text-muted mb-2 small">
         Relevanz: {{ question.relevance }}
         </p>
     {% endif %}
 
-    {% if question.waves.all %}
-        <div class="mb-2">
-        {% for wave in question.waves.all %}
-            <span class="badge bg-light text-dark border">
-            {{ wave }}
-            </span>
-        {% endfor %}
-        </div>
-    {% endif %}
+    {# Anzeige der Wellen #}
+    {% with waves=question.waves.all %}
+        {% if waves %}
+            <div class="mb-2">
+
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+                {% for wave in waves|slice:":5" %}
+                <span class="context-pill wave-pill">
+                    {{ wave }}
+                </span>
+                {% endfor %}
+
+                {% if waves|length > 5 %}
+                <button
+                    class="btn btn-link btn-sm p-0 text-decoration-none wave-toggle"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#search-waves-{{ question.id }}"
+                    aria-expanded="false"
+                    aria-controls="search-waves-{{ question.id }}">
+
+                    <span class="wave-toggle-collapsed">
+                    ▾ {{ waves|length|add:"-5" }} weitere
+                    </span>
+
+                    <span class="wave-toggle-expanded">
+                    ▴ Weniger anzeigen
+                    </span>
+                </button>
+                {% endif %}
+            </div>
+
+            {% if waves|length > 5 %}
+                <div class="collapse mt-1" id="search-waves-{{ question.id }}">
+                <div class="d-flex flex-wrap gap-1">
+                    {% for wave in waves|slice:"5:" %}
+                    <span class="context-pill wave-pill">
+                        {{ wave }}
+                    </span>
+                    {% endfor %}
+                </div>
+                </div>
+            {% endif %}
+
+            </div>
+        {% endif %}
+    {% endwith %}
 
     <div class="d-flex justify-content-end mt-2">
     <a class="small text-decoration-none"

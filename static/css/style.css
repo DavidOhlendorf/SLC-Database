@@ -2,6 +2,36 @@
    Global Style Extensions
    ========================================== */
 
+/* Farbschema der gesamten Anwendung */
+:root {
+  /* Interaktion */
+  --app-action: #3b82f6;
+  --app-action-hover: #2563eb;
+
+  /* Frage */
+  --app-question: #14b8a6;
+  --app-question-bg: #dff7f3;
+  --app-question-border: #9fe7de;
+  --app-question-soft: #c9f1eb;
+
+  /* Variable */
+  --app-variable: #ec4899;
+  --app-variable-bg: #fde7f3;
+  --app-variable-border: #f7b7d7;
+  --app-variable-soft: #fbd3e8;
+
+  /* Welle */
+  --app-wave: #8b5cf6;
+  --app-wave-bg: #f1eafe;
+  --app-wave-border: #d4c1fb;
+  --app-wave-hover-bg: #e7dbfd;
+  --app-wave-active: #8b5cf6;
+  --app-wave-active-hover: #7c3aed;
+  --app-wave-active-text: #ffffff;
+
+  /* Neutral */
+  --app-meta: #6b7280;
+}
 
 /* Zusätzliche Utility-Klasse für das Brechen langer Wörter (z.B. URLs) */
 .text-break-long {
@@ -154,6 +184,35 @@ select.qc-passive:focus {
 }
 
 /*
+ * Wellen-Pills:
+ * Sand/Ocker kennzeichnet Befragungswellen appweit.
+ */
+.wave-pill {
+  color: var(--app-wave);
+  background-color: var(--app-wave-bg);
+  border: 1px solid var(--app-wave-border);
+}
+
+a.wave-pill:hover,
+button.wave-pill:hover {
+  color: var(--app-wave);
+  background-color: var(--app-wave-hover-bg);
+  border-color: var(--app-wave);
+}
+
+.nav-pills .nav-link.wave-pill.active {
+  color: var(--app-wave-active-text);
+  background-color: var(--app-wave-active);
+  border-color: var(--app-wave-active);
+}
+
+.nav-pills .nav-link.wave-pill.active:hover {
+  color: var(--app-wave-active-text);
+  background-color: var(--app-wave-active-hover);
+  border-color: var(--app-wave-active-hover);
+}
+
+/*
  * Zusatzbadge innerhalb einer Pill, zum Beispiel „V1“.
  * Seine feste Höhe verändert die Außenhöhe der Pill nicht.
  */
@@ -226,4 +285,67 @@ select.qc-passive:focus {
 
 .item-toggle[aria-expanded="true"] .item-toggle-expanded {
   display: inline;
+}
+
+/* ==========================================
+   Toggle-Buttons Welle Suchergebnisse
+   ========================================== */
+
+.wave-toggle-expanded {
+  display: none;
+}
+
+.wave-toggle[aria-expanded="true"] .wave-toggle-collapsed {
+  display: none;
+}
+
+.wave-toggle[aria-expanded="true"] .wave-toggle-expanded {
+  display: inline;
+}
+
+
+/* ==========================================
+   Keywords Suchergebnisse
+   ========================================== */
+.keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+
+.keyword-tag {
+  font-size: 0.78rem;
+  color: var(--app-meta);
+  white-space: nowrap;
+}
+
+/* ==========================================
+   Suche: Ergebnisse
+   ========================================== */
+
+.search-result-card {
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--app-question-soft);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.125rem 0.3rem rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.15s ease;
+}
+
+/*
+ * Versionsgruppen erhalten eine etwas deutlichere
+ * Fragenfarbe. Sie sind dadurch anders strukturiert,
+ * aber nicht als "wichtiger" markiert.
+ */
+.search-result-card--versioned {
+  border-left-color: var(--app-question-border);
+}
+
+.search-result-card:hover {
+  box-shadow: 0 0.2rem 0.45rem rgba(0, 0, 0, 0.07);
+}
+
+.version-count {
+  color: var(--app-question);
+  background-color: var(--app-question-bg);
+  border: 1px solid var(--app-question-border);
 }
