@@ -234,6 +234,9 @@ def build_question_groups(matched_questions, score_map, wave_ids=None):
             )
         )
 
+        group["primary_question"] = group["questions"][0]
+        group["other_questions"] = group["questions"][1:]
+
         group["relevance"] = max(
             (score_map.get(question.id, 0.0) for question in group["questions"]),
             default=0.0,

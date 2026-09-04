@@ -194,3 +194,36 @@ select.qc-passive:focus {
 .pv-richtext > :last-child {
   margin-bottom: 0;
 }
+
+/* ==========================================
+   Toggle-Buttons Version Suchergebnisse
+   ========================================== */
+
+
+.version-toggle-expanded {
+  display: none;
+}
+
+.version-toggle[aria-expanded="true"] .version-toggle-collapsed {
+  display: none;
+}
+
+.version-toggle[aria-expanded="true"] .version-toggle-expanded {
+  display: inline;
+}
+
+/* ==========================================
+   Toggle-Buttons Item Suchergebnisse
+   ========================================== */
+
+.item-toggle-expanded {
+  display: none;
+}
+
+.item-toggle[aria-expanded="true"] .item-toggle-collapsed {
+  display: none;
+}
+
+.item-toggle[aria-expanded="true"] .item-toggle-expanded {
+  display: inline;
+}

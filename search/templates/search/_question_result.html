@@ -1,0 +1,106 @@
+
+    {% load pv_formatting %}
+
+    {% if item.is_version_group %}
+        <p class="text-muted small mb-1">
+        Version {{ question.version_number }}
+        </p>
+    {% endif %}
+
+    <h6 class="card-title mb-2">
+        {{ question.questiontext|pv_plain|truncatechars:1200 }}
+    </h6>
+
+    {% if question.question_type %}
+        <p class="text-muted small mb-2">
+        {% if question.question_type == "other" and question.question_type_other %}
+            {{ question.question_type_other }}
+        {% else %}
+            {{ question.get_question_type_display }}
+        {% endif %}
+        </p>
+    {% endif %}
+
+    {% if question.item_stem or question.items %}
+        <div class="mb-2">
+
+        {% if question.item_stem %}
+            <p class="small mb-2">
+            {{ question.item_stem|pv_plain|truncatechars:250 }}
+            </p>
+        {% endif %}
+
+        {% if question.items %}
+            <ul class="small mb-1 ps-4">
+            {% for it in question.items|slice:":3" %}
+                <li>
+                {% if it.label %}
+                    {{ it.label|pv_plain|truncatechars:220 }}
+                {% elif it.value %}
+                    {{ it.value|truncatechars:220 }}
+                {% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+
+            {% if question.items|length > 3 %}
+                <button
+                    class="btn btn-link btn-sm p-0 text-decoration-none item-toggle"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#search-items-{{ question.id }}"
+                    aria-expanded="false"
+                    aria-controls="search-items-{{ question.id }}">
+
+                    <span class="item-toggle-collapsed">
+                        ▾ {{ question.items|length|add:"-3" }} weitere Items anzeigen
+                    </span>
+
+                    <span class="item-toggle-expanded">
+                        ▴ Weitere Items ausblenden
+                    </span>
+                </button>
+
+            <div class="collapse mt-1" id="search-items-{{ question.id }}">
+                <ul class="small mb-1 ps-4">
+                {% for it in question.items|slice:"3:" %}
+                    <li>
+                    {% if it.label %}
+                        {{ it.label|pv_plain }}
+                    {% elif it.value %}
+                        {{ it.value }}
+                    {% endif %}
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+        {% endif %}
+        </div>
+    {% endif %}
+
+    {% if show_relevance %}
+        <p class="text-muted mb-2 small">
+        Relevanz: {{ question.relevance }}
+        </p>
+    {% endif %}
+
+    {% if question.waves.all %}
+        <div class="mb-2">
+        {% for wave in question.waves.all %}
+            <span class="badge bg-light text-dark border">
+            {{ wave }}
+            </span>
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-end mt-2">
+    <a class="small text-decoration-none"
+        href="{% url 'questions:question_detail' question.id %}?back={{ request.get_full_path|urlencode }}"
+        target="_blank"
+        rel="noopener noreferrer">
+        Details →
+    </a>
+    </div>
