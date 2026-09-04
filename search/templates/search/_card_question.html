@@ -1,3 +1,5 @@
+{% load pv_formatting %}
+
 <div class="card mb-2 shadow-sm">
   <div class="card-body">
 
@@ -28,7 +30,7 @@
         {% endif %}
 
         <h6 class="card-title mb-2">
-          {{ question.questiontext|truncatechars:300 }}
+          {{ question.questiontext|pv_plain|truncatechars:350 }}
         </h6>
 
         {% if show_relevance %}

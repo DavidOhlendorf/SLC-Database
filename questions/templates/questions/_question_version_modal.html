@@ -1,3 +1,5 @@
+{% load pv_formatting %}
+
 <form class="d-none" id="question-version-csrf">
   {% csrf_token %}
 </form>
@@ -33,7 +35,7 @@
           <div class="mb-3">
             <div class="small text-muted mb-1">Ausgangsfrage</div>
             <div class="border rounded bg-body-tertiary px-3 py-2">
-              {{ question.questiontext|default:"(ohne Fragetext)"|truncatechars:350 }}
+              {{ question.questiontext|default:"(ohne Fragetext)"|pv_plain|truncatechars:350 }}
             </div>
           </div>
           

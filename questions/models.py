@@ -4,7 +4,9 @@ from django.db import models
 from django.urls import reverse
 from django.db.models.functions import Lower 
 from django.db.models import BooleanField, Case, When, Value, Q, OuterRef, Exists
-from variables.models import QuestionVariableWave  
+from variables.models import QuestionVariableWave 
+
+from .formatting import strip_pv_formatting
 
 
 # Completeness check for Question model
@@ -282,15 +284,14 @@ class Question(models.Model):
 
 
     def __str__(self):
-        text = (self.questiontext or "").strip()
+        text = strip_pv_formatting(self.questiontext).strip()
 
-        if len(text) <= 100:
+        if len(text) <= 200:
             return f"Q{self.id}: {text}"
 
-        truncated = text[:100]
-
-        # letztes ganzes Wort nehmen
+        truncated = text[:200]
         last_space = truncated.rfind(" ")
+
         if last_space > 0:
             truncated = truncated[:last_space]
 

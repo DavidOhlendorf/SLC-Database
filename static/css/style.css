@@ -172,3 +172,25 @@ select.qc-passive:focus {
   font-size: 0.58rem;
   line-height: 1;
 }
+
+
+/* ==========================================
+   PV-Textformatierung
+   ========================================== */
+
+.pv-format-button {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0.125rem 0.3rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.pv-hyperlink-text {
+  color: var(--bs-link-color);
+  text-decoration: underline;
+}
+
+.pv-richtext > :last-child {
+  margin-bottom: 0;
+}

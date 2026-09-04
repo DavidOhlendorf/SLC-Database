@@ -16,6 +16,8 @@ from questions.models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
 from waves.models import Wave, Survey
 
+from questions.formatting import strip_pv_formatting
+
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
 ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
@@ -244,7 +246,7 @@ def build_question_groups(matched_questions, score_map, wave_ids=None):
                 group["questions"],
                 key=lambda question: (question.version_number, question.id),
             )
-            group["sort_label"] = (first_version.questiontext or "").lower()
+            group["sort_label"] = strip_pv_formatting(first_version.questiontext).lower()
 
         result.append(group)
 
@@ -660,7 +662,10 @@ def search_questions_api(request):
     )[:20]
 
     results = [
-        {"id": obj.id, "label": (obj.questiontext or "")[:200]}
+        {
+            "id": obj.id,
+            "label": strip_pv_formatting(obj.questiontext)[:200],
+        }
         for obj in found_sorted
     ]
     return JsonResponse({"ok": True, "results": results})

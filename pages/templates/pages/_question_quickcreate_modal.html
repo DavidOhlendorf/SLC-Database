@@ -16,6 +16,7 @@
 
           <div class="mb-3">
             <label for="qcQuestiontext" class="form-label">Fragetext</label>
+            {% include "components/pv_format_toolbar.html" with target_id="qcQuestiontext" help_text="Alternativ können die Sonderzeichen direkt eingegeben werden." %}
             <textarea
               id="qcQuestiontext"
               name="questiontext"

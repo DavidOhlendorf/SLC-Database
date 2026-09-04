@@ -1,3 +1,5 @@
+{% load pv_formatting %}
+
 {% extends "main.html" %}
 {% block content %}
   <h1>Verwaiste Fragen</h1>
@@ -11,7 +13,7 @@
       <ul class="mb-0">
         {% for q in questions %}
           <li>
-            <strong>Q{{ q.id }}</strong> – {{ q.questiontext|default:"(ohne Fragetext)"|truncatechars:160 }}
+            <strong>Q{{ q.id }}</strong> – {{ q.questiontext|default:"(ohne Fragetext)"|pv_plain|truncatechars:350 }}
           </li>
         {% endfor %}
       </ul>

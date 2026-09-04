@@ -1,5 +1,5 @@
 {% extends "main.html" %}
-{% load static %}
+{% load static pv_formatting %}
 
 
 {% block extra_js %}
@@ -17,7 +17,7 @@
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div class="flex-grow-1 min-w-0">
           <h1 class="h3 mb-0 text-break">
-            {{ question.questiontext|truncatechars:150 }}
+            {{ question.questiontext|pv_plain|truncatechars:150 }}
             {% if perms.accounts.can_edit_slc and question.is_incomplete %}
               <span>
                 <i class="fa-solid fa-circle-exclamation text-danger"
@@ -202,7 +202,7 @@
         <div id="questiontextCollapse" class="accordion-collapse collapse show">
           <div class="accordion-body">
             <p class="mb-1"><strong>Fragetext:</strong></p>
-            <p>{{ question.questiontext|linebreaks }}</p>
+            <div class="pv-richtext">{{ question.questiontext|pv_format|linebreaks }}</div>
 
             {% if question.instruction %}
               <p class="mb-1 mt-4"><strong>Instruktion:</strong></p>
