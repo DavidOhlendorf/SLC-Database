@@ -91,7 +91,7 @@
       <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto" style="white-space: nowrap;">
         {% for w in waves %}
           <li class="nav-item">
-            <a class="nav-link context-pill context-pill--soft context-pill--interactive tone-survey {% if active_wave and w.id == active_wave.id %}active{% endif %}"
+            <a class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey {% if active_wave and w.id == active_wave.id %}active{% endif %}"
               href="?wave={{ w.id }}">
               {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
             </a>
