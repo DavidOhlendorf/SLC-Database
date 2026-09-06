@@ -1,131 +1,83 @@
 /* ==========================================
-   Global Style Extensions
+   Application-specific Styles
    ========================================== */
 
-/* Farbschema der gesamten Anwendung */
-:root {
-  /* Interaktion */
-  --app-action: #3b82f6;
-  --app-action-hover: #2563eb;
+/*
+ * Diese Datei enthält Styles für konkrete Features der Anwendung.
+ *
+ * Wiederverwendbare UI-Komponenten gehören nach:
+ *   design-system/components.css
+ *
+ * Farbwerte und Themes gehören nach:
+ *   design-system/tokens.css
+ *   design-system/themes/
+ *
+ * Der Abschnitt "Legacy / Migration" enthält temporäre Regeln,
+ * die während der schrittweisen Umstellung der Templates benötigt
+ * werden und anschließend entfernt werden sollen.
+ */
 
-  /* Frage */
-  --app-question: #14b8a6;
-  --app-question-bg: #dff7f3;
-  --app-question-border: #9fe7de;
-  --app-question-soft: #c9f1eb;
 
-  /* Variable */
-  --app-variable: #ec4899;
-  --app-variable-bg: #fde7f3;
-  --app-variable-border: #f7b7d7;
-  --app-variable-soft: #fbd3e8;
+/* ==========================================
+   Utilities
+   ========================================== */
 
-  /* Welle */
-  --app-wave: #8b5cf6;
-  --app-wave-bg: #f1eafe;
-  --app-wave-border: #d4c1fb;
-  --app-wave-hover-bg: #e7dbfd;
-  --app-wave-active: #8b5cf6;
-  --app-wave-active-hover: #7c3aed;
-  --app-wave-active-text: #ffffff;
-
-  /* Neutral */
-  --app-meta: #6b7280;
-}
-
-/* Zusätzliche Utility-Klasse für das Brechen langer Wörter (z.B. URLs) */
+/* Brechen langer Wörter, z. B. URLs */
 .text-break-long {
-  overflow-wrap: anywhere;   /* moderner Standard */
-  word-break: break-word;    /* Fallback für ältere Browser */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-/* Dreh-Animation für Aufklapp-Buttons (Collapse) */
-button.collapse-toggle[aria-expanded="true"] i {
-  transform: rotate(180deg);
-  transition: transform 0.3s ease;
-}
-button.collapse-toggle[aria-expanded="false"] i {
-  transform: rotate(0deg);
-  transition: transform 0.3s ease;
-}
 
-/* Hover-Effekt für klickbare Karten */
-.clickable-card {
-  transition: transform .1s ease-in-out, box-shadow .1s;
-  cursor: pointer;
-}
+/* ==========================================
+   Quickcreate / Form Helpers
+   ========================================== */
 
-.clickable-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 .25rem .5rem rgba(0,0,0,.08);
-}
-
-/* Hover Effekt für Icons */
-.icon-action i {
-  color: var(--bs-secondary-color);
-}
-
-.icon-action:hover i {
-  color: var(--bs-body-color);
-}
-
-.icon-action--success i {
-  color: var(--bs-success);
-}
-
-.icon-action--success:hover i {
-  color: var(--bs-success-text-emphasis, #0f5132);
-}
-
-.icon-action--danger i {
-  color: var(--bs-danger);
-}
-
-.icon-action--danger:hover i {
-  color: var(--bs-danger-text-emphasis, #842029);
-}
-
-/* Stil für inaktive Select-Felder (ohne Dropdown-Pfeil) */
+/* Inaktives Select-Feld ohne Dropdown-Pfeil */
 select.qc-passive {
-  background-image: none;   /* entfernt den Dropdown-Pfeil (Bootstrap) */
-  padding-right: .75rem;    /* kompensiert den fehlenden Pfeilbereich */
+  background-image: none;
+  padding-right: 0.75rem;
 }
 
 select.qc-passive:focus {
   box-shadow: none;
 }
 
-
-/* Quickcreate in der Variablen-Auswahl: Vorschlagsliste ” */
+/* Vorschlagsliste */
 .qc-sugg-header {
+  margin-bottom: 0.25rem;
   color: var(--bs-secondary-color);
-  margin-bottom: .25rem;
-  font-size: .875rem;
+  font-size: 0.875rem;
 }
 
 .qc-sugg-box {
-  border: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
-  border-radius: .375rem;
-
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: .125rem .5rem;
+  gap: 0.125rem 0.5rem;
+
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  background: var(--bs-body-bg);
 }
 
 .qc-sugg-row {
-  padding: .2rem .35rem;
+  padding: 0.2rem 0.35rem;
+
   color: var(--bs-secondary-color);
-  border-radius: .25rem;
-  font-size: .875rem;
+  border-radius: 0.25rem;
+
+  font-size: 0.875rem;
   line-height: 1.2;
 }
 
 
-/* Input-Gruppe für Variable-Auswahl mit Button (bricht sonst unschön um) */
+/* ==========================================
+   Variable Selection
+   ========================================== */
+
+/* Input-Gruppe mit Auswahlfeld und Button */
 .variable-input-group {
   flex-wrap: nowrap;
-
 }
 
 .variable-input-group .ts-wrapper {
@@ -142,8 +94,14 @@ select.qc-passive:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-
 }
+
+
+
+
+/* ==========================================
+   PV-Editor / Rich Text
+   ========================================== */
 
 .pv-btn {
   font-weight: 900;                 /* etwas dicker */
@@ -155,87 +113,6 @@ select.qc-passive:focus {
   letter-spacing: 0.02em;           /* optional, macht es „iconiger“ */
   padding: 0.3rem 0.2rem;
 }
-
-
-
-/* ==========================================
-   Einheitliche Kontext-Pills
-   ========================================== */
-
-/*
- * Gemeinsame Grundform für kompakte Navigations-Pills,
- * insbesondere für Befragtengruppen und Fragebogenseiten.
- */
-.context-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-
-  box-sizing: border-box;
-  height: 1.55rem;
-  padding: 0 0.45rem !important;
-
-  border-radius: var(--bs-border-radius-pill) !important;
-
-  font-size: 0.72rem;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-/*
- * Wellen-Pills:
- * Sand/Ocker kennzeichnet Befragungswellen appweit.
- */
-.wave-pill {
-  color: var(--app-wave);
-  background-color: var(--app-wave-bg);
-  border: 1px solid var(--app-wave-border);
-}
-
-a.wave-pill:hover,
-button.wave-pill:hover {
-  color: var(--app-wave);
-  background-color: var(--app-wave-hover-bg);
-  border-color: var(--app-wave);
-}
-
-.nav-pills .nav-link.wave-pill.active {
-  color: var(--app-wave-active-text);
-  background-color: var(--app-wave-active);
-  border-color: var(--app-wave-active);
-}
-
-.nav-pills .nav-link.wave-pill.active:hover {
-  color: var(--app-wave-active-text);
-  background-color: var(--app-wave-active-hover);
-  border-color: var(--app-wave-active-hover);
-}
-
-/*
- * Zusatzbadge innerhalb einer Pill, zum Beispiel „V1“.
- * Seine feste Höhe verändert die Außenhöhe der Pill nicht.
- */
-.context-pill__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-
-  height: 1rem;
-  min-width: 1.2rem;
-  padding: 0 0.25rem !important;
-
-  border-radius: var(--bs-border-radius-pill) !important;
-
-  font-size: 0.58rem;
-  line-height: 1;
-}
-
-
-/* ==========================================
-   PV-Textformatierung
-   ========================================== */
 
 .pv-format-button {
   min-width: 1.75rem;
@@ -254,54 +131,6 @@ button.wave-pill:hover {
   margin-bottom: 0;
 }
 
-/* ==========================================
-   Toggle-Buttons Version Suchergebnisse
-   ========================================== */
-
-
-.version-toggle-expanded {
-  display: none;
-}
-
-.version-toggle[aria-expanded="true"] .version-toggle-collapsed {
-  display: none;
-}
-
-.version-toggle[aria-expanded="true"] .version-toggle-expanded {
-  display: inline;
-}
-
-/* ==========================================
-   Toggle-Buttons Item Suchergebnisse
-   ========================================== */
-
-.item-toggle-expanded {
-  display: none;
-}
-
-.item-toggle[aria-expanded="true"] .item-toggle-collapsed {
-  display: none;
-}
-
-.item-toggle[aria-expanded="true"] .item-toggle-expanded {
-  display: inline;
-}
-
-/* ==========================================
-   Toggle-Buttons Welle Suchergebnisse
-   ========================================== */
-
-.wave-toggle-expanded {
-  display: none;
-}
-
-.wave-toggle[aria-expanded="true"] .wave-toggle-collapsed {
-  display: none;
-}
-
-.wave-toggle[aria-expanded="true"] .wave-toggle-expanded {
-  display: inline;
-}
 
 
 /* ==========================================
@@ -315,29 +144,125 @@ button.wave-pill:hover {
 
 .keyword-tag {
   font-size: 0.78rem;
-  color: var(--app-meta);
+  color: var(--color-neutral-500);
   white-space: nowrap;
 }
 
-/* ==========================================
-   Suche: Ergebnisse
-   ========================================== */
+
+
+
+/* ==========================================================
+   LEGACY / MIGRATION
+
+   Temporäre Kompatibilitätsregeln für noch nicht auf das
+   Designsystem migrierte Templates.
+
+   Neue Templates dürfen diese Klassen nicht mehr verwenden.
+   Regeln nach erfolgreicher Migration der betreffenden
+   Templates entfernen.
+   ========================================================== */
+
+
+/* ------------------------------------------
+   LEGACY: Wave Pills
+
+   Entfernen, sobald alle Wave-Pills auf
+   .tone-survey + .context-pill--*
+   migriert wurden.
+   ------------------------------------------ */
+
+.wave-pill {
+  color: var(--color-survey-700);
+  background-color: var(--color-survey-100);
+  border: 1px solid var(--color-survey-300);
+}
+
+a.wave-pill:hover,
+button.wave-pill:hover {
+  color: var(--color-survey-800);
+  background-color: var(--color-survey-300);
+  border-color: var(--color-survey-500);
+}
+
+.nav-pills .nav-link.wave-pill.active {
+  color: var(--color-on-strong);
+  background-color: var(--color-survey-700);
+  border-color: var(--color-survey-700);
+}
+
+.nav-pills .nav-link.wave-pill.active:hover {
+  background-color: var(--color-survey-800);
+  border-color: var(--color-survey-800);
+}
+
+
+/* ------------------------------------------
+   LEGACY: Search Disclosure Toggles
+
+   Aktuell getrennte Klassen für Versionen,
+   Items und Wellen.
+
+   Bei Migration der Suchtemplates durch eine
+   generische Disclosure-Komponente ersetzen.
+   ------------------------------------------ */
+
+.version-toggle-expanded,
+.item-toggle-expanded,
+.wave-toggle-expanded {
+  display: none;
+}
+
+
+/* Versionen */
+.version-toggle[aria-expanded="true"] .version-toggle-collapsed {
+  display: none;
+}
+
+.version-toggle[aria-expanded="true"] .version-toggle-expanded {
+  display: inline;
+}
+
+
+/* Items */
+.item-toggle[aria-expanded="true"] .item-toggle-collapsed {
+  display: none;
+}
+
+.item-toggle[aria-expanded="true"] .item-toggle-expanded {
+  display: inline;
+}
+
+
+/* Wellen */
+.wave-toggle[aria-expanded="true"] .wave-toggle-collapsed {
+  display: none;
+}
+
+.wave-toggle[aria-expanded="true"] .wave-toggle-expanded {
+  display: inline;
+}
+
+
+
+/* ------------------------------------------
+   LEGACY: Search Result Cards
+
+   Durch .entity-card + .tone-question bzw.
+   .entity-badge ersetzen.
+   ------------------------------------------ */
 
 .search-result-card {
   border: 1px solid var(--bs-border-color);
-  border-left: 3px solid var(--app-question-soft);
+  border-left: 3px solid var(--color-question-300);
   border-radius: 0.5rem;
+
   box-shadow: 0 0.125rem 0.3rem rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.15s ease;
+
+  transition: box-shadow var(--transition-fast);
 }
 
-/*
- * Versionsgruppen erhalten eine etwas deutlichere
- * Fragenfarbe. Sie sind dadurch anders strukturiert,
- * aber nicht als "wichtiger" markiert.
- */
 .search-result-card--versioned {
-  border-left-color: var(--app-question-border);
+  border-left-color: var(--color-question-500);
 }
 
 .search-result-card:hover {
@@ -345,7 +270,7 @@ button.wave-pill:hover {
 }
 
 .version-count {
-  color: var(--app-question);
-  background-color: var(--app-question-bg);
-  border: 1px solid var(--app-question-border);
+  color: var(--color-on-strong);
+  background-color: var(--color-question-700);
+  border: 1px solid var(--color-question-700);
 }

@@ -1,0 +1,215 @@
+/* ==========================================
+   Context Pills
+   ========================================== */
+
+.context-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+
+  box-sizing: border-box;
+  height: 1.55rem;
+  padding: 0 0.45rem !important;
+
+  border: 1px solid transparent;
+  border-radius: var(--bs-border-radius-pill) !important;
+
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.context-pill--soft {
+  color: var(--tone-700);
+  background-color: var(--tone-100);
+  border-color: var(--tone-300);
+}
+
+.context-pill--outline {
+  color: var(--tone-700);
+  background-color: var(--bs-body-bg);
+  border-color: var(--tone-500);
+}
+
+.context-pill--solid {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
+}
+
+.context-pill--interactive {
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+
+/* Soft */
+.context-pill--soft.context-pill--interactive:hover {
+  color: var(--tone-800);
+  background-color: var(--tone-300);
+  border-color: var(--tone-500);
+}
+
+
+/* Outline */
+.context-pill--outline.context-pill--interactive:hover {
+  color: var(--tone-800);
+  background-color: var(--tone-100);
+  border-color: var(--tone-700);
+}
+
+
+/* Solid */
+.context-pill--solid.context-pill--interactive:hover {
+  color: var(--color-on-strong);
+  background-color: var(--tone-800);
+  border-color: var(--tone-800);
+}
+
+.context-pill--interactive.active,
+.context-pill--interactive[aria-current="page"] {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
+}
+
+.context-pill--interactive.active:hover {
+  color: var(--color-on-strong);
+  background-color: var(--tone-800);
+  border-color: var(--tone-800);
+}
+
+.nav-pills .nav-link.context-pill--interactive.active {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
+}
+
+.nav-pills .nav-link.context-pill--interactive.active:hover {
+  background-color: var(--tone-800);
+  border-color: var(--tone-800);
+}
+
+.context-pill--interactive:focus-visible {
+  outline: 2px solid var(--color-action-500);
+  outline-offset: 2px;
+}
+
+.context-pill__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+
+  height: 1rem;
+  min-width: 1.2rem;
+  padding: 0 0.25rem !important;
+
+  border-radius: var(--bs-border-radius-pill) !important;
+
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+
+
+
+/* ==========================================
+   Entity Cards
+   ========================================== */
+
+.entity-card {
+  background-color: var(--bs-body-bg);
+
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--tone-500);
+
+  border-radius: 0.5rem;
+
+  box-shadow: 0 0.125rem 0.3rem rgba(0, 0, 0, 0.04);
+
+  transition: box-shadow var(--transition-fast);
+}
+
+
+
+
+/* ==========================================
+   Entity Badges
+   ========================================== */
+
+.entity-badge {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border: 1px solid var(--tone-700);
+}
+
+
+
+
+
+/* ==========================================
+   Collapse Toggle
+   ========================================== */
+
+button.collapse-toggle i {
+  transition: transform 0.3s ease;
+}
+
+button.collapse-toggle[aria-expanded="true"] i {
+  transform: rotate(180deg);
+}
+
+button.collapse-toggle[aria-expanded="false"] i {
+  transform: rotate(0deg);
+}
+
+
+
+/* ==========================================
+   Clickable Cards
+   ========================================== */
+
+.clickable-card {
+  cursor: pointer;
+  transition: transform 0.1s ease-in-out, box-shadow 0.1s ease;
+}
+
+.clickable-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.08);
+}
+
+
+
+
+/* ==========================================
+   Icon Actions
+   ========================================== */
+
+.icon-action i {
+  color: var(--bs-secondary-color);
+}
+
+.icon-action:hover i {
+  color: var(--bs-body-color);
+}
+
+.icon-action--success i {
+  color: var(--bs-success);
+}
+
+.icon-action--success:hover i {
+  color: var(--bs-success-text-emphasis, #0f5132);
+}
+
+.icon-action--danger i {
+  color: var(--bs-danger);
+}
+
+.icon-action--danger:hover i {
+  color: var(--bs-danger-text-emphasis, #842029);
+}
