@@ -8,7 +8,7 @@
     Was soll mit diesen Fragen geschehen?
   </p>
 
-  <div class="card mb-3">
+  <div class="card entity-card tone-question mb-3">
     <div class="card-body">
       <ul class="mb-0">
         {% for q in questions %}
@@ -25,7 +25,7 @@
     <button class="btn btn-danger" name="action" value="delete" type="submit">
       Frage(n) löschen
     </button>
-    <button class="btn btn-outline-secondary" name="action" value="keep" type="submit">
+    <button class="btn btn-tone-outline tone-question" name="action" value="keep" type="submit">
       Frage(n) behalten
     </button>
 

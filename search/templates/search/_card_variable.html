@@ -1,50 +1,81 @@
-
-<div class="card mb-2 shadow-sm">
+<div class="card mb-2 entity-card tone-variable">
   <div class="card-body">
 
-    <h6 class="card-title mb-2">{{ item.varname }} - {{ item.varlab }} </h6>
-    {% if show_relevance %}
-      <p class="text-muted mb-0 small">
-          Relevanz: {{ item.relevance }}
+    {# Variablenname als zentraler Anker #}
+    <h6 class="card-title mb-1">
+      {{ item.varname }}
+    </h6>
+
+    {# Variablenlabel als inhaltliche Beschreibung #}
+    {% if item.varlab %}
+      <p class="mb-2">
+        {{ item.varlab }}
       </p>
     {% endif %}
-    
 
-    {# Wellen-Badges #}
-    {% if item.waves.all %}
-      <div class="mb-2">
-        {% for wave in item.waves.all %}
-          <span class="badge bg-light text-dark border">
-            {{ wave }}
-          </span>
-        {% endfor %}
-      </div>
+    {# Relevanz wird nur dort angezeigt, wo show_relevance gesetzt ist #}
+    {% if show_relevance %}
+      <p class="text-muted mb-2 small">
+        Relevanz: {{ item.relevance }}
+      </p>
     {% endif %}
 
-    <div class="d-flex align-items-center gap-2 mt-2"> 
-      <div class="btn-group btn-group-sm flex-shrink-0"
-          role="group"
-          aria-label="Aktionen">
-        <a class="btn btn-link px-2 icon-action"
-          title="Details anzeigen"
-          href="{% url 'variables:variable_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
-          target="_blank"
-          rel="noopener noreferrer">
-          <i class="fa-regular fa-eye"></i>
-        </a>
+    {# Wellen: maximal fünf direkt sichtbar, weitere aufklappbar #}
+    {% with waves=item.waves.all %}
+      {% if waves %}
+        <div class="mb-2">
 
-        {% if perms.accounts.can_edit_slc %}
-          <a class="btn btn-link px-2 icon-action"
-            title="Bearbeiten"
-            href="{% url 'variables:variable_edit' item.id %}?back={{ request.get_full_path|urlencode }}"
-            target="_blank"
-            rel="noopener noreferrer">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </a>
-        {% endif %}
-      </div>
+          <div class="d-flex flex-wrap gap-1 align-items-center">
+            {% for wave in waves|slice:":5" %}
+              <span class="context-pill context-pill--solid tone-survey">
+                {{ wave }}
+              </span>
+            {% endfor %}
+
+            {% if waves|length > 5 %}
+              <button
+                class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#search-variable-waves-{{ item.id }}"
+                aria-expanded="false"
+                aria-controls="search-variable-waves-{{ item.id }}">
+
+                <span class="disclosure-toggle__collapsed">
+                  ▾ {{ waves|length|add:"-5" }} weitere
+                </span>
+
+                <span class="disclosure-toggle__expanded">
+                  ▴ Weniger anzeigen
+                </span>
+              </button>
+            {% endif %}
+          </div>
+
+          {% if waves|length > 5 %}
+            <div class="collapse mt-1" id="search-variable-waves-{{ item.id }}">
+              <div class="d-flex flex-wrap gap-1">
+                {% for wave in waves|slice:"5:" %}
+                  <span class="context-pill context-pill--solid tone-survey">
+                    {{ wave }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-end mt-2">
+      <a class="small text-decoration-none"
+         href="{% url 'variables:variable_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
+         target="_blank"
+         rel="noopener noreferrer">
+        Details →
+      </a>
     </div>
+
   </div>
 </div>
-
-

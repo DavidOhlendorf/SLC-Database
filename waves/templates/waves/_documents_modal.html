@@ -3,7 +3,7 @@
        aria-labelledby="waveDocumentsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
+        <div class="modal-header tone-surface--subtle tone-survey">
           <h5 class="modal-title" id="waveDocumentsModalLabel">Dokument auswählen</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
         </div>
@@ -14,7 +14,7 @@
               <a href="{% url 'waves:wave_document_pdf' doc.pk %}"
                  target="_blank"
                  rel="noopener"
-                 class="list-group-item list-group-item-action">
+                 class="list-group-item list-group-item-action tone-text tone-survey">
                 {{ doc.title }}
               </a>
             {% endfor %}

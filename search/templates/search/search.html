@@ -1,11 +1,10 @@
 {% extends 'main.html' %}
 {% load querystring %}
 {% load static %}
+
 {% block extra_js %}
   <script src="{% static 'js/search/searchfilter.js' %}"></script>
 {% endblock %}
-
-
 
 
 {% block content %}
@@ -24,14 +23,15 @@
     {% for id in selected_wave_ids %}
       <input type="hidden" name="waves" value="{{ id }}">
     {% endfor %}
-
   </form>
 
   <ul class="nav nav-tabs my-3" role="tablist">
     {% for t,label in tabs %}
       <li class="nav-item" role="presentation">
         <a
-          class="nav-link {% if type == t %}active{% endif %}"
+          class="nav-link tone-tab
+                 {% if t == 'questions' %}tone-question{% elif t == 'variables' %}tone-variable{% else %}tone-neutral{% endif %}
+                 {% if type == t %}active{% endif %}"
           href="{% url 'search:search' %}{% url_with type=t page=None %}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
           {{ label }}
@@ -40,7 +40,7 @@
     {% endfor %}
   </ul>
 
-  
+
   <form method="get" id="filter-form" class="mb-3">
     {# bestehende Suchparameter #}
     <input type="hidden" name="q" value="{{ q }}">
@@ -67,6 +67,7 @@
           </li>
         </ul>
       </div>
+
       <button type="button" id="btn-open-wave-panel" class="btn btn-outline-secondary">
         Filter
       </button>
@@ -74,17 +75,17 @@
 
 
     <div class="d-flex flex-wrap gap-2">
-        {% if selected_waves %}
-          {% for w in selected_waves %}
-            <span class="badge rounded-pill text-bg-primary d-inline-flex align-items-center">
-              {{ w }}
-              <button type="button"
-                      class="btn btn-sm btn-link ms-1 text-white text-decoration-none remove-chip"
-                      data-wave-id="{{ w.id }}"
-                      aria-label="Filter {{ w }} entfernen">×</button>
-            </span>
-          {% endfor %}
-        {% endif %}
+      {% if selected_waves %}
+        {% for w in selected_waves %}
+          <span class="context-pill context-pill--solid tone-survey filter-chip">
+            {{ w }}
+            <button type="button"
+                    class="filter-chip__remove remove-chip"
+                    data-wave-id="{{ w.id }}"
+                    aria-label="Filter {{ w }} entfernen">×</button>
+          </span>
+        {% endfor %}
+      {% endif %}
     </div>
 
     {# versteckte Checkboxen tragen die waves[]= IDs #}
@@ -130,7 +131,7 @@
           {% else %}
             <p class="muted mb-0">Keine Treffer.</p>
           {% endif %}
-        
+
           <ul id="all-list" class="list-unstyled mb-0" style="display:none;">
             {% for item in all_waves_facets %}
               <li class="wave-item">
@@ -150,23 +151,26 @@
               </li>
             {% endfor %}
           </ul>
-        </div> 
+        </div>
 
         <div class="d-flex justify-content-end gap-2 mt-3">
-           <button type="button" id="btn-show-all-waves" class="btn btn-outline-secondary">Alle anzeigen</button>
+          <button type="button" id="btn-show-all-waves" class="btn btn-outline-secondary">Alle anzeigen</button>
           <button type="button" id="btn-clear-waves" class="btn btn-outline-secondary">Zurücksetzen</button>
-          <button type="submit" class="btn btn-primary">Übernehmen</button>
+          <button type="submit" class="btn btn-dark">Übernehmen</button>
         </div>
       </div>
     </div>
   </form>
- 
+
 
   {% if type == "all" %}
     {% if questions or variables %}
       {% if questions %}
         <section>
-          <h2>Fragen ({{ questions_count }} Treffer)</h2>
+          <h2>
+            Fragen ({{ questions_count }} Treffer)
+          </h2>
+
           {% if questions %}
             {% for item in questions %}
               {% include "search/_card_question.html" with item=item %}
@@ -182,7 +186,10 @@
 
       {% if variables %}
         <section>
-          <h2>Variablen ({{ variables_count }} Treffer)</h2>
+          <h2>
+            Variablen ({{ variables_count }} Treffer)
+          </h2>
+
           {% if variables %}
             {% for item in variables %}
               {% include "search/_card_variable.html" with item=item %}
@@ -197,16 +204,17 @@
       {% endif %}
 
     {% else %}
-    <p class="muted">Keine Treffer gefunden.</p>
+      <p class="muted">Keine Treffer gefunden.</p>
     {% endif %}
   {% endif %}
 
 
   {% if type == "questions" %}
-    <h2>Fragen ({{ questions_count }} Treffer)</h2>
+    <h2 class="entity-section-title tone-question">
+      Fragen ({{ questions_count }} Treffer)
+    </h2>
 
     {% if questions %}
-
       {% for item in questions %}
         {% include "search/_card_question.html" with item=item %}
       {% endfor %}
@@ -218,11 +226,13 @@
     {% else %}
       <p class="muted">Keine Fragen gefunden.</p>
     {% endif %}
-
   {% endif %}
 
+
   {% if type == "variables" %}
-  <h2>Variablen ({{ variables_count }} Treffer)</h2>
+    <h2 class="entity-section-title tone-variable">
+      Variablen ({{ variables_count }} Treffer)
+    </h2>
 
     {% if variables %}
       {% for item in variables %}
@@ -236,7 +246,6 @@
     {% else %}
       <p class="muted">Keine Variablen gefunden.</p>
     {% endif %}
-
   {% endif %}
-{% endblock %}
 
+{% endblock %}

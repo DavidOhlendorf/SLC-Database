@@ -1,4 +1,4 @@
-<div class="card mb-2 search-result-card{% if item.is_version_group %} search-result-card--versioned{% endif %}">
+<div class="card mb-2 entity-card tone-question">
   <div class="card-body">
 
     {% if item.name or item.is_version_group %}
@@ -8,7 +8,7 @@
         {% endif %}
 
         {% if item.is_version_group %}
-          <span class="badge version-count flex-shrink-0">
+          <span class="badge entity-badge tone-question flex-shrink-0">
             {{ item.questions|length }}
             {% if item.questions|length == 1 %}Version{% else %}Versionen{% endif %}
           </span>
@@ -20,14 +20,14 @@
 
     {% if item.is_version_group and item.other_questions %}
       <button
-        class="btn btn-link btn-sm p-0 mt-2 text-decoration-none version-toggle"
+        class="btn btn-link btn-sm p-0 mt-2 text-decoration-none disclosure-toggle"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#search-versions-{{ item.primary_question.id }}"
         aria-expanded="false"
         aria-controls="search-versions-{{ item.primary_question.id }}">
 
-        <span class="version-toggle-collapsed">
+        <span class="disclosure-toggle__collapsed">
           ▾
           {% if item.other_questions|length == 1 %}
             1 weitere Version anzeigen
@@ -36,7 +36,7 @@
           {% endif %}
         </span>
 
-        <span class="version-toggle-expanded">
+        <span class="disclosure-toggle__expanded">
           ▴ Weitere Versionen ausblenden
         </span>
       </button>
@@ -52,8 +52,6 @@
         {% endfor %}
 
       </div>
-    {% endif %}   
+    {% endif %}
   </div>
 </div>
-
-

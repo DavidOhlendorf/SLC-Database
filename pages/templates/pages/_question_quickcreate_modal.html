@@ -6,9 +6,9 @@
       <form method="post" action="{{ qc_post_url }}">
         {% csrf_token %}
 
-        <div class="modal-header">
+        <div class="modal-header tone-surface--strong tone-question">
           <h5 class="modal-title">Neue Frage anlegen</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
         </div>
 
         <div class="modal-body">
@@ -27,7 +27,8 @@
 
           <div class="mb-2">
             <div class="form-label">Befragtengruppe(n)</div>
-            <div class="vstack gap-1">
+
+            <div class="vstack gap-1 tone-checks tone-question">
               {% for w in page.waves.all %}
                 {% if not w.is_locked %}
                   <label class="form-check">
@@ -35,12 +36,18 @@
                           type="checkbox"
                           value="{{ w.id }}"
                           {% if qc_mode != "ajax" %}name="waves"{% endif %}>
-                    <span class="form-check-label">{{ w }}</span>
+
+                    <span class="form-check-label">
+                      {{ w }}
+                    </span>
                   </label>
                 {% endif %}
               {% endfor %}
             </div>
-            <div class="form-text">Nur nicht abgeschlossene Befragtengruppen sind auswählbar.</div>
+
+            <div class="form-text">
+              Nur nicht abgeschlossene Befragtengruppen sind auswählbar.
+            </div>
           </div>
 
           <input type="hidden" id="qcMode" value="{{ qc_mode|default:'ajax' }}">
@@ -51,9 +58,9 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
           {% if qc_mode == "ajax" %}
-            <button type="button" class="btn btn-primary" id="qcSubmit">Anlegen</button>
+            <button type="button" class="btn btn-tone-solid tone-question" id="qcSubmit">Anlegen</button>
           {% else %}
-            <button type="submit" class="btn btn-primary">Anlegen</button>
+            <button type="submit" class="btn btn-tone-solid tone-question">Anlegen</button>
           {% endif %}
         </div>
 

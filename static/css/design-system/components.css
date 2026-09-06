@@ -29,13 +29,13 @@
 .context-pill--outline {
   color: var(--tone-700);
   background-color: var(--bs-body-bg);
-  border-color: var(--tone-500);
+  border-color: var(--tone-600);
 }
 
 .context-pill--solid {
   color: var(--color-on-strong);
-  background-color: var(--tone-700);
-  border-color: var(--tone-700);
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
 }
 
 .context-pill--interactive {
@@ -45,6 +45,10 @@
     border-color var(--transition-fast);
 }
 
+
+/* ------------------------------------------
+   Hover-Zustände
+   ------------------------------------------ */
 
 /* Soft */
 .context-pill--soft.context-pill--interactive:hover {
@@ -65,33 +69,53 @@
 /* Solid */
 .context-pill--solid.context-pill--interactive:hover {
   color: var(--color-on-strong);
-  background-color: var(--tone-800);
-  border-color: var(--tone-800);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
 }
 
+
+/* ------------------------------------------
+   Aktiver Zustand
+   ------------------------------------------ */
+
+/*
+ * Aktive Pills werden unabhängig von ihrer
+ * Ausgangsvariante kräftig dargestellt.
+ */
 .context-pill--interactive.active,
 .context-pill--interactive[aria-current="page"] {
   color: var(--color-on-strong);
-  background-color: var(--tone-700);
-  border-color: var(--tone-700);
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
 }
 
-.context-pill--interactive.active:hover {
-  color: var(--color-on-strong);
-  background-color: var(--tone-800);
-  border-color: var(--tone-800);
-}
-
-.nav-pills .nav-link.context-pill--interactive.active {
+.context-pill--interactive.active:hover,
+.context-pill--interactive[aria-current="page"]:hover {
   color: var(--color-on-strong);
   background-color: var(--tone-700);
   border-color: var(--tone-700);
 }
 
-.nav-pills .nav-link.context-pill--interactive.active:hover {
-  background-color: var(--tone-800);
-  border-color: var(--tone-800);
+
+/* Bootstrap-Bridge für nav-pills */
+.nav-pills .nav-link.context-pill--interactive.active,
+.nav-pills .nav-link.context-pill--interactive[aria-current="page"] {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
 }
+
+.nav-pills .nav-link.context-pill--interactive.active:hover,
+.nav-pills .nav-link.context-pill--interactive[aria-current="page"]:hover {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
+}
+
+
+/* ------------------------------------------
+   Fokus
+   ------------------------------------------ */
 
 .context-pill--interactive:focus-visible {
   outline: 2px solid var(--color-action-500);
@@ -125,7 +149,7 @@
   background-color: var(--bs-body-bg);
 
   border: 1px solid var(--bs-border-color);
-  border-left: 3px solid var(--tone-500);
+  border-left: 3px solid var(--tone-600);
 
   border-radius: 0.5rem;
 
@@ -165,6 +189,23 @@ button.collapse-toggle[aria-expanded="true"] i {
 
 button.collapse-toggle[aria-expanded="false"] i {
   transform: rotate(0deg);
+}
+
+
+/* ==========================================
+   Disclosure Toggle
+   ========================================== */
+
+.disclosure-toggle__expanded {
+  display: none;
+}
+
+.disclosure-toggle[aria-expanded="true"] .disclosure-toggle__collapsed {
+  display: none;
+}
+
+.disclosure-toggle[aria-expanded="true"] .disclosure-toggle__expanded {
+  display: inline;
 }
 
 
@@ -213,3 +254,291 @@ button.collapse-toggle[aria-expanded="false"] i {
 .icon-action--danger:hover i {
   color: var(--bs-danger-text-emphasis, #842029);
 }
+
+
+
+/* ==========================================
+   Tone Tabs
+   ========================================== */
+
+.tone-tab {
+  color: var(--color-neutral-600);
+
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.tone-tab:hover {
+  color: var(--tone-700);
+  background-color: var(--tone-50);
+  border-color: var(--tone-300);
+}
+
+.nav-tabs .nav-link.tone-tab.active {
+  color: var(--tone-700);
+  background-color: var(--tone-100);
+  border-color: var(--tone-300);
+}
+
+
+/* ==========================================
+   Tone Text
+   ========================================== */
+
+.tone-text {
+  color: var(--tone-600);
+}
+
+
+/* ==========================================
+   Tone Surfaces
+   ========================================== */
+
+.tone-surface--subtle {
+  color: inherit;
+  background-color: var(--tone-50);
+  border-color: var(--tone-300);
+}
+
+.tone-surface--strong {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
+}
+
+
+/* ==========================================
+   Tone Buttons
+   ========================================== */
+
+.btn-tone-outline {
+  color: var(--tone-700);
+  background-color: transparent;
+  border-color: var(--tone-500);
+}
+
+.btn-tone-outline:hover {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
+}
+
+.btn-tone-outline:focus-visible {
+  outline: 2px solid var(--color-action-500);
+  outline-offset: 2px;
+}
+
+
+.btn-tone-solid {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
+}
+
+.btn-tone-solid:hover {
+  color: var(--color-on-strong);
+  background-color: var(--tone-700);
+  border-color: var(--tone-700);
+}
+
+.btn-tone-solid:focus-visible {
+  outline: 2px solid var(--color-action-500);
+  outline-offset: 2px;
+}
+
+
+/* ==========================================
+   Tone Icon Actions
+   ========================================== */
+
+.icon-action--tone i {
+  color: var(--tone-600);
+}
+
+.icon-action--tone:hover i {
+  color: var(--tone-700);
+}
+
+
+
+/* ==========================================
+   Tone Panels
+   ========================================== */
+
+.tone-panel {
+  overflow: hidden;
+  border-color: var(--tone-300);
+}
+
+.tone-panel__header {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+  border-bottom-color: var(--tone-600);
+}
+
+.tone-panel__body {
+  background-color: var(--tone-50);
+}
+
+.tone-panel__badge {
+  color: var(--tone-800);
+  background-color: var(--tone-100);
+  border: 1px solid var(--tone-300);
+}
+
+/* ==========================================
+   Tone Accordions
+   ========================================== */
+
+.tone-accordion .accordion-button {
+  color: var(--tone-800);
+  background-color: var(--tone-50);
+}
+
+.tone-accordion .accordion-button:not(.collapsed) {
+  color: var(--tone-800);
+  background-color: var(--tone-100);
+  box-shadow: inset 0 -1px 0 var(--tone-300);
+}
+
+.tone-accordion .accordion-button:focus {
+  border-color: var(--tone-300);
+  box-shadow: 0 0 0 0.2rem var(--tone-100);
+}
+
+/* ==========================================
+   Soft Tone Text
+   ========================================== */
+
+.tone-text--soft {
+  color: var(--tone-300);
+}
+
+
+/* ==========================================
+   Solid Tone Accordions
+   ========================================== */
+
+.tone-accordion--solid .accordion-button {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+}
+
+.tone-accordion--solid .accordion-button:not(.collapsed) {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+  box-shadow: inset 0 -1px 0 var(--tone-600);
+}
+
+.tone-accordion--solid .accordion-button:hover {
+  background-color: var(--tone-700);
+}
+
+.tone-accordion--solid .accordion-button::after {
+  filter: brightness(0) invert(1);
+  opacity: 0.85;
+}
+
+.tone-accordion--solid .accordion-button:focus {
+  border-color: var(--tone-500);
+  box-shadow: 0 0 0 0.2rem var(--tone-100);
+}
+
+
+/* ==========================================
+   Disabled Tone Icon Actions
+   ========================================== */
+
+button.icon-action--tone:disabled i {
+  color: var(--tone-300);
+}
+
+/* ==========================================
+   Tone Borders
+   ========================================== */
+
+.tone-border-start {
+  border-left: 3px solid var(--tone-600) !important;
+}
+
+/* ==========================================
+   Tone Checkboxes
+   ========================================== */
+
+.tone-checks input[type="checkbox"] {
+  accent-color: var(--tone-600);
+}
+
+.tone-checks .form-check-input:checked {
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
+}
+
+.tone-checks .form-check-input:focus {
+  border-color: var(--tone-300);
+  box-shadow: 0 0 0 0.2rem var(--tone-100);
+}
+
+
+/* ==========================================
+   Tone Accordions: neutral + active accent
+   ========================================== */
+
+.tone-accordion--active-accent .accordion-button {
+  color: var(--bs-body-color);
+  background-color: var(--bs-body-bg);
+}
+
+.tone-accordion--active-accent .accordion-button:not(.collapsed) {
+  color: var(--tone-700);
+  background-color: var(--bs-body-bg);
+  box-shadow: none;
+}
+
+.tone-accordion--active-accent .accordion-button:focus {
+  border-color: var(--tone-300);
+  box-shadow: 0 0 0 0.2rem var(--tone-100);
+}
+
+
+/* ==========================================
+   Filter Chips
+   ========================================== */
+
+.filter-chip {
+  gap: 0.35rem;
+}
+
+.filter-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.filter-chip__remove:hover {
+  color: inherit;
+  opacity: 1;
+}
+
+.filter-chip__remove:focus-visible {
+  outline: 2px solid var(--color-on-strong);
+  outline-offset: 1px;
+}
+
