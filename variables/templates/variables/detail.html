@@ -90,11 +90,11 @@
           class="accordion-collapse collapse show"
           aria-labelledby="headingVariablen-{{ variable.pk }}"
           data-bs-parent="#variablenAccordion-{{ variable.pk }}">
-        <div class="accordion-body p-0">
+        <div class="accordion-body p-0 tone-border-start tone-question">
           {% if questions %}
             <div class="list-group list-group-flush">
               {% for q in questions %}
-                <div class="list-group-item tone-border-start tone-question d-flex justify-content-between align-items-start gap-2">
+                <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
                   <div class="flex-grow-1"style="min-width:0; overflow:hidden;">
                     <div class="d-flex align-items-center gap-2"style="min-width:0; overflow:hidden;">
                       <span class="text-break d-block" style="min-width: 0;">
@@ -167,7 +167,7 @@
            class="accordion-collapse collapse show"
            aria-labelledby="headingContext-{{ variable.pk }}"
            data-bs-parent="#contextAccordion-{{ variable.pk }}">
-        <div class="accordion-body">
+        <div class="accordion-body tone-border-start tone-survey">
 
           <div>
             <strong class="d-block mb-1">Befragungen</strong>
@@ -203,7 +203,7 @@
            class="accordion-collapse collapse show"
            aria-labelledby="headingVallab-{{ variable.pk }}"
            data-bs-parent="#vallabAccordion-{{ variable.pk }}">
-        <div class="accordion-body">
+        <div class="accordion-body tone-border-start tone-variable">
           {% if object.vallab %}
             <p class="mb-2"><strong>Name:</strong> {{ object.vallab.vallabname }}</p>
 

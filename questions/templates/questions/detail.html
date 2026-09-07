@@ -200,7 +200,7 @@
           </button>
         </h2>
         <div id="questiontextCollapse" class="accordion-collapse collapse show">
-          <div class="accordion-body">
+          <div class="accordion-body tone-border-start tone-question">
             <p class="mb-1"><strong>Fragetext:</strong></p>
             <div class="pv-richtext">{{ question.questiontext|pv_format|linebreaks }}</div>
 
@@ -230,7 +230,7 @@
               class="accordion-collapse collapse show"
               aria-labelledby="headingItem-{{ question.id }}"
               data-bs-parent="#ItemAccordion-{{ question.id }}">
-            <div class="accordion-body">
+            <div class="accordion-body tone-border-start tone-question">
               {% if question.item_stem %}
                 <p class="mb-2"><strong> {{ question.item_stem }} </strong></p>
               {% endif %}
@@ -290,7 +290,7 @@
               class="accordion-collapse collapse show"
               aria-labelledby="headingAO-{{ question.id }}"
               data-bs-parent="#AOAccordion-{{ question.id }}">
-            <div class="accordion-body">
+            <div class="accordion-body tone-border-start tone-question">
 
               {% if question.answer_options %}
                 <div class="table-responsive small mb-3">
@@ -369,11 +369,11 @@
             class="accordion-collapse collapse show"
             aria-labelledby="headingVariablen-{{ question.id }}"
             data-bs-parent="#variablenAccordion-{{ question.id }}">
-          <div class="accordion-body p-0">
+          <div class="accordion-body p-0 tone-border-start tone-variable">
             {% if variables %}
               <div class="list-group list-group-flush">
                 {% for v in variables %}
-                  <div class="list-group-item tone-border-start tone-variable d-flex justify-content-between align-items-start">
+                  <div class="list-group-item d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                       <div class="fw-semibold d-flex align-items-center gap-2">
                         <span>{{ v.varname }}</span>

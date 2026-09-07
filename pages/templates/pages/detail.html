@@ -128,7 +128,7 @@
             </button>
           </h2>
           <div id="questiontextCollapse" class="accordion-collapse collapse show">
-            <div class="accordion-body">
+            <div class="accordion-body tone-border-start tone-survey">
               {% if page.page_heading %}
                 <p class="mb-1"><strong>Überschrift: {{ page.page_heading }}</strong></p>
               {% endif %}
@@ -172,13 +172,13 @@
              class="accordion-collapse collapse show"
              aria-labelledby="headingQuestions-{{ page.id }}"
              data-bs-parent="#questionsAccordion-{{ page.id }}">
-          <div class="accordion-body p-0">
+          <div class="accordion-body p-0 tone-border-start tone-question">
 
             {% with page_questions_filtered as page_questions %}
               {% if page_questions %}
                 <div class="list-group list-group-flush">
                   {% for pq in page_questions %}
-                    <div class="list-group-item tone-border-start tone-question d-flex align-items-start justify-content-between gap-2">
+                    <div class="list-group-item d-flex align-items-start justify-content-between gap-2">
                       <div class="flex-grow-1" style="min-width:0; overflow:hidden;">
                         <div class="fw-semibold d-flex align-items-center gap-2" style="min-width:0; overflow:hidden;">
                           <span class="text-truncate d-block" style="min-width: 0;">
@@ -284,7 +284,7 @@
             </button>
           </h2>
           <div id="transitionControlCollapse-{{ page.id }}" class="accordion-collapse collapse">
-            <div class="accordion-body">
+            <div class="accordion-body tone-border-start tone-survey">
                 {{ page.transition_control|linebreaks }}
             </div>
           </div>
@@ -306,7 +306,7 @@
             </button>
           </h2>
           <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse">
-            <div class="accordion-body text-break-long">
+            <div class="accordion-body tone-border-start tone-survey text-break-long">
                 {{ page.transitions|linebreaks}}
             </div>
           </div>
@@ -329,7 +329,7 @@
             </button>
           </h2>
           <div id="otherFieldsCollapse-{{ page.id }}" class="accordion-collapse collapse">
-            <div class="accordion-body p-0 text-break-long">
+            <div class="accordion-body p-0 tone-border-start tone-survey text-break-long">
               <div class="list-group list-group-flush">
 
                 <!-- visibility conditions (vc)-->
