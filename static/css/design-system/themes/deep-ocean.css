@@ -1,0 +1,31 @@
+/* ==========================================
+   Theme: Deep Ocean
+   Source palette:
+   #002952 / #CA1F7B / #0A6051
+   ========================================== */
+
+[data-theme="deep-ocean"] {
+  --color-survey-50:  #f1f5f8;
+  --color-survey-100: #dfe8ef;
+  --color-survey-300: #8ba9c1;
+  --color-survey-500: #2b587d;
+  --color-survey-600: #002952;
+  --color-survey-700: #002244;
+  --color-survey-800: #001a35;
+
+  --color-question-50:  #f1f8f6;
+  --color-question-100: #dcece8;
+  --color-question-300: #8bbcb1;
+  --color-question-500: #2d7c6d;
+  --color-question-600: #0a6051;
+  --color-question-700: #084d41;
+  --color-question-800: #063b32;
+
+  --color-variable-50:  #fff3f9;
+  --color-variable-100: #fbe3ef;
+  --color-variable-300: #e993bd;
+  --color-variable-500: #d74491;
+  --color-variable-600: #ca1f7b;
+  --color-variable-700: #a91968;
+  --color-variable-800: #861453;
+}

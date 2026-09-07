@@ -1,0 +1,53 @@
+/* ==========================================
+   Global Design Tokens
+   ========================================== */
+
+:root {
+
+  /* ------------------------------------------
+     Action / Interaction
+     ------------------------------------------ */
+
+  --color-action-50:  #eff6ff;
+  --color-action-100: #dbeafe;
+  --color-action-300: #93c5fd;
+  --color-action-500: #3b82f6;
+  --color-action-600: #2563eb;
+  --color-action-700: #1d4ed8;
+  --color-action-800: #1e40af;
+
+
+  /* ------------------------------------------
+     Highlight / Accent
+     ------------------------------------------ */
+
+  --color-highlight-50:  #fffbeb;
+  --color-highlight-100: #fef3c7;
+  --color-highlight-300: #fcd34d;
+  --color-highlight-500: #f59e0b;
+  --color-highlight-600: #d97706;
+  --color-highlight-700: #b45309;
+  --color-highlight-800: #92400e;
+
+
+  /* ------------------------------------------
+     Neutral
+     ------------------------------------------ */
+
+  --color-neutral-50:  #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+
+
+  /* ------------------------------------------
+     General
+     ------------------------------------------ */
+
+  --color-on-strong: #ffffff;
+
+  --transition-fast: 0.15s ease;
+}

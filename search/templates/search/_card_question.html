@@ -1,6 +1,4 @@
-{% load pv_formatting %}
-
-<div class="card mb-2 shadow-sm">
+<div class="card mb-2 entity-card tone-question">
   <div class="card-body">
 
     {% if item.name or item.is_version_group %}
@@ -9,10 +7,8 @@
           <h5 class="card-title mb-0">{{ item.name }}</h5>
         {% endif %}
 
-    <!-- Wellen Badges -->
-
         {% if item.is_version_group %}
-          <span class="badge bg-secondary-subtle text-secondary-emphasis border flex-shrink-0">
+          <span class="badge entity-badge tone-question flex-shrink-0">
             {{ item.questions|length }}
             {% if item.questions|length == 1 %}Version{% else %}Versionen{% endif %}
           </span>
@@ -20,51 +16,42 @@
       </div>
     {% endif %}
 
-    {% for question in item.questions %}
-      <div{% if not forloop.last %} class="border-bottom pb-3 mb-3"{% endif %}>
+    {% include "search/_question_result.html" with question=item.primary_question %}
 
-        {% if item.is_version_group %}
-          <p class="text-muted small mb-1">
-            Version {{ question.version_number }}
-          </p>
-        {% endif %}
+    {% if item.is_version_group and item.other_questions %}
+      <button
+        class="btn btn-link btn-sm p-0 mt-2 text-decoration-none disclosure-toggle"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#search-versions-{{ item.primary_question.id }}"
+        aria-expanded="false"
+        aria-controls="search-versions-{{ item.primary_question.id }}">
 
-        <h6 class="card-title mb-2">
-          {{ question.questiontext|pv_plain|truncatechars:350 }}
-        </h6>
+        <span class="disclosure-toggle__collapsed">
+          ▾
+          {% if item.other_questions|length == 1 %}
+            1 weitere Version anzeigen
+          {% else %}
+            {{ item.other_questions|length }} weitere Versionen anzeigen
+          {% endif %}
+        </span>
 
-        {% if show_relevance %}
-          <p class="text-muted mb-2 small">
-            Relevanz: {{ question.relevance }}
-          </p>
-        {% endif %}
+        <span class="disclosure-toggle__expanded">
+          ▴ Weitere Versionen ausblenden
+        </span>
+      </button>
 
-        {% if question.waves.all %}
-          <div class="mb-2">
-            {% for wave in question.waves.all %}
-              <span class="badge bg-light text-dark border">
-                {{ wave }}
-              </span>
-            {% endfor %}
+      <div
+        class="collapse"
+        id="search-versions-{{ item.primary_question.id }}">
+
+        {% for question in item.other_questions %}
+          <div class="border-top pt-3 mt-3">
+            {% include "search/_question_result.html" with question=question %}
           </div>
-        {% endif %}
+        {% endfor %}
 
-        <div class="d-flex align-items-center gap-2 mt-2">
-          <div class="btn-group btn-group-sm flex-shrink-0"
-               role="group"
-               aria-label="Aktionen">
-            <a class="btn btn-link px-2 icon-action"
-               title="Details anzeigen"
-               href="{% url 'questions:question_detail' question.id %}?back={{ request.get_full_path|urlencode }}"
-               target="_blank"
-               rel="noopener noreferrer">
-              <i class="fa-regular fa-eye"></i>
-            </a>
-          </div>
-        </div>
       </div>
-    {% endfor %}
+    {% endif %}
   </div>
 </div>
-
-

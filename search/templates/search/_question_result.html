@@ -1,0 +1,158 @@
+{% load pv_formatting %}
+
+    {# Anzeige der Versionsgruppe, falls vorhanden #}
+    {% if item.is_version_group %}
+        <p class="text-muted small mb-1">
+        Version {{ question.version_number }}
+        </p>
+    {% endif %}
+
+    <h6 class="card-title mb-2">
+        {{ question.questiontext|pv_plain|truncatechars:1200 }}
+    </h6>
+
+    {# Anzeige des Fragetexts #}
+    {% if question.question_type %}
+        <p class="text-muted small mb-2">
+        {% if question.question_type == "other" and question.question_type_other %}
+            {{ question.question_type_other }}
+        {% else %}
+            {{ question.get_question_type_display }}
+        {% endif %}
+        </p>
+    {% endif %}
+
+    {# Anzeige des Item-Stems und der Items #}
+    {% if question.item_stem or question.items %}
+        <div class="mb-2">
+
+        {% if question.item_stem %}
+            <p class="small mb-2">
+            {{ question.item_stem|pv_plain|truncatechars:250 }}
+            </p>
+        {% endif %}
+
+        {% if question.items %}
+            <ul class="small mb-1 ps-4">
+            {% for it in question.items|slice:":3" %}
+                <li>
+                {% if it.label %}
+                    {{ it.label|pv_plain|truncatechars:220 }}
+                {% elif it.value %}
+                    {{ it.value|truncatechars:220 }}
+                {% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+
+            {% if question.items|length > 3 %}
+                <button
+                    class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#search-items-{{ question.id }}"
+                    aria-expanded="false"
+                    aria-controls="search-items-{{ question.id }}">
+
+                    <span class="disclosure-toggle__collapsed">
+                        ▾ {{ question.items|length|add:"-3" }} weitere Items anzeigen
+                    </span>
+
+                    <span class="disclosure-toggle__expanded">
+                        ▴ Weitere Items ausblenden
+                    </span>
+                </button>
+
+            <div class="collapse mt-1" id="search-items-{{ question.id }}">
+                <ul class="small mb-1 ps-4">
+                {% for it in question.items|slice:"3:" %}
+                    <li>
+                    {% if it.label %}
+                        {{ it.label|pv_plain }}
+                    {% elif it.value %}
+                        {{ it.value }}
+                    {% endif %}
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+        {% endif %}
+        </div>
+    {% endif %}
+
+
+    {# Anzeige der keywords #}
+    {% if question.keywords.all %}
+        <div class="keyword-list mb-2">
+            {% for keyword in question.keywords.all %}
+            <span class="keyword-tag">#{{ keyword.name }}</span>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+
+    {# Anzeige der Relevanz #}
+    {% if show_relevance %}
+        <p class="text-muted mb-2 small">
+        Relevanz: {{ question.relevance }}
+        </p>
+    {% endif %}
+
+    {# Anzeige der Wellen #}
+    {% with waves=question.waves.all %}
+        {% if waves %}
+            <div class="mb-2">
+
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+                {% for wave in waves|slice:":5" %}
+                <span class="context-pill context-pill--solid tone-survey">
+                    {{ wave }}
+                </span>
+                {% endfor %}
+
+                {% if waves|length > 5 %}
+                <button
+                    class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#search-waves-{{ question.id }}"
+                    aria-expanded="false"
+                    aria-controls="search-waves-{{ question.id }}">
+
+                    <span class="disclosure-toggle__collapsed">
+                    ▾ {{ waves|length|add:"-5" }} weitere
+                    </span>
+
+                    <span class="disclosure-toggle__expanded">
+                    ▴ Weniger anzeigen
+                    </span>
+                </button>
+                {% endif %}
+            </div>
+
+            {% if waves|length > 5 %}
+                <div class="collapse mt-1" id="search-waves-{{ question.id }}">
+                <div class="d-flex flex-wrap gap-1">
+                    {% for wave in waves|slice:"5:" %}
+                    <span class="context-pill context-pill--solid tone-survey">
+                        {{ wave }}
+                    </span>
+                    {% endfor %}
+                </div>
+                </div>
+            {% endif %}
+
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-end mt-2">
+    <a class="small action-link"
+        href="{% url 'questions:question_detail' question.id %}?back={{ request.get_full_path|urlencode }}"
+        target="_blank"
+        rel="noopener noreferrer">
+        Details →
+    </a>
+    </div>

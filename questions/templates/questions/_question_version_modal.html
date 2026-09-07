@@ -4,7 +4,7 @@
   {% csrf_token %}
 </form>
 
-<div class="modal fade"
+<div class="modal fade tone-question"
      id="questionVersionModal"
      data-options-url="{% url 'questions:question_version_create' question.id %}"
      data-create-url="{% url 'questions:question_version_create' question.id %}"
@@ -17,13 +17,13 @@
      aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header tone-surface--strong">
         <div>
           <h5 class="modal-title">Neue Fragenversion anlegen</h5>
-          <div class="small text-muted" id="questionVersionStepLabel">Schritt 1 von 2</div>
+          <div class="small opacity-75" id="questionVersionStepLabel">Schritt 1 von 2</div>
         </div>
         <button type="button"
-                class="btn-close"
+                class="btn-close btn-close-white"
                 data-bs-dismiss="modal"
                 aria-label="Schließen"></button>
       </div>
@@ -34,7 +34,7 @@
         <div id="questionVersionTargetStep">
           <div class="mb-3">
             <div class="small text-muted mb-1">Ausgangsfrage</div>
-            <div class="border rounded bg-body-tertiary px-3 py-2">
+            <div class="border rounded tone-surface--subtle tone-question px-3 py-2">
               {{ question.questiontext|default:"(ohne Fragetext)"|pv_plain|truncatechars:350 }}
             </div>
           </div>
@@ -130,7 +130,7 @@
                         title="Auswählbar sind nur Gruppen der Zielbefragung, die die Zielseite enthalten.">
                   <i class="fa-solid fa-circle-info"></i>
                 </button>
-                <div class="border rounded p-2"
+                <div class="border rounded p-2 tone-checks tone-survey"
                     id="questionVersionWavesBox"
                     style="max-height: 220px; overflow: auto;">
                 <div class="text-muted small">Bitte zuerst eine Zielseite auswählen.</div>
@@ -139,10 +139,10 @@
           </div>
         </div>
 
-        <div class="d-none" id="questionVersionVariablesStep">
+        <div class="d-none tone-variable tone-checks" id="questionVersionVariablesStep">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
-              <h6 class="mb-1">Variablen versionieren</h6>
+              <h6 class="mb-1 tone-text">Variablen versionieren</h6>
               <div class="small text-muted">
                 Ausgewählte Variablen werden neu angelegt und allen gewählten Befragtengruppen zugeordnet.
               </div>
@@ -201,7 +201,7 @@
           Abbrechen
         </button>
         <button type="button"
-                class="btn btn-primary"
+                class="btn btn-tone-solid tone-question"
                 id="questionVersionSubmit">
           Weiter zu den Variablen
         </button>

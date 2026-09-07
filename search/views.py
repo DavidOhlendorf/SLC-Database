@@ -148,7 +148,18 @@ def search_questions(q: str, wave_ids=None, include_keywords=True):
         base_qs_q
         .filter(id__in=final_score_map.keys())
         .only("id", "questiontext", "version_group_id", "version_number")
-        .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
+        .prefetch_related(
+            Prefetch(
+                "waves",
+                queryset=Wave.objects.select_related("survey").order_by(
+                    F("survey__year").desc(nulls_last=True),
+                    F("start_date").desc(nulls_last=True),
+                    "cycle",
+                    "instrument",
+                    "id",
+                ),
+            )
+        )
         .distinct()
     )
 
@@ -194,7 +205,20 @@ def build_question_groups(matched_questions, score_map, wave_ids=None):
         display_qs
         .select_related("version_group")
         .prefetch_related(
-            Prefetch("waves", queryset=Wave.objects.select_related("survey"))
+            Prefetch(
+                "waves",
+                queryset=Wave.objects.select_related("survey").order_by(
+                    F("survey__year").desc(nulls_last=True),
+                    F("start_date").desc(nulls_last=True),
+                    "cycle",
+                    "instrument",
+                    "id",
+                ),
+            ),
+            Prefetch(
+                "keywords",
+                queryset=Keyword.objects.order_by("name"),
+            ),
         )
         .distinct()
     )
@@ -233,6 +257,9 @@ def build_question_groups(matched_questions, score_map, wave_ids=None):
                 question.id,
             )
         )
+
+        group["primary_question"] = group["questions"][0]
+        group["other_questions"] = group["questions"][1:]
 
         group["relevance"] = max(
             (score_map.get(question.id, 0.0) for question in group["questions"]),
