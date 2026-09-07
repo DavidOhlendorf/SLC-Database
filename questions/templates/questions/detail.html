@@ -16,8 +16,8 @@
     <header>
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div class="flex-grow-1 min-w-0">
-          <h1 class="h3 mb-0 text-break">
-            {{ question.questiontext|pv_plain|truncatechars:150 }}
+          <h1 class="h4 mb-0 text-break">
+            {{ question.questiontext|pv_plain|truncatechars:450}}
             {% if perms.accounts.can_edit_slc and question.is_incomplete %}
               <span>
                 <i class="fa-solid fa-circle-exclamation text-danger"
@@ -31,7 +31,7 @@
           {% if perms.accounts.can_edit_slc %}
             <div class="d-flex align-items-center gap-2">
               <button type="button"
-                      class="btn btn-link btn-lg icon-action p-0"
+                      class="btn btn-link btn-lg icon-action--tone tone-question p-0"
                       title="Neue Version dieser Frage anlegen"
                       data-bs-toggle="modal"
                       data-bs-target="#questionVersionModal">
@@ -44,14 +44,14 @@
                       data-bs-toggle="tooltip"
                       data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
                   <button type="button"
-                          class="btn btn-link btn-lg icon-action p-0 text-muted"
+                          class="btn btn-link btn-lg icon-action--tone tone-question p-0"
                           disabled>
                     <i class="fa-solid fa-pen-to-square"></i>
                   </button>
                 </span>
 
               {% elif active_wave and active_page %}
-                <a class="btn btn-link btn-lg icon-action p-0"
+                <a class="btn btn-link btn-lg icon-action--tone tone-question p-0"
                   title="Frage bearbeiten"
                   href="{% url 'questions:question_edit' question.id %}?page={{ active_page.id }}&wave={{ active_wave.id }}">
                   <i class="fa-solid fa-pen-to-square"></i>
@@ -63,7 +63,7 @@
                       data-bs-toggle="tooltip"
                       data-bs-title="Bearbeiten ist nur möglich, wenn die Frage in der ausgewählten Befragung einer Seite zugeordnet ist.">
                   <button type="button"
-                          class="btn btn-link btn-lg icon-action p-0 text-muted"
+                          class="btn btn-link btn-lg icon-action--tone tone-question p-0"
                           disabled>
                     <i class="fa-solid fa-pen-to-square"></i>
                   </button>
@@ -76,7 +76,7 @@
       </div>
     </header>
 
-    <!-- Konstrukt -->
+    <!-- ID & Konstrukt -->
     <div class="small text-muted ">
       <i class="fa-solid fa-hashtag me-1"></i>
       {{ question.id }}
@@ -100,14 +100,14 @@
           <li class="nav-item">
             {% if active_wave and w.id == active_wave.id %}
               <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
-                class="nav-link context-pill wave-pill bg-primary text-white"
+                class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey active"
                 aria-current="page"
                 title="Aktive Befragung">
                 {{ w }}
               </a>
             {% else %}
               <a href="{% url 'questions:question_detail' question.id %}?wave={{ w.id }}"
-                class="nav-link context-pill wave-pill bg-secondary-subtle text-secondary-emphasis border"
+                class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey"
                 title="Befragung auswählen">
                 {{ w }}
               </a>
@@ -123,10 +123,10 @@
         {% for item in other_version_wave_items %}
           <li class="nav-item">
             <a href="{% url 'questions:question_detail' item.question_id %}?wave={{ item.wave.id }}"
-              class="nav-link context-pill wave-pill bg-secondary-subtle text-secondary-emphasis border"
+              class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey"
               title="Andere Fragenversion auswählen">
               <span>{{ item.wave }}</span>
-              <span class="badge bg-light text-dark border context-pill__badge">
+              <span class="context-pill__badge">
                 V{{ item.version_number }}
               </span>
             </a>
@@ -139,7 +139,7 @@
     {% if survey and active_wave %}
       <div class="mb-3">
         <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
-          class="text-muted small text-decoration-none opacity-75">
+          class="small action-link">
           ← Alle Seiten dieses Fragebogens anzeigen
         </a>
       </div>
@@ -156,14 +156,14 @@
               <li class="nav-item">
                 {% if active_page and p.id == active_page.id %}
                   <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
-                    class="nav-link context-pill page-pill bg-primary text-white"
+                    class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey active"
                     aria-current="page"
                     title="Aktive Seite">
                     Seite: {{ p.pagename }}
                   </a>
                 {% else %}
                   <a href="{% url 'questions:question_detail' question.id %}?wave={{ active_wave.id }}&page={{ p.id }}"
-                    class="nav-link context-pill page-pill bg-secondary-subtle text-secondary-emphasis border"
+                    class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey"
                     title="Seite auswählen">
                     Seite: {{ p.pagename }}
                   </a>
@@ -179,7 +179,7 @@
     {% if active_wave and active_page %}
       <div class="mb-4">
         <a href="{% url 'pages:page-detail' active_page.id %}?wave={{ active_wave.id }}"
-          class="text-muted small text-decoration-none opacity-75">
+          class="small action-link">
           ← Zur ausgewählten Fragebogenseite
         </a>
       </div>
@@ -187,7 +187,7 @@
       <div class="mb-4"></div>
     {% endif %}
 
-    <div class="accordion mb-3" id="questiontextAccordion-{{ question.id }}">
+    <div class="accordion tone-accordion tone-accordion--solid tone-question mb-3" id="questiontextAccordion-{{ question.id }}">
       <div class="accordion-item">
         <h2 class="accordion-header">
           <button class="accordion-button"
@@ -215,7 +215,7 @@
 
     <!-- Items-->
     {% if question.items or question.item_stem %}
-      <div class="accordion mb-3" id="ItemAccordion-{{ question.id }}">
+      <div class="accordion tone-accordion tone-accordion--solid tone-question mb-3" id="ItemAccordion-{{ question.id }}">
         <div class="accordion-item">
           <h2 class="accordion-header" id="headingItem-{{ question.id }}">
             <button class="accordion-button" type="button"
@@ -275,7 +275,7 @@
 
     <!-- Answeroptions-->
     {% if question.answer_options or question.top_categories or question.missing_values  %}
-      <div class="accordion mb-3" id="AOAccordion-{{ question.id }}">
+      <div class="accordion tone-accordion tone-accordion--solid tone-question mb-3" id="AOAccordion-{{ question.id }}">
         <div class="accordion-item">
           <h2 class="accordion-header" id="headingAO-{{ question.id }}">
             <button class="accordion-button" type="button"
@@ -353,7 +353,7 @@
 
 
     <!-- Variablen der Frage in der ausgewählten Befragung/Gruppe -->
-    <div class="accordion mb-3" id="variablenAccordion-{{ question.id }}">
+    <div class="accordion tone-accordion tone-accordion--solid tone-variable mb-3" id="variablenAccordion-{{ question.id }}">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingVariablen-{{ question.id }}">
           <button class="accordion-button" type="button"
@@ -373,7 +373,7 @@
             {% if variables %}
               <div class="list-group list-group-flush">
                 {% for v in variables %}
-                  <div class="list-group-item d-flex justify-content-between align-items-start">
+                  <div class="list-group-item tone-border-start tone-variable d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                       <div class="fw-semibold d-flex align-items-center gap-2">
                         <span>{{ v.varname }}</span>
@@ -394,7 +394,7 @@
                       {% endif %}
                     </div>
                     <div class="ms-2 d-flex align-items-center gap-1 flex-shrink-0">
-                      <a class="btn btn-link px-1 icon-action"
+                      <a class="btn btn-link px-1 icon-action--tone tone-variable"
                         title="Details anzeigen"
                         href="{% url 'variables:variable_detail' v.id %}?back={{ request.get_full_path|urlencode }}">
                         <i class="fa-regular fa-eye"></i>
@@ -406,13 +406,13 @@
                                 data-bs-toggle="tooltip"
                                 data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
                             <button type="button"
-                                    class="btn btn-link px-1 icon-action text-muted"
+                                    class="btn btn-link px-1 icon-action--tone tone-variable"
                                     disabled>
                               <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                           </span>
                         {% else %}
-                          <a class="btn btn-link px-1 icon-action"
+                          <a class="btn btn-link px-1 icon-action--tone tone-variable"
                             title="Variable bearbeiten"
                             href="{% url 'variables:variable_edit' v.id %}?back={{ request.get_full_path|urlencode }}">
                             <i class="fa-solid fa-pen-to-square"></i>
@@ -433,15 +433,15 @@
 
     {% if perms.accounts.can_edit_slc %}
       <div class="d-flex align-items-start gap-2 mb-5">
-        <a class="btn text-secondary link-secondary"
+        <a class="btn btn-sm btn-tone-outline tone-variable"
           href="{% url 'questions:question_variables' question.id %}?back={{ request.get_full_path|urlencode }}{% if active_wave %}&wave={{ active_wave.id }}{% endif %}">
-          <i class="fa-solid fa-link"></i> Variablen zuordnen
+          <i class="fa-solid fa-link me-1"></i> Variablen zuordnen
         </a>
         <button type="button"
-                class="btn text-success link-success"
+                class="btn btn-sm btn-tone-outline tone-variable"
                 data-bs-toggle="modal"
                 data-bs-target="#qcVarForQuestionModal">
-          <i class="fa-solid fa-plus"></i> Neue Variable anlegen
+          <i class="fa-solid fa-plus me-1"></i> Neue Variable anlegen
         </button>
       </div>
     {% else %}

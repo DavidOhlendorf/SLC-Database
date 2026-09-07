@@ -27,14 +27,14 @@
       <div>
         {% if page %}
         <a href="{% url 'pages:page-detail' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
-          class="text-muted small text-decoration-none opacity-75">
+          class="small action-link">
           ← Zur Fragebogenseite
         </a>
         {% endif %}
       </div>
       <div>
         <a href="{% url 'questions:question_detail' question.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}"
-          class="text-muted small text-decoration-none opacity-75">
+          class="small action-link">
           Zur Detailansicht der Frage →
         </a>
       </div>
@@ -57,7 +57,7 @@
       {% endif %}
 
       <!-- Fragetyp -->
-      <div class="card shadow-sm mb-4" data-required-field="question_type">
+      <div class="card entity-card tone-question mb-4" data-required-field="question_type">
         <div class="card-body">
           <h5 class="card-title mb-3">
             Fragetyp <span data-required-badge class="ms-2"></span>
@@ -86,11 +86,11 @@
       </div>
 
       <!-- Frage- und Hinweistext -->
-      <div class="card shadow-sm mb-4">
+      <div class="card entity-card tone-question mb-4">
         <div class="card-body">
           <h5 class="card-title mb-3">Frage- und Hinweistext</h5>
 
-          <div class="accordion" id="accordionQuestionInstructionText">
+          <div class="accordion tone-accordion--active-accent tone-question" id="accordionQuestionInstructionText">
 
             <!-- Fragetext (qt) -->
             <div class="accordion-item" data-acc-open-when-filled="questiontext" data-required-field="questiontext">
@@ -140,11 +140,11 @@
       </div>
 
       <!-- Itemblock -->
-      <div class="card shadow-sm mb-4">
+      <div class="card entity-card tone-question mb-4">
         <div class="card-body">
           <h5 class="card-title mb-3">Itemblock</h5>
 
-          <div class="accordion" id="accordionItemstem">
+          <div class="accordion tone-accordion--active-accent tone-question" id="accordionItemstem">
             <!-- Itemstamm (st) -->
             <div class="accordion-item" data-acc-open-when-filled="item_stem">
               <h2 class="accordion-header">
@@ -251,7 +251,7 @@
               </tbody>
             </table>
             <div>
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="it-add-row">
+              <button type="button" class="btn btn-sm btn-tone-outline tone-question" id="it-add-row">
                 + Item hinzufügen
               </button>
             </div>
@@ -286,7 +286,7 @@
       </div>
 
       <!-- Antwortblock -->
-      <div class="card shadow-sm mb-4" data-required-field="answer_options">
+      <div class="card entity-card tone-question mb-4" data-required-field="answer_options">
         <div class="card-body">
           <h5 class="card-title mb-3">Antwortblock</h5>
 
@@ -380,7 +380,7 @@
             </table>
 
             <div>
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="ao-add-row">
+              <button type="button" class="btn btn-sm btn-tone-outline tone-question" id="ao-add-row">
               + Antwortoption hinzufügen
               </button>
             </div>
@@ -418,7 +418,7 @@
           <hr class="my-4">
 
 
-          <div class="accordion" id="answerblockAccordion">
+          <div class="accordion tone-accordion--active-accent tone-question" id="answerblockAccordion">
 
             <!-- Überkategorien (ka) -->
             <div class="accordion-item" data-acc-open-when-filled="top_categories">
@@ -460,7 +460,7 @@
       </div>
 
       <!-- Kontextblock -->
-      <div class="card shadow-sm mb-4">
+      <div class="card entity-card tone-question mb-4">
         <div class="card-body">
           <h5 class="card-title mb-3">Kontext</h5>
             <div class="mb-3">
@@ -492,7 +492,7 @@
 
       <div class="d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-dark">Speichern</button>
+          <button type="submit" class="btn btn-tone-solid tone-question">Speichern</button>
           <a class="btn btn-outline-secondary"
             href="{% url 'questions:question_detail' question.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
             Abbrechen

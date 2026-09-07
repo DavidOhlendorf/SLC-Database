@@ -149,7 +149,7 @@
     {% endwith %}
 
     <div class="d-flex justify-content-end mt-2">
-    <a class="small text-decoration-none"
+    <a class="small action-link"
         href="{% url 'questions:question_detail' question.id %}?back={{ request.get_full_path|urlencode }}"
         target="_blank"
         rel="noopener noreferrer">

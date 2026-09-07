@@ -149,50 +149,35 @@ select.qc-passive:focus {
 }
 
 
+/* ==========================================
+   Variable Input Group
+   ========================================== */
 
 
-/* ==========================================================
-   LEGACY / MIGRATION
-
-   Temporäre Kompatibilitätsregeln für noch nicht auf das
-   Designsystem migrierte Templates.
-
-   Neue Templates dürfen diese Klassen nicht mehr verwenden.
-   Regeln nach erfolgreicher Migration der betreffenden
-   Templates entfernen.
-   ========================================================== */
-
-
-/* ------------------------------------------
-   LEGACY: Wave Pills
-
-   Entfernen, sobald alle Wave-Pills auf
-   .tone-survey + .context-pill--*
-   migriert wurden.
-   ------------------------------------------ */
-
-.wave-pill {
-  color: var(--color-survey-700);
-  background-color: var(--color-survey-100);
-  border: 1px solid var(--color-survey-300);
+.variable-input-group {
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
 }
 
-a.wave-pill:hover,
-button.wave-pill:hover {
-  color: var(--color-survey-800);
-  background-color: var(--color-survey-300);
-  border-color: var(--color-survey-500);
+.variable-input-group .variable-widget {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-.nav-pills .nav-link.wave-pill.active {
-  color: var(--color-on-strong);
-  background-color: var(--color-survey-700);
-  border-color: var(--color-survey-700);
+.variable-input-group .ts-wrapper {
+  width: 100%;
+  min-width: 0;
 }
 
-.nav-pills .nav-link.wave-pill.active:hover {
-  background-color: var(--color-survey-800);
-  border-color: var(--color-survey-800);
+.variable-input-group .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
+.variable-input-group .ts-control {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 

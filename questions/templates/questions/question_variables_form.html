@@ -25,7 +25,7 @@
 
   <div class="mb-3">
     <a href="{{ back_url|default:question.get_absolute_url }}"
-        class="text-muted small text-decoration-none opacity-75">
+        class="small action-link">
         ← Zurück
     </a>
   </div>
@@ -45,8 +45,8 @@
       </div>
     {% endif %}
 
-    <div class="card mb-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card entity-card tone-variable mb-3">
+      <div class="card-header tone-surface--strong d-flex justify-content-between align-items-center">
         <div class="fw-semibold">Variablen</div>
       </div>
 
@@ -68,7 +68,7 @@
                       </div>
 
                       <button type="button"
-                              class="btn btn-outline-success vfs-quickcreate {% if var_val %}disabled{% endif %}"
+                              class="btn btn-tone-outline tone-variable vfs-quickcreate {% if var_val %}disabled{% endif %}"
                               {% if var_val %}disabled aria-disabled="true"{% endif %}
                               title="Neue Variable anlegen"
                               data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
@@ -93,7 +93,7 @@
                 <div class="col-lg-6">
                   <label class="form-label">Gruppen</label>
 
-                  <div class="d-flex flex-wrap gap-2">
+                  <div class="d-flex flex-wrap gap-2 tone-checks tone-survey">
                     {% for cb in f.waves %}
                       <div class="form-check form-check-inline">
                         {{ cb.tag }}
@@ -127,7 +127,7 @@
         </div>
 
         <div class="px-3 pb-3 pt-0">
-          <button type="button" id="vfs-add" class="btn btn-sm btn-outline-primary">
+          <button type="button" id="vfs-add" class="btn btn-sm btn-tone-outline tone-variable">
             + Variable hinzufügen
           </button>
         </div>
@@ -137,7 +137,7 @@
       <div class="card-footer d-flex justify-content-between align-items-center">
 
         <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-tone-solid tone-variable">
             Speichern
           </button>
           <a class="btn btn-outline-secondary"
@@ -159,7 +159,7 @@
                     <div class="variable-widget flex-grow-1" data-search-url="{% url 'variables:variable_suggest' %}">
                       {{ formset.empty_form.variable }}
                     </div>
-                      <button type="button" class="btn btn-outline-success vfs-quickcreate"
+                      <button type="button" class="btn btn-tone-outline tone-variable vfs-quickcreate"
                               title="Neue Variable anlegen"
                               data-quickcreate-url="{% url 'variables:variable_quickcreate' %}">
                               <i class="fa-solid fa-plus"></i>
@@ -170,7 +170,7 @@
 
           <div class="col-lg-6">
             <label class="form-label">Wellen</label>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap gap-2 tone-checks tone-survey">
               {% for cb in formset.empty_form.waves %}
                 <div class="form-check form-check-inline">
                   {{ cb.tag }}
@@ -195,12 +195,12 @@
       </div>
     </template>
   </form>
-  <div class="modal fade" id="confirmLockedWavesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade tone-survey" id="confirmLockedWavesModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header">
+          <div class="modal-header tone-surface--strong">
             <h5 class="modal-title">Änderung in abgeschlossener Befragung</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
           </div>
           <div class="modal-body">
             Du hast Zuordnungen für mindestens eine abgeschlossene Befragung geändert.<br>
@@ -210,7 +210,7 @@
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
               Abbrechen
             </button>
-            <button type="button" class="btn btn-primary" id="confirmLockedWavesYes">
+            <button type="button" class="btn btn-tone-solid tone-survey" id="confirmLockedWavesYes">
               Trotzdem speichern
             </button>
           </div>
@@ -218,12 +218,12 @@
       </div>
     </div>
 
-    <div class="modal fade" id="quickCreateVariableModal" data-varname-check-url="{% url 'variables:variable_varname_check' %}" tabindex="-1" aria-hidden="true">
+    <div class="modal fade tone-variable" id="quickCreateVariableModal" data-varname-check-url="{% url 'variables:variable_varname_check' %}" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header">
+          <div class="modal-header tone-surface--strong">
             <h5 class="modal-title">Neue Variable anlegen</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
           </div>
 
           <div class="modal-body">
@@ -241,7 +241,7 @@
 
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-            <button type="button" class="btn btn-primary" id="qc-save">Anlegen</button>
+            <button type="button" class="btn btn-tone-solid tone-variable" id="qc-save">Anlegen</button>
           </div>
         </div>
       </div>

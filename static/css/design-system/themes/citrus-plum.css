@@ -1,0 +1,39 @@
+/* ==========================================
+   Theme: Citrus & Plum
+   ========================================== */
+
+/*
+ * Wärmer und kontrastreicher.
+ * Survey = Orange
+ * Question = Smaragd
+ * Variable = Pflaume
+ */
+[data-theme="citrus-plum"] {
+
+  /* Survey / Wave */
+  --color-survey-50:  #fff7ed;
+  --color-survey-100: #ffedd5;
+  --color-survey-300: #fdba74;
+  --color-survey-500: #f97316;
+  --color-survey-600: #ea580c;
+  --color-survey-700: #c2410c;
+  --color-survey-800: #9a3412;
+
+  /* Question */
+  --color-question-50:  #ecfdf5;
+  --color-question-100: #d1fae5;
+  --color-question-300: #6ee7b7;
+  --color-question-500: #10b981;
+  --color-question-600: #059669;
+  --color-question-700: #047857;
+  --color-question-800: #065f46;
+
+  /* Variable */
+  --color-variable-50:  #faf5ff;
+  --color-variable-100: #f3e8ff;
+  --color-variable-300: #c084fc;
+  --color-variable-500: #9333ea;
+  --color-variable-600: #7e22ce;
+  --color-variable-700: #6b21a8;
+  --color-variable-800: #581c87;
+}

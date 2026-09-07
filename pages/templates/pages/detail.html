@@ -105,7 +105,7 @@
       <div>
         {% if survey and active_wave %}
           <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
-            class="text-muted small text-decoration-none opacity-75">
+            class="small action-link">
             ← Alle Seiten dieses Fragebogens anzeigen
           </a>
         {% endif %}

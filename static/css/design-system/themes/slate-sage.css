@@ -1,0 +1,41 @@
+/* ==========================================
+   Theme: Slate & Sage
+   ========================================== */
+
+/*
+ * Ruhiger, erwachsener und deutlich weniger gesättigt.
+ * Survey = Schieferblau
+ * Question = Salbeigrün
+ * Variable = Mauve / Pflaume
+ *
+ * Dieses Theme ist bewusst gedämpfter als Berry & Aqua.
+ */
+[data-theme="slate-sage"] {
+
+  /* Survey / Wave */
+  --color-survey-50:  #f3f6f9;
+  --color-survey-100: #e4ebf1;
+  --color-survey-300: #aebdca;
+  --color-survey-500: #6f8799;
+  --color-survey-600: #587184;
+  --color-survey-700: #455d70;
+  --color-survey-800: #33495a;
+
+  /* Question */
+  --color-question-50:  #f4f8f4;
+  --color-question-100: #e5efe5;
+  --color-question-300: #b4cdb7;
+  --color-question-500: #7ea486;
+  --color-question-600: #668b6f;
+  --color-question-700: #52735c;
+  --color-question-800: #3f5b48;
+
+  /* Variable */
+  --color-variable-50:  #faf6f9;
+  --color-variable-100: #f0e7ee;
+  --color-variable-300: #d0b3c6;
+  --color-variable-500: #a47b98;
+  --color-variable-600: #8d657f;
+  --color-variable-700: #745268;
+  --color-variable-800: #5d4053;
+}

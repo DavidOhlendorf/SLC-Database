@@ -33,13 +33,13 @@
                   data-bs-toggle="tooltip"
                   data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
               <button type="button"
-                      class="btn btn-link btn-lg icon-action p-0 text-muted"
+                      class="btn btn-link btn-lg icon-action--tone tone-variable p-0"
                       disabled>
                 <i class="fa-solid fa-pen-to-square"></i>
               </button>
             </span>
           {% else %}
-            <a class="btn btn-link btn-lg icon-action p-0"
+            <a class="btn btn-link btn-lg icon-action--tone tone-variable p-0"
               title="Variable bearbeiten"
               href="{% url 'variables:variable_edit' variable.pk %}?back={{ request.get_full_path|urlencode }}">
               <i class="fa-solid fa-pen-to-square"></i>
@@ -68,13 +68,13 @@
   <!-- Back-Link  -->
   <div class="mb-3">
     <a href="{{ back_url|default:'/' }}"
-      class="text-muted small text-decoration-none opacity-75">
+      class="small action-link">
       ← Zurück
     </a>
   </div>
 
   <!-- Fragen der Variablen -->
-  <div class="accordion mb-3" id="variablenAccordion-{{ variable.pk }}">
+  <div class="accordion tone-accordion tone-accordion--solid tone-question mb-3" id="variablenAccordion-{{ variable.pk }}">
     <div class="accordion-item">
       <h2 class="accordion-header" id="headingVariablen-{{ variable.pk }}">
         <button class="accordion-button" type="button"
@@ -94,7 +94,7 @@
           {% if questions %}
             <div class="list-group list-group-flush">
               {% for q in questions %}
-                <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
+                <div class="list-group-item tone-border-start tone-question d-flex justify-content-between align-items-start gap-2">
                   <div class="flex-grow-1"style="min-width:0; overflow:hidden;">
                     <div class="d-flex align-items-center gap-2"style="min-width:0; overflow:hidden;">
                       <span class="text-break d-block" style="min-width: 0;">
@@ -112,7 +112,7 @@
                     </div>
                   </div>
                   <div class="ms-2 d-flex align-items-center gap-1 flex-shrink-0">
-                    <a class="btn btn-link px-1 icon-action"
+                    <a class="btn btn-link px-1 icon-action--tone tone-question"
                       title="Details anzeigen"
                       href="{% url 'questions:question_detail' q.pk %}">
                       <i class="fa-regular fa-eye"></i>
@@ -124,13 +124,13 @@
                               data-bs-toggle="tooltip"
                               data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
                           <button type="button"
-                                  class="btn btn-link px-1 icon-action text-muted"
+                                  class="btn btn-link px-1 icon-action--tone tone-question"
                                   disabled>
                             <i class="fa-solid fa-pen-to-square"></i>
                           </button>
                         </span>
                       {% else %}
-                        <a class="btn btn-link px-1 icon-action"
+                        <a class="btn btn-link px-1 icon-action--tone tone-question"
                           title="Frage bearbeiten"
                           href="{% url 'questions:question_edit' q.pk %}">
                           <i class="fa-solid fa-pen-to-square"></i>
@@ -151,7 +151,7 @@
 
 
   <!-- Kontext: Accordion-Card-->
-  <div class="accordion mb-3" id="contextAccordion-{{ variable.pk }}">
+  <div class="accordion tone-accordion tone-accordion--solid tone-survey mb-3" id="contextAccordion-{{ variable.pk }}">
     <div class="accordion-item">
       <h2 class="accordion-header" id="headingContext-{{ variable.pk }}">
         <button class="accordion-button" type="button"
@@ -174,7 +174,7 @@
             {% if variable.waves.exists %}
               <div class="d-flex flex-wrap gap-2">
                 {% for w in variable.waves.all %}
-                  <span class="badge rounded-pill text-bg-light border">{{ w.name|default:w }}</span>
+                  <span class="context-pill context-pill--outline tone-survey">{{ w.name|default:w }}</span>
                 {% endfor %}
               </div>
             {% else %}
@@ -188,7 +188,7 @@
   </div>
   
   <!-- Value-Label: 1 Accordion-Card-->
-  <div class="accordion mb-3" id="vallabAccordion-{{ variable.pk }}">
+  <div class="accordion tone-accordion tone-accordion--solid tone-variable mb-3" id="vallabAccordion-{{ variable.pk }}">
     <div class="accordion-item">
       <h2 class="accordion-header" id="headingVallab-{{ variable.pk }}">
         <button class="accordion-button" type="button"
@@ -235,7 +235,7 @@
   </div>
 
   <!-- Eigenschaften: bis zu 4 Accordion-Cards, nur aktive Flags -->
-  <div class="accordion" id="eigenschaftenAccordion-{{ variable.pk }}">
+  <div class="accordion tone-accordion tone-accordion--solid tone-variable" id="eigenschaftenAccordion-{{ variable.pk }}">
     {% if flags_active %}
         <div class="accordion-item">
           <h2 class="accordion-header" id="headingEigenschaften-{{ variable.pk }}">
@@ -257,7 +257,7 @@
                 {% for f in flags_active %}
                   <div id="reason-{{ f.key }}-{{ variable.pk }}" class="card border-0 shadow-sm">
                     <div class="card-body py-2 px-3 d-flex align-items-baseline">
-                      <span class="badge text-bg-primary me-3 flex-shrink-0 text-center"
+                      <span class="badge entity-badge tone-variable me-3 flex-shrink-0 text-center"
                             style="width: 6rem;">{{ f.label }}</span>
                       <div class="small text-body flex-grow-1">
                         {{ f.reason|default:"Kein Grund hinterlegt."|linebreaksbr }}

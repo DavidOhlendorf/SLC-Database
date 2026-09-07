@@ -114,13 +114,9 @@
 
 
 /* ------------------------------------------
-   Fokus
+   Badge
    ------------------------------------------ */
 
-.context-pill--interactive:focus-visible {
-  outline: 2px solid var(--color-action-500);
-  outline-offset: 2px;
-}
 
 .context-pill__badge {
   display: inline-flex;
@@ -132,10 +128,44 @@
   min-width: 1.2rem;
   padding: 0 0.25rem !important;
 
+  border: 1px solid transparent;
   border-radius: var(--bs-border-radius-pill) !important;
 
   font-size: 0.58rem;
   line-height: 1;
+}
+
+/* Badge in Outline-Pill:
+   kräftige Tone-Fläche mit weißer Schrift */
+.context-pill--outline .context-pill__badge {
+  color: var(--color-on-strong);
+  background-color: var(--tone-600);
+  border-color: var(--tone-600);
+}
+
+
+/* Badge in Solid-Pill:
+   weißer Kontrast auf kräftiger Pill */
+.context-pill--solid .context-pill__badge {
+  color: var(--tone-700);
+  background-color: var(--color-on-strong);
+  border-color: var(--color-on-strong);
+}
+
+.context-pill--interactive.active .context-pill__badge,
+.context-pill--interactive[aria-current="page"] .context-pill__badge {
+  color: var(--tone-700);
+  background-color: var(--color-on-strong);
+  border-color: var(--color-on-strong);
+}
+
+/* ------------------------------------------
+   Fokus
+   ------------------------------------------ */
+
+.context-pill--interactive:focus-visible {
+  outline: 2px solid var(--color-action-500);
+  outline-offset: 2px;
 }
 
 
@@ -541,4 +571,26 @@ button.icon-action--tone:disabled i {
   outline: 2px solid var(--color-on-strong);
   outline-offset: 1px;
 }
+
+/* ==========================================
+   Action Links
+   ========================================== */
+
+.action-link {
+  color: var(--color-action-600);
+  text-decoration: none;
+
+  transition: color var(--transition-fast);
+}
+
+.action-link:hover {
+  color: var(--color-action-700);
+  text-decoration: underline;
+}
+
+.action-link:focus-visible {
+  outline: 2px solid var(--color-action-500);
+  outline-offset: 2px;
+}
+
 

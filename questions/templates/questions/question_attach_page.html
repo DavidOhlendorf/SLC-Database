@@ -8,7 +8,7 @@
     Diese Frage ist aktuell keiner Seite zugeordnet. Bitte wähle zuerst eine Befragung und dann eine Seite.
   </p>
 
-  <div class="card">
+  <div class="card entity-card tone-question">
     <div class="card-body">
       <h5 class="card-title">Frage #{{ question.id }}</h5>
       <p class="card-text">
@@ -32,7 +32,7 @@
         </div>
 
         <div class="d-flex gap-2">
-          <button class="btn btn-primary" type="submit">Zuordnen</button>
+          <button class="btn btn-tone-solid tone-question" type="submit">Zuordnen</button>
           <a class="btn btn-outline-secondary" href="{% url 'questions:question_detail' question.id %}">Abbrechen</a>
         </div>
       </form>
