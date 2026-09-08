@@ -201,8 +201,8 @@ def attach_existing_question(
             "Mindestens eine Befragungsgruppe muss ausgewählt werden."
         )
 
-    # Die gemeinsame Zielseite darf nicht an einer abgeschlossenen Wave hängen.
-    # WavePageQuestion selbst ist nicht wave-spezifisch.
+    # Die gemeinsame Zielseite darf nicht an einer abgeschlossenen Wave hängen,
+    # weil durch die Wiederverwendung die gemeinsame Seitenstruktur verändert wird.
     if page.waves.filter(is_locked=True).exists():
         raise ValueError(
             "Die Zielseite ist mit einer abgeschlossenen Befragung verknüpft."
@@ -262,7 +262,10 @@ def attach_existing_question(
 
         page_link = (
             WavePageQuestion.objects
-            .filter(wave_page=page, question=question)
+            .filter(
+                wave_page=page,
+                question=question,
+            )
             .first()
         )
 
@@ -275,7 +278,7 @@ def attach_existing_question(
                 .aggregate(max_order=Max("sort_order"))["max_order"]
             )
 
-            WavePageQuestion.objects.create(
+            page_link = WavePageQuestion.objects.create(
                 wave_page=page,
                 question=question,
                 sort_order=(
@@ -284,6 +287,10 @@ def attach_existing_question(
                     else 0
                 ),
             )
+
+        # Die bestehende Frage gilt auf dieser Seite zusätzlich
+        # für die ausgewählten Ziel-Waves.
+        page_link.waves.add(*wave_ids_unique)
 
         # ------------------------------------------------------------
         # 2. Frage mit den ausgewählten Ziel-Waves verknüpfen

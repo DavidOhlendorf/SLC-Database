@@ -839,13 +839,14 @@ class QuestionReuseView(EditorRequiredMixin, View):
         #
         # Das dient später ausschließlich zur WARNUNG im Modal.
         # Es blockiert die Übernahme nicht.
-        existing_question_pages = (
-            WavePage.objects
+        existing_question_links = (
+            WavePageQuestion.objects
             .filter(
-                page_questions__question=question,
+                question=question,
                 waves__survey=selected_survey,
                 waves__is_locked=False,
             )
+            .select_related("wave_page")
             .prefetch_related(
                 Prefetch(
                     "waves",
@@ -858,13 +859,13 @@ class QuestionReuseView(EditorRequiredMixin, View):
 
         existing_pages_by_wave = {}
 
-        for existing_page in existing_question_pages:
+        for link in existing_question_links:
             page_payload = {
-                "id": existing_page.id,
-                "name": self._page_label(existing_page),
+                "id": link.wave_page.id,
+                "name": self._page_label(link.wave_page),
             }
 
-            for wave in existing_page.reuse_existing_waves:
+            for wave in link.reuse_existing_waves:
                 existing_pages_by_wave.setdefault(
                     wave.id,
                     [],
