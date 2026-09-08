@@ -36,6 +36,7 @@ from .utils import (
     VariableVersionRequest,
     create_question_for_page,
     create_question_version,
+    attach_existing_question,
 )
 from variables.versioning import (
     VariableNameSchemaError,
@@ -665,6 +666,464 @@ class QuestionVersionCreateView(EditorRequiredMixin, View):
             "ok": True,
             "redirect_url": redirect_url,
         })
+
+
+class QuestionReuseView(EditorRequiredMixin, View):
+    """
+    AJAX-Endpunkt zum unveränderten Wiederverwenden einer bestehenden Frage
+    in einer weiteren Befragung.
+
+    GET:
+    - liefert verfügbare Zielbefragungen
+    - liefert Variablen der aktiven Ausgangs-Wave
+    - liefert für eine ausgewählte Zielbefragung deren Seiten und Waves
+
+    POST:
+    - verknüpft die bestehende Frage mit Zielseite und Ziel-Waves
+    - übernimmt optional ausgewählte bestehende Variablen
+    """
+
+    http_method_names = ["get", "post"]
+
+    @staticmethod
+    def _wave_label(wave: Wave) -> str:
+        return f"{wave.cycle} – {wave.instrument}"
+
+    @staticmethod
+    def _page_label(page: WavePage) -> str:
+        heading = (page.page_heading or "").strip()
+        return f"{page.pagename} – {heading}" if heading else page.pagename
+
+    def get(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(Question, pk=pk)
+
+        survey_id = request.GET.get("survey")
+        source_wave_id = request.GET.get("source_wave")
+
+        # ------------------------------------------------------------
+        # 1. Initialer Abruf beim Öffnen des Modals
+        # ------------------------------------------------------------
+        if not survey_id:
+            source_wave = None
+            variables = []
+
+            if source_wave_id:
+                try:
+                    source_wave_id = int(source_wave_id)
+                except (TypeError, ValueError):
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": "Ungültige Ausgangs-Befragungsgruppe.",
+                        },
+                        status=400,
+                    )
+
+                source_wave = (
+                    question.waves
+                    .filter(pk=source_wave_id)
+                    .select_related("survey")
+                    .first()
+                )
+
+                if source_wave is None:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": (
+                                "Die ausgewählte Ausgangs-Befragungsgruppe "
+                                "gehört nicht zu dieser Frage."
+                            ),
+                        },
+                        status=400,
+                    )
+
+                source_variables = (
+                    Variable.objects
+                    .filter(
+                        question_variable_wave_links__question=question,
+                        question_variable_wave_links__wave=source_wave,
+                    )
+                    .distinct()
+                    .order_by("varname", "id")
+                )
+
+                variables = [
+                    {
+                        "id": variable.id,
+                        "varname": variable.varname,
+                        "varlab": variable.varlab or "",
+                    }
+                    for variable in source_variables
+                ]
+
+            surveys = (
+                Survey.objects
+                .filter(
+                    waves__is_locked=False,
+                    waves__pages__isnull=False,
+                )
+                .order_by("-year", "name", "id")
+                .distinct()
+            )
+
+            return JsonResponse({
+                "ok": True,
+                "surveys": [
+                    {
+                        "id": survey.id,
+                        "label": str(survey),
+                    }
+                    for survey in surveys
+                ],
+                "source_wave": (
+                    {
+                        "id": source_wave.id,
+                        "label": str(source_wave),
+                    }
+                    if source_wave
+                    else None
+                ),
+                "variables": variables,
+            })
+
+        # ------------------------------------------------------------
+        # 2. Seiten/Waves für ausgewählte Zielbefragung laden
+        # ------------------------------------------------------------
+
+        try:
+            survey_id = int(survey_id)
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Ungültige Zielbefragung.",
+                },
+                status=400,
+            )
+
+        selected_survey = (
+            Survey.objects
+            .filter(
+                pk=survey_id,
+                waves__is_locked=False,
+            )
+            .distinct()
+            .first()
+        )
+
+        if selected_survey is None:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Ungültige oder abgeschlossene Zielbefragung.",
+                },
+                status=400,
+            )
+
+        available_waves = (
+            Wave.objects
+            .filter(
+                survey=selected_survey,
+                is_locked=False,
+            )
+            .order_by("cycle", "instrument", "id")
+        )
+
+        # Seiten, auf denen diese Frage innerhalb der Zielbefragung
+        # bereits verwendet wird.
+        #
+        # Das dient später ausschließlich zur WARNUNG im Modal.
+        # Es blockiert die Übernahme nicht.
+        existing_question_pages = (
+            WavePage.objects
+            .filter(
+                page_questions__question=question,
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            .prefetch_related(
+                Prefetch(
+                    "waves",
+                    queryset=available_waves,
+                    to_attr="reuse_existing_waves",
+                )
+            )
+            .distinct()
+        )
+
+        existing_pages_by_wave = {}
+
+        for existing_page in existing_question_pages:
+            page_payload = {
+                "id": existing_page.id,
+                "name": self._page_label(existing_page),
+            }
+
+            for wave in existing_page.reuse_existing_waves:
+                existing_pages_by_wave.setdefault(
+                    wave.id,
+                    [],
+                ).append(page_payload)
+
+        # Mögliche Zielseiten.
+        #
+        # Wie bei der Versionierung schließen wir Seiten aus, die zugleich
+        # mit mindestens einer abgeschlossenen Wave verbunden sind.
+        pages = (
+            WavePage.objects
+            .filter(
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            .exclude(waves__is_locked=True)
+            .prefetch_related(
+                Prefetch(
+                    "waves",
+                    queryset=available_waves,
+                    to_attr="reuse_target_waves",
+                )
+            )
+            .order_by("pagename", "id")
+            .distinct()
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "pages": [
+                {
+                    "id": page.id,
+                    "name": self._page_label(page),
+                    "waves": [
+                        {
+                            "id": wave.id,
+                            "label": self._wave_label(wave),
+
+                            # Für die spätere Warnung im Modal:
+                            "existing_question_pages": (
+                                existing_pages_by_wave.get(
+                                    wave.id,
+                                    [],
+                                )
+                            ),
+                        }
+                        for wave in page.reuse_target_waves
+                    ],
+                }
+                for page in pages
+            ],
+        })
+
+    def post(self, request, pk, *args, **kwargs):
+        question = get_object_or_404(Question, pk=pk)
+
+        def error_response(message, status=400):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": message,
+                },
+                status=status,
+            )
+
+        survey_id = request.POST.get("survey_id")
+        page_id = request.POST.get("page_id")
+
+        selected_wave_ids = request.POST.getlist("wave_ids")
+        selected_variable_ids = request.POST.getlist("variable_ids")
+
+        source_wave_id = request.POST.get("source_wave_id")
+
+        # ------------------------------------------------------------
+        # Grundlegende Eingaben prüfen
+        # ------------------------------------------------------------
+
+        if not survey_id:
+            return error_response(
+                "Bitte wähle eine Zielbefragung aus."
+            )
+
+        if not page_id:
+            return error_response(
+                "Bitte wähle eine Zielseite aus."
+            )
+
+        if not selected_wave_ids:
+            return error_response(
+                "Bitte wähle mindestens eine Befragtengruppe aus."
+            )
+
+        try:
+            survey_id = int(survey_id)
+            page_id = int(page_id)
+
+            selected_wave_ids = [
+                int(wave_id)
+                for wave_id in selected_wave_ids
+            ]
+
+            selected_variable_ids = [
+                int(variable_id)
+                for variable_id in selected_variable_ids
+            ]
+
+        except (TypeError, ValueError):
+            return error_response(
+                "Die Befragungs-, Seiten-, Gruppen- oder "
+                "Variablenauswahl ist ungültig."
+            )
+
+        # ------------------------------------------------------------
+        # Zielbefragung prüfen
+        # ------------------------------------------------------------
+
+        selected_survey = (
+            Survey.objects
+            .filter(pk=survey_id)
+            .first()
+        )
+
+        if selected_survey is None:
+            return error_response(
+                "Die ausgewählte Zielbefragung existiert nicht."
+            )
+
+        # ------------------------------------------------------------
+        # Zielseite prüfen
+        # ------------------------------------------------------------
+
+        page = (
+            WavePage.objects
+            .filter(
+                pk=page_id,
+                waves__survey=selected_survey,
+                waves__is_locked=False,
+            )
+            .exclude(waves__is_locked=True)
+            .distinct()
+            .first()
+        )
+
+        if page is None:
+            return error_response(
+                "Die ausgewählte Zielseite gehört nicht zur "
+                "Zielbefragung oder ist nicht bearbeitbar."
+            )
+
+        # ------------------------------------------------------------
+        # Ziel-Waves prüfen
+        # ------------------------------------------------------------
+
+        allowed_wave_ids = set(
+            page.waves
+            .filter(
+                survey=selected_survey,
+                is_locked=False,
+            )
+            .values_list("id", flat=True)
+        )
+
+        if not set(selected_wave_ids).issubset(allowed_wave_ids):
+            return error_response(
+                "Mindestens eine ausgewählte Befragtengruppe gehört "
+                "nicht zur Zielbefragung und Zielseite oder ist abgeschlossen."
+            )
+
+        # ------------------------------------------------------------
+        # Ausgangs-Wave nur erforderlich, wenn Variablen gewählt wurden
+        # ------------------------------------------------------------
+
+        source_wave = None
+
+        if selected_variable_ids:
+            if not source_wave_id:
+                return error_response(
+                    "Für die Variablenübernahme fehlt die "
+                    "Ausgangs-Befragungsgruppe."
+                )
+
+            try:
+                source_wave_id = int(source_wave_id)
+            except (TypeError, ValueError):
+                return error_response(
+                    "Ungültige Ausgangs-Befragungsgruppe."
+                )
+
+            source_wave = (
+                question.waves
+                .filter(pk=source_wave_id)
+                .first()
+            )
+
+            if source_wave is None:
+                return error_response(
+                    "Die Ausgangs-Befragungsgruppe gehört nicht "
+                    "zu dieser Frage."
+                )
+
+        # ------------------------------------------------------------
+        # Bestehende Frage übernehmen
+        # ------------------------------------------------------------
+
+        try:
+            result = attach_existing_question(
+                question=question,
+                page=page,
+                wave_ids=selected_wave_ids,
+                source_wave=source_wave,
+                variable_ids=selected_variable_ids,
+            )
+
+        except ValueError as exc:
+            return error_response(str(exc))
+
+        except IntegrityError:
+            return error_response(
+                "Die Frage konnte aufgrund einer zwischenzeitlichen "
+                "Änderung nicht übernommen werden. Bitte öffne den "
+                "Dialog erneut.",
+                status=409,
+            )
+
+        # ------------------------------------------------------------
+        # Erfolgsmeldung
+        # ------------------------------------------------------------
+
+        variable_count = len(result.variables)
+
+        if variable_count == 1:
+            variable_message = " Eine Variable wurde übernommen."
+        elif variable_count > 1:
+            variable_message = (
+                f" {variable_count} Variablen wurden übernommen."
+            )
+        else:
+            variable_message = (
+                " Es wurden keine Variablen übernommen."
+            )
+
+        messages.success(
+            request,
+            "Die Frage wurde unverändert übernommen."
+            + variable_message,
+        )
+
+        active_wave = result.waves[0]
+
+        page_url = reverse(
+            "pages:page-detail",
+            kwargs={"pk": page.pk},
+        )
+
+        redirect_url = (
+            f"{page_url}?wave={active_wave.pk}"
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "redirect_url": redirect_url,
+        })
+
 
 
 # View zum Bearbeiten einer Frage    

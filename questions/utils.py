@@ -1,5 +1,5 @@
 # questions/utils.py
-# Utility-Funktionen zum Anlegen und Versionieren von Fragen
+# Utility-Funktionen zum Anlegen, Wiederverwenden und Versionieren von Fragen
 from __future__ import annotations
 
 import re
@@ -35,6 +35,15 @@ class CreateQuestionVersionResult:
     version_group: QuestionVersionGroup
     waves: list[Wave]
     variables: list[Variable]
+
+@dataclass(frozen=True)
+class AttachExistingQuestionResult:
+    question: Question
+    page: WavePage
+    waves: list[Wave]
+    variables: list[Variable]
+    page_link_created: bool
+
 
 
 def _unique_ids(ids: Sequence[int]) -> list[int]:
@@ -149,6 +158,191 @@ def create_question_for_page(
         )
 
     return CreateQuestionForPageResult(question=q, waves=selected_waves)
+
+
+
+def attach_existing_question(
+    *,
+    question: Question,
+    page: WavePage,
+    wave_ids: Sequence[int],
+    source_wave: Wave | None = None,
+    variable_ids: Sequence[int] = (),
+) -> AttachExistingQuestionResult:
+    """
+    Verwendet eine bestehende Frage unverändert auf einer weiteren Seite/Wave.
+
+    Es wird keine neue ``Question`` und keine neue ``Variable`` angelegt.
+    Stattdessen werden nur die bestehenden Beziehungen ergänzt:
+
+    - ``WavePageQuestion`` für die Zielseite
+    - ``WaveQuestion`` für die ausgewählten Ziel-Waves
+    - optional ``QuestionVariableWave`` und ``Variable.waves`` für ausgewählte
+      Variablen aus der angegebenen Ausgangs-Wave
+
+    ``source_wave`` ist nur erforderlich, wenn Variablen übernommen werden.
+    """
+
+    wave_ids_unique = _unique_ids(wave_ids)
+    if not wave_ids_unique:
+        raise ValueError(
+            "Mindestens eine Befragungsgruppe muss ausgewählt werden."
+        )
+
+    # Die gemeinsame Zielseite darf nicht an einer abgeschlossenen Wave hängen.
+    # WavePageQuestion selbst ist nicht wave-spezifisch.
+    if page.waves.filter(is_locked=True).exists():
+        raise ValueError(
+            "Die Zielseite ist mit einer abgeschlossenen Befragung verknüpft."
+        )
+
+    allowed_wave_ids = set(
+        page.waves.filter(is_locked=False).values_list("id", flat=True)
+    )
+
+    if not set(wave_ids_unique).issubset(allowed_wave_ids):
+        raise ValueError(
+            "Mindestens eine ausgewählte Befragungsgruppe gehört nicht zur "
+            "Zielseite oder ist abgeschlossen."
+        )
+
+    variable_ids_unique = _unique_ids(variable_ids)
+    selected_variables: list[Variable] = []
+
+    # Nur wenn tatsächlich Variablen übernommen werden sollen,
+    # benötigen wir die Ausgangs-Wave.
+    if variable_ids_unique:
+        if source_wave is None:
+            raise ValueError(
+                "Für die Variablenübernahme fehlt die Ausgangs-Befragungsgruppe."
+            )
+
+        # Es dürfen ausschließlich Variablen übernommen werden,
+        # die bei dieser Frage in der Ausgangs-Wave tatsächlich vorkommen.
+        allowed_variable_ids = set(
+            QuestionVariableWave.objects
+            .filter(question=question, wave=source_wave)
+            .values_list("variable_id", flat=True)
+        )
+
+        if not set(variable_ids_unique).issubset(allowed_variable_ids):
+            raise ValueError(
+                "Mindestens eine ausgewählte Variable gehört nicht zur Frage "
+                "in der Ausgangs-Befragungsgruppe."
+            )
+
+        variables_by_id = {
+            variable.id: variable
+            for variable in Variable.objects.filter(id__in=variable_ids_unique)
+        }
+
+        selected_variables = [
+            variables_by_id[variable_id]
+            for variable_id in variable_ids_unique
+            if variable_id in variables_by_id
+        ]
+
+    with transaction.atomic():
+
+        # ------------------------------------------------------------
+        # 1. Frage mit Zielseite verknüpfen
+        # ------------------------------------------------------------
+
+        page_link = (
+            WavePageQuestion.objects
+            .filter(wave_page=page, question=question)
+            .first()
+        )
+
+        page_link_created = page_link is None
+
+        if page_link_created:
+            last_sort_order = (
+                WavePageQuestion.objects
+                .filter(wave_page=page)
+                .aggregate(max_order=Max("sort_order"))["max_order"]
+            )
+
+            WavePageQuestion.objects.create(
+                wave_page=page,
+                question=question,
+                sort_order=(
+                    last_sort_order + 1
+                    if last_sort_order is not None
+                    else 0
+                ),
+            )
+
+        # ------------------------------------------------------------
+        # 2. Frage mit den ausgewählten Ziel-Waves verknüpfen
+        # ------------------------------------------------------------
+
+        WaveQuestion.objects.bulk_create(
+            [
+                WaveQuestion(
+                    wave_id=wave_id,
+                    question=question,
+                )
+                for wave_id in wave_ids_unique
+            ],
+            ignore_conflicts=True,
+        )
+
+        # ------------------------------------------------------------
+        # 3. Optional ausgewählte Variablen übernehmen
+        # ------------------------------------------------------------
+
+        if variable_ids_unique:
+            QuestionVariableWave.objects.bulk_create(
+                [
+                    QuestionVariableWave(
+                        question=question,
+                        variable_id=variable_id,
+                        wave_id=wave_id,
+                    )
+                    for variable_id in variable_ids_unique
+                    for wave_id in wave_ids_unique
+                ],
+                ignore_conflicts=True,
+            )
+
+            # Zusätzlich das direkte Variable <-> Wave M2M pflegen.
+            VariableWaveThrough = Variable.waves.through
+
+            VariableWaveThrough.objects.bulk_create(
+                [
+                    VariableWaveThrough(
+                        variable_id=variable_id,
+                        wave_id=wave_id,
+                    )
+                    for variable_id in variable_ids_unique
+                    for wave_id in wave_ids_unique
+                ],
+                ignore_conflicts=True,
+            )
+
+    # Reihenfolge aus der Nutzerauswahl erhalten.
+    selected_waves_by_id = {
+        wave.id: wave
+        for wave in Wave.objects.filter(id__in=wave_ids_unique)
+    }
+
+    selected_waves = [
+        selected_waves_by_id[wave_id]
+        for wave_id in wave_ids_unique
+        if wave_id in selected_waves_by_id
+    ]
+
+    return AttachExistingQuestionResult(
+        question=question,
+        page=page,
+        waves=selected_waves,
+        variables=selected_variables,
+        page_link_created=page_link_created,
+    )
+
+
+
 
 
 def create_question_version(
