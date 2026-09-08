@@ -67,7 +67,7 @@ def _extract_posted_question_ids(post_data, prefix="qfs"):
 def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=None):
     """
     Baut das PageQuestionLinkFormSet entweder:
-    - GET: mit `initial` aus DB (WavePageQuestion + WaveQuestion)
+    - # GET: mit `initial` aus DB (WavePageQuestion + WavePageQuestion.waves)
     - POST: gebunden mit post_data (Formset validiert dann gegen allowed_waves)
     """
     allowed_waves = allowed_waves.order_by("cycle", "instrument", "id")
@@ -77,6 +77,13 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
         WavePageQuestion.objects
         .filter(wave_page=page)
         .select_related("question")
+        .prefetch_related(
+            Prefetch(
+                "waves",
+                queryset=allowed_waves,
+                to_attr="selected_waves",
+            )
+        )
         .order_by("sort_order", "id")
     )
     page_question_ids = {x.question_id for x in wpq_qs}
@@ -98,27 +105,15 @@ def _build_question_formset_for_page(*, page, allowed_waves, method, post_data=N
             },
         )
 
-    # GET: initial auslesen
-    q_ids = [x.question_id for x in wpq_qs]
-
-    wave_map = {}
-    if q_ids and allowed_waves.exists():
-        wq_qs = (
-            WaveQuestion.objects
-            .filter(question_id__in=q_ids, wave__in=allowed_waves)
-            .select_related("wave")
-        )
-        for wq in wq_qs:
-            wave_map.setdefault(wq.question_id, []).append(wq.wave)
-
+        # GET: seitenbezogene Wave-Zuordnungen direkt aus WavePageQuestion.waves
     initial = [
-    {
-        "question": link.question,
-        "waves": wave_map.get(link.question_id, []),
-        "sort_order": link.sort_order,
-    }
-    for link in wpq_qs
-]
+        {
+            "question": link.question,
+            "waves": list(link.selected_waves),
+            "sort_order": link.sort_order,
+        }
+        for link in wpq_qs
+    ]
 
     allowed_questions = Question.objects.filter(id__in=page_question_ids)
 
@@ -213,14 +208,11 @@ class WavePageDetailView(DetailView):
             .order_by("sort_order", "id")
         )
 
-        # Falls keine wave verknüpft ist, nicht filtern
+        # Falls eine Wave aktiv ist, nur Fragen anzeigen,
+        # die auf genau dieser Seite für diese Wave aktiviert sind.
         if active_wave:
-            wave_question_ids = WaveQuestion.objects.filter(
-                wave=active_wave
-            ).values_list("question_id", flat=True)
-
             page_questions_qs = page_questions_qs.filter(
-                question_id__in=wave_question_ids
+                waves=active_wave
             )
         
         # Gib die Info mit, ob die Seite mit einer gesperrten Befragung verknüpft ist
@@ -756,10 +748,19 @@ class WavePagePVView(EditorRequiredMixin, DetailView):
             except (ValueError, Wave.DoesNotExist):
                 active_wave = None
 
-
         # Fragen der Seite
-        links = page.page_questions.select_related("question").order_by("sort_order", "id")
-        questions = [l.question for l in links]
+        links = (
+            page.page_questions
+            .select_related("question")
+            .order_by("sort_order", "id")
+        )
+
+        # Wenn eine Wave ausgewählt ist, nur Fragen berücksichtigen,
+        # die auf genau dieser Seite für diese Wave aktiviert sind.
+        if active_wave:
+            links = links.filter(waves=active_wave)
+
+        questions = [link.question for link in links]
         q_ids = [q.id for q in questions]
 
         # Variablen der Fragen, jede Frage bekommt einen Key (auch wenn leer)
@@ -964,21 +965,53 @@ class WavePageCopyView(EditorRequiredMixin, View):
 
         # --- 2) Fragen übernehmen
         if include_questions:
-            WavePageQuestion.objects.bulk_create(
+
+            # 2a) Fragen auf der neuen Seite anlegen
+            new_page_links = [
+                WavePageQuestion(
+                    wave_page=new_page,
+                    question_id=link.question_id,
+                    sort_order=link.sort_order,
+                )
+                for link in source_page_links
+            ]
+
+            WavePageQuestion.objects.bulk_create(new_page_links)
+
+            # 2b) Seitenbezogene Wave-Zuordnung setzen
+            #
+            # Beim Seitenkopieren gelten – wie bisher – alle übernommenen Fragen
+            # für alle vom Nutzer ausgewählten Ziel-Waves.
+            page_question_wave_through = (
+                WavePageQuestion
+                ._meta
+                .get_field("waves")
+                .remote_field
+                .through
+            )
+
+            page_question_wave_through.objects.bulk_create(
                 [
-                    WavePageQuestion(
-                        wave_page=new_page,
-                        question_id=link.question_id,
-                        sort_order=link.sort_order,
+                    page_question_wave_through(
+                        wavepagequestion_id=page_link.id,
+                        wave_id=wave.id,
                     )
-                    for link in source_page_links
+                    for page_link in new_page_links
+                    for wave in target_waves
                 ],
                 ignore_conflicts=True,
             )
 
-            # Links Frage->Gruppe kopieren
+            # 2c) Globale Frage↔Wave-Zuordnung weiterhin pflegen
             WaveQuestion.objects.bulk_create(
-                [WaveQuestion(wave_id=w.id, question_id=qid) for w in target_waves for qid in qids],
+                [
+                    WaveQuestion(
+                        wave_id=wave.id,
+                        question_id=qid,
+                    )
+                    for wave in target_waves
+                    for qid in qids
+                ],
                 ignore_conflicts=True,
             )
 

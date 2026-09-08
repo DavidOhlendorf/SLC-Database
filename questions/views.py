@@ -231,7 +231,11 @@ class QuestionDetail(DetailView):
 
             pages = list(
                 WavePage.objects
-                .filter(page_questions__question=question, waves=active_wave)
+                .filter(
+                    page_questions__question=question,
+                    page_questions__waves=active_wave,
+                    waves=active_wave,
+                )
                 .only("id", "pagename")
                 .distinct()
                 .order_by("id")
@@ -1483,8 +1487,20 @@ class QuestionAttachPageView(EditorRequiredMixin, View):
         page = form.cleaned_data["wave_page"]      # Seite dieser wave, und keine locked-wave enthalten
 
         with transaction.atomic():
-            WavePageQuestion.objects.get_or_create(wave_page=page, question=question)
-            WaveQuestion.objects.get_or_create(wave=wave, question=question)
+            page_link, _ = WavePageQuestion.objects.get_or_create(
+                wave_page=page,
+                question=question,
+            )
+
+            # Explizite Zuordnung:
+            # Diese Frage gilt auf genau dieser Seite für diese Wave.
+            page_link.waves.add(wave)
+
+            # Globale Zuordnung weiterhin pflegen.
+            WaveQuestion.objects.get_or_create(
+                wave=wave,
+                question=question,
+            )
 
         messages.success(request, f"Seite '{page}' wurde zugeordnet.")
 

@@ -137,6 +137,12 @@ class WavePageQuestion(models.Model):
         related_name="page_links",
     )
 
+    waves = models.ManyToManyField(
+        "waves.Wave",
+        related_name="page_question_links",
+        blank=True,
+    )
+
     sort_order = models.PositiveIntegerField(default=0)
 
     class Meta:
