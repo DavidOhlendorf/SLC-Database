@@ -411,7 +411,7 @@
 
       const row = document.createElement("div");
       row.className =
-        "form-check px-3 py-2 border-bottom";
+        "form-check ps-5 pe-3 py-2 border-bottom";
 
 
       const input = document.createElement("input");
