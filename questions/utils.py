@@ -28,32 +28,54 @@ def create_question_for_page(
     """
     Legt eine neue Question an und verknüpft sie
     - mit der Fragebogenseite (WavePageQuestion)
-    - mit den ausgewählten Befragtengruppen (WaveQuestion)
+    - auf dieser Seite mit den ausgewählten Befragtengruppen
+      (WavePageQuestion.waves)
+    - global mit den ausgewählten Befragtengruppen (WaveQuestion)
 
     Validierung der UI-Regeln (z.B. locked) sollte die View machen.
     Diese Funktion geht davon aus, dass wave_ids bereits "erlaubt" sind.
     """
 
-    # defensive: Duplikate raus, Reihenfolge stabil halten
+    # Defensive: Duplikate raus, Reihenfolge stabil halten
     wave_ids_unique = []
     seen = set()
+
     for wid in wave_ids:
         if wid not in seen:
             seen.add(wid)
             wave_ids_unique.append(wid)
 
-    selected_waves = list(Wave.objects.filter(id__in=wave_ids_unique))
+    selected_waves = list(
+        Wave.objects.filter(id__in=wave_ids_unique)
+    )
 
     with transaction.atomic():
         # Neue Frage anlegen
-        q = Question.objects.create(questiontext=questiontext)
-
-        # Verknüpfung mit Seite
-        WavePageQuestion.objects.create(wave_page=page, question=q)
-
-        # Verknüpfung mit Befragtengruppen
-        WaveQuestion.objects.bulk_create(
-            [WaveQuestion(wave_id=wid, question=q) for wid in wave_ids],
+        q = Question.objects.create(
+            questiontext=questiontext
         )
 
-    return CreateQuestionForPageResult(question=q, waves=selected_waves)
+        # Verknüpfung mit Seite
+        page_link = WavePageQuestion.objects.create(
+            wave_page=page,
+            question=q,
+        )
+
+        # Seitenbezogene Verknüpfung mit Befragtengruppen
+        page_link.waves.set(selected_waves)
+
+        # Globale Verknüpfung mit Befragtengruppen
+        WaveQuestion.objects.bulk_create(
+            [
+                WaveQuestion(
+                    wave_id=wid,
+                    question=q,
+                )
+                for wid in wave_ids_unique
+            ],
+        )
+
+    return CreateQuestionForPageResult(
+        question=q,
+        waves=selected_waves,
+    )

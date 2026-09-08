@@ -4,8 +4,11 @@ from django.urls import reverse, path
 from django.shortcuts import render
 
 from .forms import ScreenshotImportForm, QmlImportForm
+
 from .services.screenshot_import import import_screenshots_from_csv
 from .services.qml_import import import_qml_from_zip
+from .services.page_sync import sync_wavequestions_for_page
+from .services.page_cleanup import apply_question_removals_from_page
 
 from .models import WavePage, WavePageQuestion, WavePageScreenshot, WavePageQml
 
@@ -14,7 +17,7 @@ from .models import WavePage, WavePageQuestion, WavePageScreenshot, WavePageQml
 class WavePageQuestionInline(admin.TabularInline):
     model = WavePageQuestion
     extra = 1
-    fields = ("question", "sort_order")
+    fields = ("question", "waves", "sort_order")
     ordering = ("sort_order", "id")
     
 
@@ -57,6 +60,44 @@ class WavePageQuestionInline(admin.TabularInline):
                 kwargs["queryset"] = QuestionModel.objects.none()
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+
+        if db_field.name == "waves":
+            WaveModel = db_field.remote_field.model
+
+            # Im Inline gehört object_id zur bearbeiteten WavePage.
+            object_id = request.resolver_match.kwargs.get("object_id")
+
+            if object_id:
+                wave_page = WavePage.objects.filter(pk=object_id).first()
+
+                if wave_page is not None:
+                    kwargs["queryset"] = (
+                        wave_page.waves
+                        .all()
+                        .order_by("cycle", "instrument", "id")
+                    )
+                else:
+                    kwargs["queryset"] = WaveModel.objects.none()
+            else:
+                kwargs["queryset"] = WaveModel.objects.none()
+
+        formfield = super().formfield_for_manytomany(
+            db_field,
+            request,
+            **kwargs,
+        )
+
+        if db_field.name == "waves" and formfield is not None:
+            formfield.required = True
+            formfield.help_text = (
+                "Wähle mindestens eine Befragtengruppe dieser Seite aus."
+            )
+
+        return formfield
 
 
 class WavePageScreenshotInline(admin.TabularInline):
@@ -110,22 +151,85 @@ class WavePageAdmin(admin.ModelAdmin):
         return ", ".join(str(w) for w in obj.waves.all())
     
     def save_related(self, request, form, formsets, change):
-        super().save_related(request, form, formsets, change)
 
-        # Nach dem Speichern: sort_order sauber neu setzen
         page = form.instance
+
+        # Vorherigen Fragenbestand merken, damit auch über den Admin
+        # gelöschte Fragen sauber bereinigt werden können.
+        old_question_ids = set(
+            WavePageQuestion.objects
+            .filter(wave_page=page)
+            .values_list("question_id", flat=True)
+        )
+
+        super().save_related(request, form, formsets, change)
 
         links = list(
             WavePageQuestion.objects
             .filter(wave_page=page)
+            .prefetch_related("waves")
             .order_by("sort_order", "id")
         )
+
+        current_question_ids = {
+            link.question_id
+            for link in links
+        }
+
+        allowed_wave_ids = set(
+            page.waves.values_list("id", flat=True)
+        )
+
+        # ------------------------------------------------------------
+        # 1. Entfernte Fragen bereinigen
+        # ------------------------------------------------------------
+
+        removed_question_ids = (
+            old_question_ids - current_question_ids
+        )
+
+        if removed_question_ids:
+            apply_question_removals_from_page(
+                page=page,
+                removed_question_ids=list(removed_question_ids),
+                wave_ids=list(allowed_wave_ids),
+                compute_orphans=False,
+            )
+
+        # ------------------------------------------------------------
+        # 2. Seitenbezogene Waves mit globalem WaveQuestion synchronisieren
+        # ------------------------------------------------------------
+
+        selected_waves_by_qid = {
+            link.question_id: set(
+                link.waves.values_list("id", flat=True)
+            )
+            for link in links
+        }
+
+        if selected_waves_by_qid:
+            sync_wavequestions_for_page(
+                page=page,
+                selected_waves_by_qid=selected_waves_by_qid,
+                allowed_wave_ids=allowed_wave_ids,
+            )
+
+        # ------------------------------------------------------------
+        # 3. sort_order sauber neu setzen
+        # ------------------------------------------------------------
+
+        links_to_update = []
 
         for idx, link in enumerate(links, start=1):
             if link.sort_order != idx:
                 link.sort_order = idx
+                links_to_update.append(link)
 
-        WavePageQuestion.objects.bulk_update(links, ["sort_order"])
+        if links_to_update:
+            WavePageQuestion.objects.bulk_update(
+                links_to_update,
+                ["sort_order"],
+            )
 
     get_waves.short_description = "Befragungen"
 
@@ -288,6 +392,34 @@ class WavePageQmlAdmin(admin.ModelAdmin):
 
 @admin.register(WavePageQuestion)
 class WavePageQuestionAdmin(admin.ModelAdmin):
-    list_display = ("wave_page", "question")
-    search_fields = ("wave_page__pagename", "question__questiontext")
-    list_select_related = ("wave_page", "question")
+    list_display = (
+        "wave_page",
+        "question",
+        "get_waves",
+        "sort_order",
+    )
+    search_fields = (
+        "wave_page__pagename",
+        "question__questiontext",
+    )
+    list_select_related = (
+        "wave_page",
+        "question",
+    )
+
+    def get_waves(self, obj):
+        return ", ".join(
+            str(wave)
+            for wave in obj.waves.all()
+        )
+
+    get_waves.short_description = "Befragtengruppen"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
