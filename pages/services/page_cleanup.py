@@ -20,6 +20,58 @@ class RemovalCleanupResult:
     orphan_question_ids: list[int]
 
 
+
+def _remove_page_question_wave_assignments(
+    *,
+    page: WavePage,
+    question_ids: Iterable[int],
+    wave_ids: Iterable[int],
+) -> int:
+    """
+    Entfernt die expliziten Wave-Zuordnungen der angegebenen Fragen
+    auf genau dieser Seite.
+
+    WavePageQuestion selbst bleibt dabei bestehen.
+    """
+
+    question_ids = set(int(x) for x in question_ids or [])
+    wave_ids = set(int(x) for x in wave_ids or [])
+
+    if not question_ids or not wave_ids:
+        return 0
+
+    page_link_ids = list(
+        WavePageQuestion.objects
+        .filter(
+            wave_page=page,
+            question_id__in=question_ids,
+        )
+        .values_list("id", flat=True)
+    )
+
+    if not page_link_ids:
+        return 0
+
+    through_model = (
+        WavePageQuestion
+        ._meta
+        .get_field("waves")
+        .remote_field
+        .through
+    )
+
+    deleted, _ = (
+        through_model.objects
+        .filter(
+            wavepagequestion_id__in=page_link_ids,
+            wave_id__in=wave_ids,
+        )
+        .delete()
+    )
+
+    return deleted
+
+
 # Funktion bereinigt Datenbankeinträge nach dem Entfernen von Fragen durh die Seitenbearbeitung.
 def apply_question_removals_from_page(
     *,
@@ -28,12 +80,22 @@ def apply_question_removals_from_page(
     wave_ids: list[int],
     compute_orphans: bool = True,
 ) -> RemovalCleanupResult:
+
+    # 1) Seitenbezogene Wave-Zuordnungen entfernen
+    _remove_page_question_wave_assignments(
+        page=page,
+        question_ids=removed_question_ids,
+        wave_ids=wave_ids,
+    )
+
+    # 2) Globale Question↔Wave-Zuordnungen ggf. entfernen
     deleted_wq = cleanup_wavequestions_for_removed_questions(
         page=page,
         removed_question_ids=removed_question_ids,
         wave_ids=wave_ids,
     )
 
+    # 3) QuestionVariableWave / Variable↔Wave bereinigen
     deleted_m2m_total = 0
     for wid in wave_ids:
         deleted_m2m_total += cleanup_after_removing_questions(
@@ -41,14 +103,17 @@ def apply_question_removals_from_page(
             removed_question_ids=removed_question_ids,
         )
 
-    orphan_qids = get_new_orphan_question_ids(removed_question_ids) if compute_orphans else []
+    orphan_qids = (
+        get_new_orphan_question_ids(removed_question_ids)
+        if compute_orphans
+        else []
+    )
 
     return RemovalCleanupResult(
         deleted_wavequestions=deleted_wq,
         deleted_variable_wave_links=deleted_m2m_total,
         orphan_question_ids=orphan_qids,
     )
-
 
 
 # Funktion bereinigt Datenbankeinträge nach dem Entfernen von Fragen durh die Seitenbearbeitung.
@@ -77,7 +142,7 @@ def cleanup_after_removing_questions(
     # 1) Welche Fragen kommen in dieser Befragungsgruppe (nach dem Entfernen) noch irgendwo auf Seiten vor?
     remaining_qids_in_wave: Set[int] = set(
         WavePageQuestion.objects
-        .filter(wave_page__waves__id=wave_id)
+        .filter(waves__id=wave_id)
         .values_list("question_id", flat=True)
         .distinct()
     )
@@ -149,7 +214,7 @@ def cleanup_wavequestions_for_removed_questions(*, page, removed_question_ids: l
 
     other_usage = WavePageQuestion.objects.filter(
         question_id=OuterRef("question_id"),
-        wave_page__waves__id=OuterRef("wave_id"),
+        waves__id=OuterRef("wave_id"),
     ).exclude(wave_page=page)
 
     wq_qs = WaveQuestion.objects.filter(
