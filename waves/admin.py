@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import Survey, Wave, WaveQuestion, WaveDocument
-from .resources import WaveResource, WaveQuestionResource
+from .resources import WaveResource
 
 
 @admin.register(Survey)
@@ -50,9 +50,26 @@ class WaveAdmin(ImportExportModelAdmin):
 
 
 @admin.register(WaveQuestion)
-class WaveQuestionAdmin(ImportExportModelAdmin):
-    resource_class = WaveQuestionResource
-    list_display = ("wave", "question")
+class WaveQuestionAdmin(admin.ModelAdmin):
+    list_display = (
+        "wave",
+        "question",
+        "legacy_screenshot_id",
+    )
     list_filter = ("wave",)
-    search_fields = ("question__questiontext", "wave__cycle")
+    search_fields = (
+        "question__questiontext",
+        "wave__cycle",
+    )
 
+    readonly_fields = (
+        "wave",
+        "question",
+        "legacy_screenshot_id",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
