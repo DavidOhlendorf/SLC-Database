@@ -7,9 +7,16 @@ from .models import Question, Keyword, Construct, ConstructPaper, QuestionVersio
 from .resources import QuestionResource, KeywordResource, ConstructResource, ConstructPaperResource
 from waves.models import WaveQuestion
 
+
 class WaveQuestionInline(admin.TabularInline):
     model = WaveQuestion
     extra = 0
+    can_delete = False
+    readonly_fields = ("wave", "legacy_screenshot_id")
+    fields = ("wave", "legacy_screenshot_id")
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 @admin.register(QuestionVersionGroup)
 class QuestionVersionGroupAdmin(admin.ModelAdmin):

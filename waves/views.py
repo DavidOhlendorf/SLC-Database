@@ -1,5 +1,4 @@
 from collections import defaultdict
-from itertools import groupby
 import json
 
 from django.views import View
@@ -11,7 +10,7 @@ from django.db.models import Count, Min, Max, Prefetch
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
-from .models import Survey, Wave, WaveModule, WaveQuestion, WaveDocument
+from .models import Survey, Wave, WaveModule, WaveDocument
 from pages.models import WavePageQuestion, WavePage, WavePageWave
 from questions.formatting import strip_pv_formatting
 
@@ -327,19 +326,14 @@ class SurveyDetailView(TemplateView):
                 .distinct()
             )
 
-            instrument_question_ids = (
-                WaveQuestion.objects
-                .filter(wave_id__in=instrument_wave_ids)
-                .values_list("question_id", flat=True)
-                .distinct()
-            )
-
             counts_qs = (
                 WavePageQuestion.objects
-                .filter(wave_page_id__in=page_ids)
-                .filter(question_id__in=instrument_question_ids)
+                .filter(
+                    wave_page_id__in=page_ids,
+                    waves__id__in=instrument_wave_ids,
+                )
                 .values("wave_page_id")
-                .annotate(cnt=Count("id"))
+                .annotate(cnt=Count("id", distinct=True))
             )
 
             page_question_counts = {row["wave_page_id"]: row["cnt"] for row in counts_qs}
@@ -347,18 +341,32 @@ class SurveyDetailView(TemplateView):
 
             snippets_qs = (
                 WavePageQuestion.objects
-                .filter(wave_page_id__in=page_ids)
-                .filter(question_id__in=instrument_question_ids) 
-                .values_list("wave_page_id", "question__questiontext")
-                .order_by("wave_page_id", "sort_order", "id")
+                .filter(
+                    wave_page_id__in=page_ids,
+                    waves__id__in=instrument_wave_ids,
+                )
+                .values_list(
+                    "wave_page_id",
+                    "question__questiontext",
+                    "sort_order",
+                    "id",
+                )
+                .distinct()
+                .order_by(
+                    "wave_page_id",
+                    "sort_order",
+                    "id",
+                )
             )
 
-            for pid, questiontext in snippets_qs:
+            for pid, questiontext, _sort_order, _link_id in snippets_qs:
                 snip = strip_pv_formatting(questiontext)
                 snip = snip.replace("\r", " ").replace("\n", " ").strip()
                 snip = snip[:100]
+
                 if snip:
                     page_question_snippets[pid].append(snip)
+
 
             # Aggregation: gleichnamige Module innerhalb eines Instruments zusammenführen
             blocks_by_key = {}
@@ -512,19 +520,17 @@ class SurveyDetailView(TemplateView):
             .order_by("sort_order", "page__pagename")
         )
 
-        # Frage-Counts pro Seite (weiter wie bisher, aber über page_ids)
-        wave_question_ids = (
-            WaveQuestion.objects
-            .filter(wave=active_wave)
-            .values_list("question_id", flat=True)
+        # Frage-Counts pro Seite
+        page_ids = list(
+            page_links_qs.values_list("page_id", flat=True)
         )
-
-        page_ids = list(page_links_qs.values_list("page_id", flat=True))
 
         counts_qs = (
             WavePageQuestion.objects
-            .filter(wave_page_id__in=page_ids)
-            .filter(question_id__in=wave_question_ids)
+            .filter(
+                wave_page_id__in=page_ids,
+                waves=active_wave,
+            )
             .values("wave_page_id")
             .annotate(cnt=Count("id"))
         )
@@ -535,10 +541,19 @@ class SurveyDetailView(TemplateView):
 
         snippets_qs = (
             WavePageQuestion.objects
-            .filter(wave_page_id__in=page_ids)
-            .filter(question_id__in=wave_question_ids)
-            .values_list("wave_page_id", "question__questiontext")
-            .order_by("wave_page_id", "sort_order", "id")
+            .filter(
+                wave_page_id__in=page_ids,
+                waves=active_wave,
+            )
+            .values_list(
+                "wave_page_id",
+                "question__questiontext",
+            )
+            .order_by(
+                "wave_page_id",
+                "sort_order",
+                "id",
+            )
         )
 
         for pid, questiontext in snippets_qs:

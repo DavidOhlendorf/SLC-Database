@@ -141,11 +141,23 @@ def create_question_for_page(
         q = Question.objects.create(questiontext=questiontext)
 
         # Verknüpfung mit Seite
-        WavePageQuestion.objects.create(wave_page=page, question=q)
+        page_link = WavePageQuestion.objects.create(
+            wave_page=page,
+            question=q,
+        )
 
-        # Verknüpfung mit Befragtengruppen
+        # Seitenbezogene Verknüpfung mit den ausgewählten Befragtengruppen
+        page_link.waves.set(selected_waves)
+
+        # Globale Verknüpfung mit den Befragtengruppen
         WaveQuestion.objects.bulk_create(
-            [WaveQuestion(wave_id=wid, question=q) for wid in wave_ids_unique],
+            [
+                WaveQuestion(
+                    wave_id=wid,
+                    question=q,
+                )
+                for wid in wave_ids_unique
+            ],
         )
 
     return CreateQuestionForPageResult(question=q, waves=selected_waves)
@@ -389,10 +401,15 @@ def create_question_version(
             .filter(wave_page=page)
             .aggregate(max_order=Max("sort_order"))["max_order"]
         )
-        WavePageQuestion.objects.create(
+      
+        page_link = WavePageQuestion.objects.create(
             wave_page=page,
             question=new_question,
             sort_order=(last_sort_order + 1) if last_sort_order is not None else 0,
+        )
+
+        page_link.waves.set(
+            Wave.objects.filter(id__in=wave_ids_unique)
         )
 
         WaveQuestion.objects.bulk_create(
