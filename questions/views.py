@@ -1235,47 +1235,13 @@ class QuestionReuseView(EditorRequiredMixin, View):
         # Erfolgsmeldung
         # ------------------------------------------------------------
 
-        variable_count = len(result.variables)
-
-        if variable_count == 1:
-            variable_message = " Eine Variable wurde übernommen."
-        elif variable_count > 1:
-            variable_message = (
-                f" {variable_count} Variablen wurden übernommen."
-            )
-        else:
-            variable_message = (
-                " Es wurden keine Variablen übernommen."
-            )
-
-        if create_page:
-            page_message = (
-                f' Die Seite „{page.pagename}“ wurde neu angelegt.'
-            )
-        else:
-            page_message = ""
-
         messages.success(
             request,
-            "Die Frage wurde unverändert übernommen."
-            + variable_message
-            + page_message,
-        )
-
-        active_wave = result.waves[0]
-
-        page_url = reverse(
-            "pages:page-detail",
-            kwargs={"pk": page.pk},
-        )
-
-        redirect_url = (
-            f"{page_url}?wave={active_wave.pk}"
+            "Frage übertragen.",
         )
 
         return JsonResponse({
             "ok": True,
-            "redirect_url": redirect_url,
         })
 
 

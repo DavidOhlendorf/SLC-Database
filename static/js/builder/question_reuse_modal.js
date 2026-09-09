@@ -931,10 +931,7 @@
         }
       );
 
-
-      window.location.assign(
-        data.redirect_url
-      );
+      window.location.reload();
 
 
     } catch (error) {
