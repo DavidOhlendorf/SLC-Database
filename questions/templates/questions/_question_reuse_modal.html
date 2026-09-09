@@ -105,6 +105,43 @@
 
               </select>
 
+              <div class="form-check form-switch mt-2">
+
+                <input class="form-check-input"
+                      type="checkbox"
+                      id="questionReuseCreatePage">
+
+                <label class="form-check-label"
+                      for="questionReuseCreatePage">
+                  Neue Seite erstellen
+                </label>
+
+              </div>
+
+              <div class="mt-2 d-none"
+                  id="questionReuseNewPageBox">
+
+                <label class="form-label"
+                      for="questionReuseNewPageName">
+                  Seitenname
+                </label>
+
+                <input type="text"
+                      class="form-control"
+                      id="questionReuseNewPageName"
+                      maxlength="200"
+                      placeholder="z. B. dem015">
+
+                <div class="form-text">
+                  Nur der Seitenname wird gesetzt. Weitere Seitenangaben bleiben leer.
+                </div>
+
+                <div class="small mt-1 d-none"
+                    id="questionReusePageNameFeedback">
+                </div>
+
+              </div>
+
             </div>
 
 

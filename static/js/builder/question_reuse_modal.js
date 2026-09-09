@@ -18,6 +18,19 @@
   );
   const wavesBox = document.getElementById("questionReuseWavesBox");
 
+  const createPageToggle = document.getElementById(
+    "questionReuseCreatePage"
+  );
+  const newPageBox = document.getElementById(
+    "questionReuseNewPageBox"
+  );
+  const newPageName = document.getElementById(
+    "questionReuseNewPageName"
+  );
+  const pageNameFeedback = document.getElementById(
+    "questionReusePageNameFeedback"
+  );
+
   const existingWarning = document.getElementById(
     "questionReuseExistingWarning"
   );
@@ -55,6 +68,9 @@
     || !targetSurveySelect
     || !targetPageSelect
     || !wavesBox
+    || !createPageToggle
+    || !newPageBox
+    || !newPageName
     || !includeVariables
     || !variablesBox
     || !backButton
@@ -69,6 +85,7 @@
 
   let currentStep = 1;
   let pagesById = new Map();
+  let surveyWaves = [];
   let sourceVariables = [];
 
 
@@ -148,8 +165,17 @@
     targetSurveySelect.disabled =
       isLoading || targetSurveySelect.dataset.available !== "1";
 
+    createPageToggle.disabled =
+      isLoading
+      || !targetSurveySelect.value
+      || surveyWaves.length === 0;
+
+    newPageName.disabled = isLoading;
+
     targetPageSelect.disabled =
-      isLoading || targetPageSelect.dataset.available !== "1";
+      isLoading
+      || createPageToggle.checked
+      || targetPageSelect.dataset.available !== "1";
 
     submitButton.textContent = isLoading
       ? "Frage wird übernommen …"
@@ -216,8 +242,21 @@
   // Zielseite / Waves
   // ------------------------------------------------------------
 
+  function clearPageNameFeedback() {
+    if (!pageNameFeedback) return;
+
+    pageNameFeedback.textContent = "";
+    pageNameFeedback.classList.add("d-none");
+    pageNameFeedback.classList.remove(
+      "text-danger",
+      "text-success"
+    );
+  }
+
+
   function resetPageSelection() {
     pagesById = new Map();
+    surveyWaves = [];
 
     targetPageSelect.innerHTML = "";
 
@@ -231,34 +270,35 @@
     targetPageSelect.disabled = true;
     targetPageSelect.dataset.available = "0";
 
+    createPageToggle.disabled = true;
+
     wavesBox.innerHTML =
       '<div class="text-muted small">'
       + "Bitte zuerst eine Zielseite auswählen."
       + "</div>";
 
     clearExistingWarning();
+    clearPageNameFeedback();
   }
 
 
-  function renderPageWaves(page) {
+  function renderWaves(waves) {
     wavesBox.innerHTML = "";
     clearExistingWarning();
 
     if (
-      !page
-      || !Array.isArray(page.waves)
-      || page.waves.length === 0
+      !Array.isArray(waves)
+      || waves.length === 0
     ) {
       wavesBox.innerHTML =
         '<div class="text-muted small">'
-        + "Für diese Seite stehen keine bearbeitbaren "
-        + "Befragtengruppen zur Verfügung."
+        + "Keine bearbeitbaren Befragtengruppen verfügbar."
         + "</div>";
 
       return;
     }
 
-    for (const wave of page.waves) {
+    for (const wave of waves) {
       const wrapper = document.createElement("div");
       wrapper.className = "form-check";
 
@@ -292,6 +332,105 @@
   }
 
 
+  function checkNewPageName() {
+    clearPageNameFeedback();
+
+    if (!createPageToggle.checked) {
+      return true;
+    }
+
+    const name = newPageName.value.trim();
+
+    if (!name) {
+      return false;
+    }
+
+    const selectedWaveIds = new Set(
+      getSelectedWaveIds()
+    );
+
+    if (selectedWaveIds.size === 0) {
+      return true;
+    }
+
+    const normalizedName = name.toLowerCase();
+
+    const duplicates = surveyWaves.filter(
+      (wave) =>
+        selectedWaveIds.has(String(wave.id))
+        && (wave.page_names || []).some(
+          (pageName) =>
+            String(pageName || "")
+              .trim()
+              .toLowerCase() === normalizedName
+        )
+    );
+
+    if (duplicates.length) {
+      if (pageNameFeedback) {
+        pageNameFeedback.textContent =
+          "Bereits vorhanden in: "
+          + duplicates
+            .map((wave) => wave.label)
+            .join(", ");
+
+        pageNameFeedback.classList.remove("d-none");
+        pageNameFeedback.classList.add("text-danger");
+      }
+
+      return false;
+    }
+
+    if (pageNameFeedback) {
+      pageNameFeedback.textContent =
+        "Der Seitenname ist in den ausgewählten Gruppen "
+        + "noch nicht vorhanden.";
+
+      pageNameFeedback.classList.remove("d-none");
+      pageNameFeedback.classList.add("text-success");
+    }
+
+    return true;
+  }
+
+
+  function applyPageMode() {
+    const createNewPage = createPageToggle.checked;
+
+    newPageBox.classList.toggle(
+      "d-none",
+      !createNewPage
+    );
+
+    targetPageSelect.disabled =
+      createNewPage
+      || targetPageSelect.dataset.available !== "1";
+
+    clearExistingWarning();
+
+    if (createNewPage) {
+      renderWaves(surveyWaves);
+      checkNewPageName();
+      return;
+    }
+
+    clearPageNameFeedback();
+
+    const page = pagesById.get(
+      targetPageSelect.value
+    );
+
+    if (page) {
+      renderWaves(page.waves);
+    } else {
+      wavesBox.innerHTML =
+        '<div class="text-muted small">'
+        + "Bitte zuerst eine Zielseite auswählen."
+        + "</div>";
+    }
+  }
+
+
   // ------------------------------------------------------------
   // Warnung bei Mehrfachverwendung
   // ------------------------------------------------------------
@@ -299,21 +438,31 @@
   function updateExistingWarning() {
     clearExistingWarning();
 
-    const page = pagesById.get(targetPageSelect.value);
-
-    if (!page) return;
-
     const selectedWaveIds = new Set(
       getSelectedWaveIds()
     );
 
     if (selectedWaveIds.size === 0) return;
 
-    const targetPageId = String(page.id);
+    let waves = [];
+    let targetPageId = null;
+
+    if (createPageToggle.checked) {
+      waves = surveyWaves;
+    } else {
+      const page = pagesById.get(
+        targetPageSelect.value
+      );
+
+      if (!page) return;
+
+      waves = page.waves || [];
+      targetPageId = String(page.id);
+    }
+
     const warningRows = [];
 
-    for (const wave of page.waves || []) {
-
+    for (const wave of waves) {
       if (!selectedWaveIds.has(String(wave.id))) {
         continue;
       }
@@ -322,7 +471,8 @@
         wave.existing_question_pages || []
       ).filter(
         (existingPage) =>
-          String(existingPage.id) !== targetPageId
+          targetPageId === null
+          || String(existingPage.id) !== targetPageId
       );
 
       if (otherPages.length) {
@@ -582,6 +732,7 @@
 
 
     const pages = data.pages || [];
+    surveyWaves = data.waves || [];
 
     pagesById = new Map(
       pages.map(
@@ -619,8 +770,10 @@
     targetPageSelect.dataset.available =
       pages.length ? "1" : "0";
 
-    targetPageSelect.disabled =
-      pages.length === 0;
+    createPageToggle.disabled =
+      surveyWaves.length === 0;
+
+    applyPageMode();
   }
 
 
@@ -631,35 +784,53 @@
   function validateTargetStep() {
 
     if (!targetSurveySelect.value) {
-
       showError(
         "Bitte wähle eine Zielbefragung aus."
       );
 
       targetSurveySelect.focus();
-
       return false;
     }
 
 
-    if (!targetPageSelect.value) {
+    if (createPageToggle.checked) {
+      if (!newPageName.value.trim()) {
+        showError(
+          "Bitte gib einen Seitennamen für die neue Seite an."
+        );
 
+        newPageName.focus();
+        return false;
+      }
+    } else if (!targetPageSelect.value) {
       showError(
         "Bitte wähle eine Zielseite aus."
       );
 
       targetPageSelect.focus();
-
       return false;
     }
 
 
     if (getSelectedWaveIds().length === 0) {
-
       showError(
         "Bitte wähle mindestens eine Befragtengruppe aus."
       );
 
+      return false;
+    }
+
+
+    if (
+      createPageToggle.checked
+      && !checkNewPageName()
+    ) {
+      showError(
+        "Dieser Seitenname existiert bereits in mindestens "
+        + "einer ausgewählten Befragtengruppe."
+      );
+
+      newPageName.focus();
       return false;
     }
 
@@ -689,10 +860,22 @@
       targetSurveySelect.value
     );
 
-    formData.append(
-      "page_id",
-      targetPageSelect.value
-    );
+    if (createPageToggle.checked) {
+      formData.append(
+        "create_page",
+        "1"
+      );
+
+      formData.append(
+        "new_page_name",
+        newPageName.value.trim()
+      );
+    } else {
+      formData.append(
+        "page_id",
+        targetPageSelect.value
+      );
+    }
 
 
     for (const waveId of getSelectedWaveIds()) {
@@ -794,11 +977,15 @@
 
       clearError();
 
-      renderPageWaves(
-        pagesById.get(
+      if (!createPageToggle.checked) {
+        const page = pagesById.get(
           targetPageSelect.value
-        )
-      );
+        );
+
+        renderWaves(
+          page ? page.waves : []
+        );
+      }
     }
   );
 
@@ -815,7 +1002,26 @@
 
         clearError();
         updateExistingWarning();
+        checkNewPageName();
       }
+    }
+  );
+
+
+  createPageToggle.addEventListener(
+    "change",
+    function () {
+      clearError();
+      applyPageMode();
+    }
+  );
+
+
+  newPageName.addEventListener(
+    "input",
+    function () {
+      clearError();
+      checkNewPageName();
     }
   );
 
@@ -931,7 +1137,16 @@
       clearExistingWarning();
 
       pagesById = new Map();
+      surveyWaves = [];
       sourceVariables = [];
+
+      createPageToggle.checked = false;
+      createPageToggle.disabled = true;
+
+      newPageName.value = "";
+      newPageName.disabled = false;
+      newPageBox.classList.add("d-none");
+      clearPageNameFeedback();
 
       setStep(1);
 

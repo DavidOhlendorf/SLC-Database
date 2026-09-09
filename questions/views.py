@@ -13,7 +13,7 @@ from django.views.generic import DetailView, UpdateView
 
 from accounts.mixins import EditorRequiredMixin
 
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Max
 from django.db import transaction, IntegrityError
 
 from questions.formatting import strip_pv_formatting
@@ -21,7 +21,7 @@ from questions.formatting import strip_pv_formatting
 from .models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
 from waves.models import Survey, Wave, WaveQuestion
-from pages.models import WavePage, WavePageQuestion
+from pages.models import WavePage, WavePageQuestion, WavePageWave
 
 from .forms import (
     QuestionEditForm,
@@ -681,9 +681,12 @@ class QuestionReuseView(EditorRequiredMixin, View):
     - liefert verfügbare Zielbefragungen
     - liefert Variablen der aktiven Ausgangs-Wave
     - liefert für eine ausgewählte Zielbefragung deren Seiten und Waves
+    - liefert Seitennamen je Wave für die Prüfung einer neuen Zielseite
 
     POST:
-    - verknüpft die bestehende Frage mit Zielseite und Ziel-Waves
+    - verknüpft die bestehende Frage mit einer bestehenden Zielseite
+      oder legt eine einfache neue Zielseite an
+    - verknüpft die Frage mit den ausgewählten Ziel-Waves
     - übernimmt optional ausgewählte bestehende Variablen
     """
 
@@ -761,12 +764,11 @@ class QuestionReuseView(EditorRequiredMixin, View):
                     for variable in source_variables
                 ]
 
+            # Auch Befragungen ohne bereits vorhandene Seiten müssen
+            # als Ziel auswählbar sein.
             surveys = (
                 Survey.objects
-                .filter(
-                    waves__is_locked=False,
-                    waves__pages__isnull=False,
-                )
+                .filter(waves__is_locked=False)
                 .order_by("-year", "name", "id")
                 .distinct()
             )
@@ -834,6 +836,21 @@ class QuestionReuseView(EditorRequiredMixin, View):
             .order_by("cycle", "instrument", "id")
         )
 
+        # Für den clientseitigen Dublettencheck beim Anlegen einer neuen Seite.
+        existing_page_names_by_wave = {}
+
+        for wave_id, pagename in (
+            WavePageWave.objects
+            .filter(
+                wave_id__in=available_waves.values_list("id", flat=True)
+            )
+            .values_list("wave_id", "page__pagename")
+        ):
+            existing_page_names_by_wave.setdefault(
+                wave_id,
+                [],
+            ).append(pagename)
+
         # Seiten, auf denen diese Frage innerhalb der Zielbefragung
         # bereits verwendet wird.
         #
@@ -871,7 +888,7 @@ class QuestionReuseView(EditorRequiredMixin, View):
                     [],
                 ).append(page_payload)
 
-        # Mögliche Zielseiten.
+        # Mögliche bestehende Zielseiten.
         #
         # Wie bei der Versionierung schließen wir Seiten aus, die zugleich
         # mit mindestens einer abgeschlossenen Wave verbunden sind.
@@ -895,6 +912,25 @@ class QuestionReuseView(EditorRequiredMixin, View):
 
         return JsonResponse({
             "ok": True,
+
+            # Unabhängige Wave-Liste für den Modus "Neue Seite erstellen".
+            "waves": [
+                {
+                    "id": wave.id,
+                    "label": self._wave_label(wave),
+                    "page_names": existing_page_names_by_wave.get(
+                        wave.id,
+                        [],
+                    ),
+                    "existing_question_pages": existing_pages_by_wave.get(
+                        wave.id,
+                        [],
+                    ),
+                }
+                for wave in available_waves
+            ],
+
+            # Bestehende Zielseiten bleiben wie bisher auswählbar.
             "pages": [
                 {
                     "id": page.id,
@@ -903,8 +939,6 @@ class QuestionReuseView(EditorRequiredMixin, View):
                         {
                             "id": wave.id,
                             "label": self._wave_label(wave),
-
-                            # Für die spätere Warnung im Modal:
                             "existing_question_pages": (
                                 existing_pages_by_wave.get(
                                     wave.id,
@@ -934,6 +968,12 @@ class QuestionReuseView(EditorRequiredMixin, View):
         survey_id = request.POST.get("survey_id")
         page_id = request.POST.get("page_id")
 
+        create_page = request.POST.get("create_page") == "1"
+        new_page_name = (
+            request.POST.get("new_page_name")
+            or ""
+        ).strip()
+
         selected_wave_ids = request.POST.getlist("wave_ids")
         selected_variable_ids = request.POST.getlist("variable_ids")
 
@@ -948,7 +988,18 @@ class QuestionReuseView(EditorRequiredMixin, View):
                 "Bitte wähle eine Zielbefragung aus."
             )
 
-        if not page_id:
+        if create_page:
+            if not new_page_name:
+                return error_response(
+                    "Bitte gib einen Seitennamen für die neue Seite an."
+                )
+
+            if len(new_page_name) > 200:
+                return error_response(
+                    "Der Seitenname darf höchstens 200 Zeichen lang sein."
+                )
+
+        elif not page_id:
             return error_response(
                 "Bitte wähle eine Zielseite aus."
             )
@@ -960,7 +1011,9 @@ class QuestionReuseView(EditorRequiredMixin, View):
 
         try:
             survey_id = int(survey_id)
-            page_id = int(page_id)
+
+            if not create_page:
+                page_id = int(page_id)
 
             selected_wave_ids = [
                 int(wave_id)
@@ -978,6 +1031,10 @@ class QuestionReuseView(EditorRequiredMixin, View):
                 "Variablenauswahl ist ungültig."
             )
 
+        # Doppelte IDs aus manipulierten Requests entfernen.
+        selected_wave_ids = list(dict.fromkeys(selected_wave_ids))
+        selected_variable_ids = list(dict.fromkeys(selected_variable_ids))
+
         # ------------------------------------------------------------
         # Zielbefragung prüfen
         # ------------------------------------------------------------
@@ -994,45 +1051,62 @@ class QuestionReuseView(EditorRequiredMixin, View):
             )
 
         # ------------------------------------------------------------
-        # Zielseite prüfen
+        # Zielseite und Ziel-Waves prüfen
         # ------------------------------------------------------------
 
-        page = (
-            WavePage.objects
-            .filter(
-                pk=page_id,
-                waves__survey=selected_survey,
-                waves__is_locked=False,
-            )
-            .exclude(waves__is_locked=True)
-            .distinct()
-            .first()
-        )
+        page = None
 
-        if page is None:
-            return error_response(
-                "Die ausgewählte Zielseite gehört nicht zur "
-                "Zielbefragung oder ist nicht bearbeitbar."
+        if create_page:
+            # Bei einer neuen Seite sind alle nicht gesperrten Waves der
+            # Zielbefragung grundsätzlich zulässig.
+            allowed_wave_ids = set(
+                Wave.objects
+                .filter(
+                    survey=selected_survey,
+                    is_locked=False,
+                )
+                .values_list("id", flat=True)
             )
 
-        # ------------------------------------------------------------
-        # Ziel-Waves prüfen
-        # ------------------------------------------------------------
+            if not set(selected_wave_ids).issubset(allowed_wave_ids):
+                return error_response(
+                    "Mindestens eine ausgewählte Befragtengruppe gehört "
+                    "nicht zur Zielbefragung oder ist abgeschlossen."
+                )
 
-        allowed_wave_ids = set(
-            page.waves
-            .filter(
-                survey=selected_survey,
-                is_locked=False,
+        else:
+            page = (
+                WavePage.objects
+                .filter(
+                    pk=page_id,
+                    waves__survey=selected_survey,
+                    waves__is_locked=False,
+                )
+                .exclude(waves__is_locked=True)
+                .distinct()
+                .first()
             )
-            .values_list("id", flat=True)
-        )
 
-        if not set(selected_wave_ids).issubset(allowed_wave_ids):
-            return error_response(
-                "Mindestens eine ausgewählte Befragtengruppe gehört "
-                "nicht zur Zielbefragung und Zielseite oder ist abgeschlossen."
+            if page is None:
+                return error_response(
+                    "Die ausgewählte Zielseite gehört nicht zur "
+                    "Zielbefragung oder ist nicht bearbeitbar."
+                )
+
+            allowed_wave_ids = set(
+                page.waves
+                .filter(
+                    survey=selected_survey,
+                    is_locked=False,
+                )
+                .values_list("id", flat=True)
             )
+
+            if not set(selected_wave_ids).issubset(allowed_wave_ids):
+                return error_response(
+                    "Mindestens eine ausgewählte Befragtengruppe gehört "
+                    "nicht zur Zielbefragung und Zielseite oder ist abgeschlossen."
+                )
 
         # ------------------------------------------------------------
         # Ausgangs-Wave nur erforderlich, wenn Variablen gewählt wurden
@@ -1067,17 +1141,84 @@ class QuestionReuseView(EditorRequiredMixin, View):
                 )
 
         # ------------------------------------------------------------
-        # Bestehende Frage übernehmen
+        # Ggf. neue Seite anlegen und bestehende Frage übernehmen
         # ------------------------------------------------------------
 
         try:
-            result = attach_existing_question(
-                question=question,
-                page=page,
-                wave_ids=selected_wave_ids,
-                source_wave=source_wave,
-                variable_ids=selected_variable_ids,
-            )
+            with transaction.atomic():
+
+                if create_page:
+                    # Sperre die Ziel-Waves während der Dublettenprüfung
+                    # und Seitenerzeugung.
+                    target_waves = list(
+                        Wave.objects
+                        .select_for_update()
+                        .filter(
+                            id__in=selected_wave_ids,
+                            survey=selected_survey,
+                            is_locked=False,
+                        )
+                        .order_by("cycle", "instrument", "id")
+                    )
+
+                    if {
+                        wave.id
+                        for wave in target_waves
+                    } != set(selected_wave_ids):
+                        raise ValueError(
+                            "Mindestens eine ausgewählte Befragtengruppe "
+                            "gehört nicht zur Zielbefragung oder ist abgeschlossen."
+                        )
+
+                    duplicate_waves = list(
+                        Wave.objects
+                        .filter(
+                            id__in=selected_wave_ids,
+                            pages__pagename__iexact=new_page_name,
+                        )
+                        .order_by("cycle", "instrument", "id")
+                        .distinct()
+                    )
+
+                    if duplicate_waves:
+                        duplicate_labels = ", ".join(
+                            self._wave_label(wave)
+                            for wave in duplicate_waves
+                        )
+
+                        raise ValueError(
+                            f'Die Seite „{new_page_name}“ existiert bereits in: '
+                            f"{duplicate_labels}. Bitte wähle dort die "
+                            "vorhandene Seite aus."
+                        )
+
+                    page = WavePage.objects.create(
+                        pagename=new_page_name,
+                    )
+
+                    for wave in target_waves:
+                        next_position = (
+                            WavePageWave.objects
+                            .filter(wave=wave)
+                            .aggregate(
+                                max_order=Max("sort_order")
+                            )["max_order"]
+                            or 0
+                        ) + 1
+
+                        WavePageWave.objects.create(
+                            page=page,
+                            wave=wave,
+                            sort_order=next_position,
+                        )
+
+                result = attach_existing_question(
+                    question=question,
+                    page=page,
+                    wave_ids=selected_wave_ids,
+                    source_wave=source_wave,
+                    variable_ids=selected_variable_ids,
+                )
 
         except ValueError as exc:
             return error_response(str(exc))
@@ -1107,10 +1248,18 @@ class QuestionReuseView(EditorRequiredMixin, View):
                 " Es wurden keine Variablen übernommen."
             )
 
+        if create_page:
+            page_message = (
+                f' Die Seite „{page.pagename}“ wurde neu angelegt.'
+            )
+        else:
+            page_message = ""
+
         messages.success(
             request,
             "Die Frage wurde unverändert übernommen."
-            + variable_message,
+            + variable_message
+            + page_message,
         )
 
         active_wave = result.waves[0]
