@@ -5,6 +5,7 @@
 {% block extra_js %}
     <script src="{% static 'js/builder/question_detail_variable_quickcreate.js' %}"></script>
     <script src="{% static 'js/builder/question_version_modal.js' %}"></script>
+    <script src="{% static 'js/builder/question_reuse_modal.js' %}"></script>
     <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
@@ -30,6 +31,28 @@
         <div class="flex-shrink-0">
           {% if perms.accounts.can_edit_slc %}
             <div class="d-flex align-items-center gap-2">
+
+              {% if active_wave %}
+                <button type="button"
+                        class="btn btn-link btn-lg icon-action--tone tone-question p-0"
+                        title="Frage unverändert in einer anderen Befragung verwenden"
+                        data-bs-toggle="modal"
+                        data-bs-target="#questionReuseModal">
+                  <i class="fa-regular fa-copy"></i>
+                </button>
+              {% else %}
+                <span class="d-inline-block"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      data-bs-title="Bitte zuerst eine Befragung auswählen, damit die Frage und ihre Variablen eindeutig übernommen werden können.">
+                  <button type="button"
+                          class="btn btn-link btn-lg icon-action--tone tone-question p-0"
+                          disabled>
+                    <i class="fa-regular fa-copy"></i>
+                  </button>
+                </span>
+              {% endif %}
+
               <button type="button"
                       class="btn btn-link btn-lg icon-action--tone tone-question p-0"
                       title="Neue Version dieser Frage anlegen"
@@ -491,6 +514,7 @@
   {% if perms.accounts.can_edit_slc %}
     {% include "questions/_question_version_modal.html" %}
     {% include "questions/_variable_quickcreate_modal.html" %}
+    {% include "questions/_question_reuse_modal.html" %}
   {% endif %}
 
 {% endblock %}
