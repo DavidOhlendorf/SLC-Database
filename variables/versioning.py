@@ -139,9 +139,7 @@ def normalize_variable_name(varname: str) -> str:
 def variable_family_sort_key(varname: str) -> tuple:
     """
     Liefert eine fachliche Sortierung innerhalb einer Variablenfamilie:
-    Basis, Ableitungen der Basis, v1 mit Ableitungen, v2 usw.
-
-    Nicht schema-konforme Namen werden stabil ans Ende sortiert.
+    Nicht schema-konforme Namen werden ans Ende sortiert.
     """
     normalized = (varname or "").strip().lower()
 
