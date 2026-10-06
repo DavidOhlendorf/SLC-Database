@@ -136,6 +136,34 @@ def normalize_variable_name(varname: str) -> str:
     return parse_variable_name(varname).format()
 
 
+def variable_family_sort_key(varname: str) -> tuple:
+    """
+    Liefert eine fachliche Sortierung innerhalb einer Variablenfamilie:
+    Basis, Ableitungen der Basis, v1 mit Ableitungen, v2 usw.
+
+    Nicht schema-konforme Namen werden stabil ans Ende sortiert.
+    """
+    normalized = (varname or "").strip().lower()
+
+    try:
+        parsed = parse_variable_name(normalized)
+    except VariableNameSchemaError:
+        return (1, 100, (), normalized)
+
+    derivation_key = tuple(
+        (SUFFIX_RANK[suffix], parsed.suffixes[suffix])
+        for suffix in ("g", "p", "f")
+        if suffix in parsed.suffixes
+    )
+
+    return (
+        0,
+        parsed.version_number,
+        derivation_key,
+        parsed.format(),
+    )
+
+
 def _family_variable_names(family_key: str) -> list[str]:
     """Lädt mögliche Mitglieder einer Familie und filtert sie anschließend exakt."""
     candidate_names = Variable.objects.filter(
