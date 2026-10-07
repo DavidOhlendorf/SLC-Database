@@ -1,81 +1,71 @@
 <div class="card mb-2 entity-card tone-variable">
   <div class="card-body">
 
-    {# Variablenname als zentraler Anker #}
-    <h6 class="card-title mb-1">
-      {{ item.varname }}
-    </h6>
+    {# Kopf der Variablenfamilie #}
 
-    {# Variablenlabel als inhaltliche Beschreibung #}
-    {% if item.varlab %}
-      <p class="mb-2">
-        {{ item.varlab }}
-      </p>
-    {% endif %}
+    {% if item.is_family %}
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
 
-    {# Relevanz wird nur dort angezeigt, wo show_relevance gesetzt ist #}
-    {% if show_relevance %}
-      <p class="text-muted mb-2 small">
-        Relevanz: {{ item.relevance }}
-      </p>
-    {% endif %}
+        <h5 class="card-title mb-0">
+          {{ item.name }}
+        </h5>
 
-    {# Wellen: maximal fünf direkt sichtbar, weitere aufklappbar #}
-    {% with waves=item.waves.all %}
-      {% if waves %}
-        <div class="mb-2">
-
-          <div class="d-flex flex-wrap gap-1 align-items-center">
-            {% for wave in waves|slice:":5" %}
-              <span class="context-pill context-pill--solid tone-survey">
-                {{ wave }}
-              </span>
-            {% endfor %}
-
-            {% if waves|length > 5 %}
-              <button
-                class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#search-variable-waves-{{ item.id }}"
-                aria-expanded="false"
-                aria-controls="search-variable-waves-{{ item.id }}">
-
-                <span class="disclosure-toggle__collapsed">
-                  ▾ {{ waves|length|add:"-5" }} weitere
-                </span>
-
-                <span class="disclosure-toggle__expanded">
-                  ▴ Weniger anzeigen
-                </span>
-              </button>
-            {% endif %}
-          </div>
-
-          {% if waves|length > 5 %}
-            <div class="collapse mt-1" id="search-variable-waves-{{ item.id }}">
-              <div class="d-flex flex-wrap gap-1">
-                {% for wave in waves|slice:"5:" %}
-                  <span class="context-pill context-pill--solid tone-survey">
-                    {{ wave }}
-                  </span>
-                {% endfor %}
-              </div>
-            </div>
+        <span class="badge entity-badge tone-variable flex-shrink-0">
+          {{ item.variables|length }}
+          {% if item.variables|length == 1 %}
+            Variante
+          {% else %}
+            Varianten
           {% endif %}
+        </span>
 
-        </div>
-      {% endif %}
-    {% endwith %}
+      </div>
+    {% endif %}
 
-    <div class="d-flex justify-content-end mt-2">
-      <a class="small text-decoration-none"
-         href="{% url 'variables:variable_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
-         target="_blank"
-         rel="noopener noreferrer">
-        Details →
-      </a>
-    </div>
+
+    {# Bestbewerteter konkreter Suchtreffer #}
+
+    {% include "search/_variable_result.html" with variable=item.primary_variable %}
+
+
+    {# Weitere Varianten der Familie #}
+
+    {% if item.other_variables %}
+      <button
+        class="btn btn-link btn-sm p-0 mt-2 text-decoration-none disclosure-toggle"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#search-variable-variants-{{ item.primary_variable.id }}"
+        aria-expanded="false"
+        aria-controls="search-variable-variants-{{ item.primary_variable.id }}">
+
+        <span class="disclosure-toggle__collapsed">
+          ▾
+          {% if item.other_variables|length == 1 %}
+            1 weitere Variante anzeigen
+          {% else %}
+            {{ item.other_variables|length }} weitere Varianten anzeigen
+          {% endif %}
+        </span>
+
+        <span class="disclosure-toggle__expanded">
+          ▴ Weitere Varianten ausblenden
+        </span>
+      </button>
+
+
+      <div
+        class="collapse"
+        id="search-variable-variants-{{ item.primary_variable.id }}">
+
+        {% for variable in item.other_variables %}
+          <div class="border-top pt-3 mt-3">
+            {% include "search/_variable_result.html" with variable=variable %}
+          </div>
+        {% endfor %}
+
+      </div>
+    {% endif %}
 
   </div>
 </div>
