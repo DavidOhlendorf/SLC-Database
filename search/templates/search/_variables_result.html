@@ -1,0 +1,116 @@
+{# Eine konkrete Variable innerhalb einer Familienkarte #}
+
+<h6 class="card-title mb-1">
+  {{ variable.varname }}
+</h6>
+
+{% if variable.varlab %}
+  <p class="mb-2">
+    {{ variable.varlab }}
+  </p>
+{% endif %}
+
+
+{# Fachliche Gründe nur anzeigen, wenn Typ und Begründung vorhanden sind #}
+
+{% if variable.ver and variable.reason_ver %}
+  <p class="small text-muted mb-1">
+    <span class="fw-semibold">Versioniert:</span>
+    {{ variable.reason_ver|linebreaksbr }}
+  </p>
+{% endif %}
+
+{% if variable.gen and variable.reason_gen %}
+  <p class="small text-muted mb-1">
+    <span class="fw-semibold">Generiert:</span>
+    {{ variable.reason_gen|linebreaksbr }}
+  </p>
+{% endif %}
+
+{% if variable.plausi and variable.reason_plausi %}
+  <p class="small text-muted mb-1">
+    <span class="fw-semibold">Plausibilisiert:</span>
+    {{ variable.reason_plausi|linebreaksbr }}
+  </p>
+{% endif %}
+
+{% if variable.flag and variable.reason_flag %}
+  <p class="small text-muted mb-1">
+    <span class="fw-semibold">Flag:</span>
+    {{ variable.reason_flag|linebreaksbr }}
+  </p>
+{% endif %}
+
+
+{# Relevanz nur im Debug-Modus #}
+
+{% if show_relevance %}
+  <p class="text-muted mb-2 small">
+    Relevanz: {{ variable.relevance }}
+  </p>
+{% endif %}
+
+
+{# Wellen dieser konkreten Variante #}
+
+{% with waves=variable.search_display_waves %}
+  {% if waves %}
+    <div class="mt-2 mb-2">
+
+      <div class="d-flex flex-wrap gap-1 align-items-center">
+        {% for wave in waves|slice:":5" %}
+          <span class="context-pill context-pill--solid tone-survey">
+            {{ wave }}
+          </span>
+        {% endfor %}
+
+        {% if waves|length > 5 %}
+          <button
+            class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#search-variable-waves-{{ variable.id }}"
+            aria-expanded="false"
+            aria-controls="search-variable-waves-{{ variable.id }}">
+
+            <span class="disclosure-toggle__collapsed">
+              ▾ {{ waves|length|add:"-5" }} weitere
+            </span>
+
+            <span class="disclosure-toggle__expanded">
+              ▴ Weniger anzeigen
+            </span>
+          </button>
+        {% endif %}
+      </div>
+
+      {% if waves|length > 5 %}
+        <div
+          class="collapse mt-1"
+          id="search-variable-waves-{{ variable.id }}">
+
+          <div class="d-flex flex-wrap gap-1">
+            {% for wave in waves|slice:"5:" %}
+              <span class="context-pill context-pill--solid tone-survey">
+                {{ wave }}
+              </span>
+            {% endfor %}
+          </div>
+
+        </div>
+      {% endif %}
+
+    </div>
+  {% endif %}
+{% endwith %}
+
+
+<div class="d-flex justify-content-end mt-2">
+  <a
+    class="small action-link"
+    href="{% url 'variables:variable_detail' variable.id %}?back={{ request.get_full_path|urlencode }}"
+    target="_blank"
+    rel="noopener noreferrer">
+    Details →
+  </a>
+</div>
