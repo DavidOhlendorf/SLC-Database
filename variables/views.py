@@ -14,15 +14,16 @@ from django.views.generic import DetailView
 from django.views.generic.edit import UpdateView
 from django.views.decorators.http import require_GET, require_POST
 
-from waves.models import WaveQuestion
+from waves.models import Wave, WaveQuestion
 
 from .models import Variable, QuestionVariableWave
 from questions.models import Question
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, F
 from django.db import transaction
 
 from .forms import VariableForm
 
+from .versioning import parse_variable_name, variable_family_sort_key, VariableNameSchemaError
 
 
 
@@ -37,20 +38,39 @@ class VariableDetail(DetailView):
         return self.request.user.has_perm("accounts.can_edit_slc")
 
     def get_queryset(self):
+        wave_queryset = Wave.objects.select_related("survey").order_by(
+            F("survey__year").desc(nulls_last=True),
+            F("start_date").desc(nulls_last=True),
+            "cycle",
+            "instrument",
+            "id",
+        )
+
         qs = (
             Variable.objects
             .select_related("vallab")
             .prefetch_related(
-                "waves",
+                Prefetch(
+                    "waves",
+                    queryset=wave_queryset,
+                ),
                 Prefetch(
                     "question_variable_wave_links",
                     queryset=(
                         QuestionVariableWave.objects
-                        .select_related("question", "wave")
-                        .only("id", "question_id", "variable_id", "wave_id",
-                            "question__id", "question__questiontext",
-                            "wave__id", "wave__cycle", "wave__instrument")
-                        .order_by("question_id", "-wave_id")
+                        .select_related(
+                            "question",
+                            "wave",
+                            "wave__survey",
+                        )
+                        .order_by(
+                            "question_id",
+                            F("wave__survey__year").desc(nulls_last=True),
+                            F("wave__start_date").desc(nulls_last=True),
+                            "wave__cycle",
+                            "wave__instrument",
+                            "wave_id",
+                        )
                     ),
                 ),
             )
@@ -62,93 +82,280 @@ class VariableDetail(DetailView):
 
         return qs
     
-
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        v = self.object
+        variable = self.object
 
-        links = list(v.question_variable_wave_links.all())
+        links = list(
+            variable.question_variable_wave_links.all()
+        )
+        direct_waves = list(variable.waves.all())
 
-        # --- Frage-IDs aus den Triad-Links ---
-        question_ids = {link.question_id for link in links}
 
-        questions_qs = Question.objects.filter(id__in=question_ids).order_by("id")
+        # ---------------------------------------------------------
+        # Variablenfamilie
+        # ---------------------------------------------------------
+
+        family_key = None
+        family_variables = []
+
+        try:
+            parsed_variable = parse_variable_name(
+                variable.varname
+            )
+            family_key = parsed_variable.family_key
+
+            family_candidates = Variable.objects.filter(
+                Q(varname__iexact=family_key)
+                | Q(varname__istartswith=f"{family_key}_")
+            ).only(
+                "id",
+                "varname",
+                "varlab",
+            )
+
+            for candidate in family_candidates:
+                try:
+                    parsed_candidate = parse_variable_name(
+                        candidate.varname
+                    )
+                except VariableNameSchemaError:
+                    continue
+
+                # Ein bloß ähnlicher Präfix reicht nicht aus.
+                if parsed_candidate.family_key == family_key:
+                    family_variables.append(candidate)
+
+            family_variables.sort(
+                key=lambda candidate: (
+                    variable_family_sort_key(candidate.varname),
+                    candidate.id,
+                )
+            )
+
+        except VariableNameSchemaError:
+            # Historische Variablennamen außerhalb des Schemas
+            # bleiben nutzbar, erhalten aber keine
+            # abgeleitete Familiennavigation.
+            pass
+
+
+        # ---------------------------------------------------------
+        # Zugehörige Fragen
+        # ---------------------------------------------------------
+
+        question_ids = {
+            link.question_id
+            for link in links
+        }
+
+        questions_qs = (
+            Question.objects
+            .filter(id__in=question_ids)
+            .order_by("id")
+        )
+
         if self.can_edit:
             questions_qs = questions_qs.with_completeness()
 
         questions = list(questions_qs)
 
-        # --- Gesperrte Fragen-IDs ---
+
+        # ---------------------------------------------------------
+        # Gesperrte Fragen
+        # ---------------------------------------------------------
+
         locked_question_ids = set()
+
         if self.can_edit and question_ids:
             locked_question_ids = set(
                 WaveQuestion.objects.filter(
                     question_id__in=question_ids,
                     wave__is_locked=True,
-                ).values_list("question_id", flat=True)
+                ).values_list(
+                    "question_id",
+                    flat=True,
+                )
             )
 
 
-        # Mapping: Frage -> Waves, in denen die Variable bei dieser Frage genutzt wird
-        waves_by_qid = {}
+        # ---------------------------------------------------------
+        # Verwendungskontext:
+        # Frage -> konkrete Befragungen
+        # ---------------------------------------------------------
+
+        wave_maps_by_qid = {}
+
         for link in links:
-            waves_by_qid.setdefault(link.question_id, []).append(link.wave)
+            wave_maps_by_qid.setdefault(
+                link.question_id,
+                {},
+            )[link.wave_id] = link.wave
 
-        # optional: eindeutige "used waves" (nur aus Triad)
-        used_waves = []
-        seen_wids = set()
-        for link in links:
-            w = link.wave
-            if w.id not in seen_wids:
-                seen_wids.add(w.id)
-                used_waves.append(w)
+        waves_by_qid = {
+            question_id: list(wave_map.values())
+            for question_id, wave_map
+            in wave_maps_by_qid.items()
+        }
 
-        # Sperre prüfen
-        locked_via_triad = QuestionVariableWave.objects.filter(
-            variable=v,
-            wave__is_locked=True,
-        ).exists()
+        question_contexts = [
+            {
+                "question": question,
+                "waves": waves_by_qid.get(
+                    question.id,
+                    [],
+                ),
+                "is_locked": (
+                    question.id in locked_question_ids
+                ),
+            }
+            for question in questions
+        ]
 
-        locked_via_m2m = v.waves.filter(is_locked=True).exists()
+
+        # ---------------------------------------------------------
+        # Wellen ohne konkrete Fragenzuordnung
+        # ---------------------------------------------------------
+
+        used_wave_ids = {
+            link.wave_id
+            for link in links
+        }
+
+        unassigned_waves = [
+            wave
+            for wave in direct_waves
+            if wave.id not in used_wave_ids
+        ]
 
 
+        # ---------------------------------------------------------
+        # Sperrstatus der Variable
+        # ---------------------------------------------------------
 
-        # Fragen: vorbereitet fürs Template
-        ctx["triad_links"] = links
-        ctx["questions"] = questions
-        ctx["locked_question_ids"] = locked_question_ids
-        ctx["questions_count"] = len(questions)
-        ctx["single_question"] = questions[0] if len(questions) == 1 else None
-        ctx["questions_preview"] = questions[:5]
-        ctx["questions_more_count"] = max(len(questions) - 5, 0)
-        ctx["variable_is_locked"] = locked_via_triad or locked_via_m2m
-
-        ctx["waves_by_question_id"] = waves_by_qid
-        ctx["used_waves"] = used_waves  # Waves, in denen die Variable irgendwo genutzt wird
-
-        vallab = v.vallab
-        ctx["vallab_values"] = (
-            sorted(vallab.values, key=lambda x: x.get("order", 0))
-            if (vallab and isinstance(vallab.values, list)) else []
+        locked_via_triad = (
+            QuestionVariableWave.objects
+            .filter(
+                variable=variable,
+                wave__is_locked=True,
+            )
+            .exists()
         )
 
-        flags = [
-            {"key": "ver",    "label": "versioniert",     "active": v.ver,    "reason": v.reason_ver},
-            {"key": "gen",    "label": "generiert",       "active": v.gen,    "reason": v.reason_gen},
-            {"key": "plausi", "label": "plausibilisiert", "active": v.plausi, "reason": v.reason_plausi},
-            {"key": "flag",   "label": "flag",            "active": v.flag,   "reason": v.reason_flag},
-        ]
-        ctx["flags_active"] = [f for f in flags if f["active"]]
+        locked_via_m2m = (
+            variable.waves
+            .filter(is_locked=True)
+            .exists()
+        )
 
+
+        # ---------------------------------------------------------
+        # Value-Label
+        # ---------------------------------------------------------
+
+        vallab = variable.vallab
+
+        vallab_values = (
+            sorted(
+                vallab.values,
+                key=lambda item: item.get("order", 0),
+            )
+            if (
+                vallab
+                and isinstance(vallab.values, list)
+            )
+            else []
+        )
+
+
+        # ---------------------------------------------------------
+        # Eigenschaften
+        # ---------------------------------------------------------
+
+        flags = [
+            {
+                "key": "ver",
+                "label": "Versioniert",
+                "active": variable.ver,
+                "reason": variable.reason_ver,
+            },
+            {
+                "key": "gen",
+                "label": "Generiert",
+                "active": variable.gen,
+                "reason": variable.reason_gen,
+            },
+            {
+                "key": "plausi",
+                "label": "Plausibilisiert",
+                "active": variable.plausi,
+                "reason": variable.reason_plausi,
+            },
+            {
+                "key": "flag",
+                "label": "Flag",
+                "active": variable.flag,
+                "reason": variable.reason_flag,
+            },
+        ]
+
+        flags_active = [
+            flag
+            for flag in flags
+            if flag["active"]
+        ]
+
+
+        # ---------------------------------------------------------
         # Rücksprung-URL
+        # ---------------------------------------------------------
+
         back = self.request.GET.get("back")
-        if back and not url_has_allowed_host_and_scheme(back, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()):
+
+        if back and not url_has_allowed_host_and_scheme(
+            back,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
             back = None
 
-        ctx["back_url"] = back or self.request.META.get("HTTP_REFERER") or reverse("search:search_landing")
+        back_url = (
+            back
+            or self.request.META.get("HTTP_REFERER")
+            or reverse("search:search_landing")
+        )
+
+
+        # ---------------------------------------------------------
+        # Kontext
+        # ---------------------------------------------------------
+
+        ctx["family_key"] = family_key
+        ctx["family_variables"] = family_variables
+        ctx["show_family_navigation"] = (
+            len(family_variables) > 1
+        )
+
+        ctx["question_contexts"] = question_contexts
+        ctx["unassigned_waves"] = unassigned_waves
+
+        ctx["vallab_values"] = vallab_values
+        ctx["flags_active"] = flags_active
+        ctx["has_properties"] = bool(
+            flags_active
+            or variable.is_technical
+            or variable.comment
+        )
+
+        ctx["variable_is_locked"] = (
+            locked_via_triad
+            or locked_via_m2m
+        )
+
+        ctx["back_url"] = back_url
 
         return ctx
-    
+
 
 # View für das Erstellen und Bearbeiten von Variablen
 class VariableUpdateView(EditorRequiredMixin, UpdateView):
