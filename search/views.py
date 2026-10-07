@@ -16,6 +16,8 @@ from questions.models import Question, Keyword
 from variables.models import Variable, QuestionVariableWave
 from waves.models import Wave, Survey
 
+from variables.versioning import parse_variable_name, variable_family_sort_key, VariableNameSchemaError
+
 from questions.formatting import strip_pv_formatting
 
 ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
@@ -298,6 +300,188 @@ def sort_question_groups(question_groups, sort):
     )
 
 
+def build_variable_groups(matched_variables, score_map, wave_ids=None):
+    """
+    Fasst Variablentreffer anhand des aus dem Namen abgeleiteten family_key
+    zusammen. Nicht schema-konforme Namen bleiben eigenständige Ergebnisse.
+    """
+    matched_variables = list(matched_variables)
+    wave_ids = list(wave_ids or [])
+
+    if not matched_variables:
+        return []
+
+    matched_family_keys = set()
+    matched_singleton_ids = set()
+
+    for variable in matched_variables:
+        try:
+            parsed = parse_variable_name(variable.varname)
+            matched_family_keys.add(parsed.family_key)
+        except VariableNameSchemaError:
+            matched_singleton_ids.add(variable.id)
+
+    # Zunächst alle möglichen Mitglieder der gefundenen Familien laden.
+    display_filter = Q(id__in=matched_singleton_ids)
+
+    for family_key in matched_family_keys:
+        display_filter |= (
+            Q(varname__iexact=family_key)
+            | Q(varname__istartswith=f"{family_key}_")
+        )
+
+    display_qs = Variable.objects.filter(display_filter)
+
+    # Bei aktivem Wellenfilter nur Varianten anzeigen, die in mindestens
+    # einer der gewählten Wellen vorkommen.
+    if wave_ids:
+        display_qs = display_qs.filter(waves__id__in=wave_ids)
+
+    wave_order = Wave.objects.select_related("survey").order_by(
+        F("survey__year").desc(nulls_last=True),
+        F("start_date").desc(nulls_last=True),
+        "cycle",
+        "instrument",
+        "id",
+    )
+
+    displayed_wave_order = wave_order
+
+    if wave_ids:
+        displayed_wave_order = displayed_wave_order.filter(id__in=wave_ids)
+
+    displayed_variables = list(
+        display_qs
+        .only(
+            "id",
+            "varname",
+            "varlab",
+            "ver",
+            "gen",
+            "plausi",
+            "flag",
+            "reason_ver",
+            "reason_gen",
+            "reason_plausi",
+            "reason_flag",
+        )
+        .prefetch_related(
+            Prefetch(
+                "waves",
+                queryset=wave_order,
+                to_attr="search_all_waves",
+            ),
+            Prefetch(
+                "waves",
+                queryset=displayed_wave_order,
+                to_attr="search_display_waves",
+            ),
+        )
+        .distinct()
+    )
+
+    grouped = {}
+
+    for variable in displayed_variables:
+        variable.relevance = score_map.get(variable.id, 0.0)
+
+        try:
+            parsed = parse_variable_name(variable.varname)
+
+            group_key = ("family", parsed.family_key)
+            family_name = parsed.family_key
+            is_family = True
+
+        except VariableNameSchemaError:
+            # Ein nicht schema-konformer Name darf nicht allein deshalb
+            # erscheinen, weil er zufällig mit einem Familiennamen beginnt.
+            # Er bleibt nur sichtbar, wenn er selbst ein Suchtreffer war.
+            if variable.id not in matched_singleton_ids:
+                continue
+
+            group_key = ("variable", variable.id)
+            family_name = ""
+            is_family = False
+
+        if group_key not in grouped:
+            grouped[group_key] = {
+                "key": group_key,
+                "name": family_name,
+                "is_family": is_family,
+                "variables": [],
+                "relevance": 0.0,
+                "sort_label": family_name.lower(),
+            }
+
+        grouped[group_key]["variables"].append(variable)
+
+    result = []
+
+    for group in grouped.values():
+        # Der beste konkrete Suchtreffer steht oben.
+        group["variables"].sort(
+            key=lambda variable: (
+                -score_map.get(variable.id, 0.0),
+                variable_family_sort_key(variable.varname),
+                variable.id,
+            )
+        )
+
+        group["primary_variable"] = group["variables"][0]
+
+        # Die übrigen Varianten werden fachlich sortiert:
+        # Basis/Ableitungen, v1/Ableitungen, v2/Ableitungen usw.
+        group["other_variables"] = sorted(
+            group["variables"][1:],
+            key=lambda variable: (
+                variable_family_sort_key(variable.varname),
+                variable.id,
+            ),
+        )
+
+        group["relevance"] = max(
+            (
+                score_map.get(variable.id, 0.0)
+                for variable in group["variables"]
+            ),
+            default=0.0,
+        )
+
+        if not group["sort_label"]:
+            group["sort_label"] = (
+                group["primary_variable"].varname
+                or group["primary_variable"].varlab
+                or ""
+            ).lower()
+
+        result.append(group)
+
+    return result
+
+
+def sort_variable_groups(variable_groups, sort):
+    """
+    Sortiert die Familienkarten, ohne die Reihenfolge der Varianten
+    innerhalb der Karten zu verändern.
+    """
+    if sort == "alpha":
+        return sorted(
+            variable_groups,
+            key=lambda group: (
+                group["sort_label"],
+                group["key"],
+            ),
+        )
+
+    return sorted(
+        variable_groups,
+        key=lambda group: (
+            -group["relevance"],
+            group["sort_label"],
+            group["key"],
+        ),
+    )
+
 
 # Paginierungs-Hilfsfunktionen
 def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
@@ -538,36 +722,36 @@ def search(request):
 
             final_var_score_map[vid] = relevance
 
-        # ---- 7) Materialisieren, Facetten zählen, sortieren, paginieren
+                # ---- 7) Materialisieren und anschließend zu Familienkarten gruppieren
         variables_found = list(
             base_qs_v
             .filter(id__in=final_var_score_map.keys())
             .only("id", "varname", "varlab")
-            .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
             .distinct()
         )
 
-        if sort == "alpha":
-            variables_sorted = sorted(
-                variables_found,
-                key=lambda obj: ((obj.varname or obj.varlab or "")).lower()
-            )
-        else:
-            variables_sorted = sorted(
-                variables_found,
-                key=lambda obj: final_var_score_map.get(obj.id, 0.0),
-                reverse=True
-            )
+        variable_groups = build_variable_groups(
+            matched_variables=variables_found,
+            score_map=final_var_score_map,
+            wave_ids=wave_ids,
+        )
 
-        # Facetten (Wellen)
-        for obj in variables_found:
-            for w in obj.waves.all():
-                facet_counter[w.id] += 1
-                facet_waves_set.add(w)
+        variables_sorted = sort_variable_groups(
+            variable_groups,
+            sort,
+        )
 
-        # Debug/Anzeige
-        for obj in variables_sorted:
-            obj.relevance = final_var_score_map.get(obj.id, 0.0)
+        # Eine Variablenfamilie zählt pro Welle nur einmal.
+        for group in variable_groups:
+            group_waves = {}
+
+            for variable in group["variables"]:
+                for wave in variable.search_all_waves:
+                    group_waves[wave.id] = wave
+
+            for wave in group_waves.values():
+                facet_counter[wave.id] += 1
+                facet_waves_set.add(wave)
 
         if search_type == "all":
             ctx["variables"] = variables_sorted[:ctx["TOP_N"]]
@@ -576,49 +760,11 @@ def search(request):
             ctx["variables_page"] = page_obj
             ctx["variables"] = page_obj.object_list
 
+        # Anzahl der Ergebniskarten, nicht Anzahl einzelner Varianten.
         ctx["variables_count"] = len(variables_sorted)
         ctx.setdefault("variables_count", 0)
 
-  
-    # =========================
-    # CONSTRUCTS
-    # =========================
-    #f search_type in {"all", "constructs"}:
-    #   q_lower = q.lower()
 
-    #   qs_constructs = (
-    #       Construct.objects
-    #       .annotate(l1=Lower("level_1"), l2=Lower("level_2"))
-    #       .filter(Q(l1__contains=q_lower) | Q(l2__contains=q_lower))
-    #       .distinct()
-    #   )
-
-    #   # Sortierung
-
-    #   if sort == "alpha":
-    #       qs_constructs = qs_constructs.order_by(Lower("level_1").asc(), Lower("level_2").asc(), "id")
-
-    #   else:  # relevance
-    #       qs_constructs = (
-    #           qs_constructs
-    #           .annotate(
-    #               sim_l1=TrigramSimilarity("level_1", q),
-    #               sim_l2=TrigramSimilarity("level_2", q),
-    #               sim=F("sim_l1") * 0.6 + F("sim_l2") * 0.4,
-    #           )
-    #           .order_by(F("sim").desc(nulls_last=True), "id")
-    #       )
-
-    #   if search_type == "all":
-    #       ctx["constructs"] = qs_constructs[:ctx["TOP_N"]]
-    #   else:
-    #       page_obj = paginate_queryset(qs_constructs, request)
-    #       ctx["constructs_page"] = page_obj
-    #       ctx["constructs"] = page_obj.object_list
-
-    #   # Count für Anzeige
-    #   ctx["constructs_count"] = qs_constructs.count()
-    #   ctx.setdefault("constructs_count", 0)
 
 
     # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr
