@@ -1,286 +1,427 @@
 {% extends "main.html" %}
 
 {% load static pv_formatting %}
+
 {% block extra_js %}
-      <script src="{% static 'js/ui/tooltips.js' %}"></script>
+  <script src="{% static 'js/ui/tooltips.js' %}"></script>
 {% endblock %}
 
+
 {% block content %}
-<div class="container my-4">
+  <div class="container my-4">
 
-  <!-- Variablenname  etc. -->
-  <header>
-    <div class="d-flex align-items-start justify-content-between gap-3">
-      <div class="flex-grow-1 min-w-0">
-        <h1 class="h3 mb-0 text-break">
-          Variable: {{ variable.varname }}
-          {% if perms.accounts.can_edit_slc and variable.is_incomplete %}
-            <span>
-              <i class="fa-solid fa-circle-exclamation text-danger"
-                data-bs-toggle="tooltip"
-                data-bs-title="Frage unvollständig: Pflichtfelder nicht gefüllt oder keine Variablen verknüpft."></i>
-            </span>
-          {% endif %}
-        </h1>
-      </div>
-      <div class="flex-shrink-0">
+    {# Kopf der konkreten Variable #}
 
-        <!-- Edit-Button -->
-        {% if perms.accounts.can_edit_slc %}
-          {% if variable_is_locked %}
-            <span class="d-inline-block"
-                  tabindex="0"
+    <header>
+      <div class="d-flex align-items-start justify-content-between gap-3">
+        <div class="flex-grow-1 min-w-0">
+          <h1 class="h3 mb-0 text-break">
+            {{ variable.varname }}
+
+            {% if perms.accounts.can_edit_slc and variable.is_incomplete %}
+              <span>
+                <i
+                  class="fa-solid fa-circle-exclamation text-danger"
                   data-bs-toggle="tooltip"
-                  data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
-              <button type="button"
-                      class="btn btn-link btn-lg icon-action--tone tone-variable p-0"
-                      disabled>
+                  data-bs-title="Variablenangaben unvollständig">
+                </i>
+              </span>
+            {% endif %}
+          </h1>
+        </div>
+
+        <div class="flex-shrink-0">
+          {% if perms.accounts.can_edit_slc %}
+            {% if variable_is_locked %}
+              <span
+                class="d-inline-block"
+                tabindex="0"
+                data-bs-toggle="tooltip"
+                data-bs-title="Diese Variable ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+
+                <button
+                  type="button"
+                  class="btn btn-link btn-lg icon-action--tone tone-variable p-0"
+                  disabled>
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+              </span>
+            {% else %}
+              <a
+                class="btn btn-link btn-lg icon-action--tone tone-variable p-0"
+                title="Variable bearbeiten"
+                href="{% url 'variables:variable_edit' variable.pk %}?back={{ request.get_full_path|urlencode }}">
                 <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-            </span>
-          {% else %}
-            <a class="btn btn-link btn-lg icon-action--tone tone-variable p-0"
-              title="Variable bearbeiten"
-              href="{% url 'variables:variable_edit' variable.pk %}?back={{ request.get_full_path|urlencode }}">
-              <i class="fa-solid fa-pen-to-square"></i>
-            </a>
+              </a>
+            {% endif %}
           {% endif %}
-        {% endif %}
-
+        </div>
       </div>
+    </header>
+
+    <div class="h5 fw-normal text-body mt-1 mb-0">
+      {% if variable.varlab %}
+        {{ variable.varlab }}
+      {% else %}
+        <span class="text-muted">
+          Kein Variablenlabel vergeben.
+        </span>
+      {% endif %}
     </div>
-  </header>
+
+    <div class="small text-muted mt-1">
+      <i class="fa-solid fa-key me-1"></i>
+      Variablen-ID: {{ variable.id }}
+    </div>
+
+    <hr class="my-2 mb-4">
 
 
+    {# Navigation innerhalb des Variablenstamms #}
 
-  <!-- Varlabel -->
-  <div class="text-secondary mb-2">
-    {% if variable.varlab %}
-      {{ variable.varlab }}
-    {% else %}
-      <span class="text-muted">Kein Variablenlabel vergeben.</span>
+    {% if show_family_navigation %}
+      <div class="mb-4">
+        <div class="small text-muted mb-2">
+          Variablenstamm {{ family_key }}
+          · {{ family_variables|length }} Varianten
+        </div>
+
+        <ul
+          class="nav nav-pills gap-1 flex-nowrap overflow-auto"
+          style="white-space: nowrap;">
+
+          {% for family_variable in family_variables %}
+            <li class="nav-item">
+              <a
+                href="{% url 'variables:variable_detail' family_variable.id %}?back={{ back_url|urlencode }}"
+                class="nav-link context-pill context-pill--outline context-pill--interactive tone-variable {% if family_variable.id == variable.id %}active{% endif %}"
+                {% if family_variable.id == variable.id %}
+                  aria-current="page"
+                  title="Aktive Variante"
+                {% else %}
+                  title="Variante anzeigen"
+                {% endif %}>
+                {{ family_variable.varname }}
+              </a>
+            </li>
+          {% endfor %}
+
+        </ul>
+      </div>
     {% endif %}
 
-  </div>
 
-  <hr class="my-2 mb-4">
+    {# Rücksprung #}
 
-  <!-- Back-Link  -->
-  <div class="mb-3">
-    <a href="{{ back_url|default:'/' }}"
-      class="small action-link">
-      ← Zurück
-    </a>
-  </div>
-
-  <!-- Fragen der Variablen -->
-  <div class="accordion tone-accordion tone-accordion--solid tone-question mb-3" id="variablenAccordion-{{ variable.pk }}">
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingVariablen-{{ variable.pk }}">
-        <button class="accordion-button" type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#collapseVariablen-{{ variable.pk }}"
-                aria-expanded="true"
-                aria-controls="collapseVariablen-{{ variable.pk }}">
-          Zugehörige {% if single_question %} Frage {% else %} Fragen {% endif %}
-        </button>
-      </h2>
-
-      <div id="collapseVariablen-{{ variable.pk }}"
-          class="accordion-collapse collapse show"
-          aria-labelledby="headingVariablen-{{ variable.pk }}"
-          data-bs-parent="#variablenAccordion-{{ variable.pk }}">
-        <div class="accordion-body p-0 tone-border-start tone-question">
-          {% if questions %}
-            <div class="list-group list-group-flush">
-              {% for q in questions %}
-                <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
-                  <div class="flex-grow-1"style="min-width:0; overflow:hidden;">
-                    <div class="d-flex align-items-center gap-2"style="min-width:0; overflow:hidden;">
-                      <span class="text-break d-block" style="min-width: 0;">
-                        {{ q.questiontext|pv_plain|truncatechars:300 }}
-                      </span>
-                      {% if perms.accounts.can_edit_slc %}
-                        {% if q.is_incomplete %}
-                          <span>
-                          <i class="fa-solid fa-circle-exclamation text-danger"
-                            data-bs-toggle="tooltip"
-                            data-bs-title="Fragenangaben unvollständig"></i>
-                          </span>
-                        {% endif %}
-                      {% endif %}
-                    </div>
-                  </div>
-                  <div class="ms-2 d-flex align-items-center gap-1 flex-shrink-0">
-                    <a class="btn btn-link px-1 icon-action--tone tone-question"
-                      title="Details anzeigen"
-                      href="{% url 'questions:question_detail' q.pk %}">
-                      <i class="fa-regular fa-eye"></i>
-                    </a>
-                    {% if perms.accounts.can_edit_slc %}
-                      {% if q.pk in locked_question_ids %}
-                        <span class="d-inline-block"
-                              tabindex="0"
-                              data-bs-toggle="tooltip"
-                              data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
-                          <button type="button"
-                                  class="btn btn-link px-1 icon-action--tone tone-question"
-                                  disabled>
-                            <i class="fa-solid fa-pen-to-square"></i>
-                          </button>
-                        </span>
-                      {% else %}
-                        <a class="btn btn-link px-1 icon-action--tone tone-question"
-                          title="Frage bearbeiten"
-                          href="{% url 'questions:question_edit' q.pk %}">
-                          <i class="fa-solid fa-pen-to-square"></i>
-                        </a>
-                      {% endif %}
-                    {% endif %}
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <p class="text-muted px-3 py-2 mb-0">Für diese Befragung/Gruppe sind keine Fragen verknüpft.</p>
-          {% endif %}
-        </div>
-      </div>
+    <div class="mb-4">
+      <a
+        href="{{ back_url|default:'/' }}"
+        class="small action-link">
+        ← Zurück
+      </a>
     </div>
-  </div>
 
 
-  <!-- Kontext: Accordion-Card-->
-  <div class="accordion tone-accordion tone-accordion--solid tone-survey mb-3" id="contextAccordion-{{ variable.pk }}">
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingContext-{{ variable.pk }}">
-        <button class="accordion-button" type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#collapseContext-{{ variable.pk }}"
-                aria-expanded="true"
-                aria-controls="collapseContext-{{ variable.pk }}">
-          In folgenden Befragungen eingesetzt:
-        </button>
-      </h2>
+    {# Eigenschaften der konkreten Variable #}
 
-      <div id="collapseContext-{{ variable.pk }}"
-           class="accordion-collapse collapse show"
-           aria-labelledby="headingContext-{{ variable.pk }}"
-           data-bs-parent="#contextAccordion-{{ variable.pk }}">
-        <div class="accordion-body tone-border-start tone-survey">
+    {% if has_properties %}
+      <div
+        class="accordion tone-accordion tone-accordion--solid tone-variable mb-3"
+        id="propertiesAccordion-{{ variable.id }}">
 
-          <div>
-            <strong class="d-block mb-1">Befragungen</strong>
-            {% if variable.waves.exists %}
-              <div class="d-flex flex-wrap gap-2">
-                {% for w in variable.waves.all %}
-                  <span class="context-pill context-pill--outline tone-survey">{{ w.name|default:w }}</span>
-                {% endfor %}
-              </div>
-            {% else %}
-              <span class="text-muted">Keine Befragungen verknüpft.</span>
-            {% endif %}
-          </div>
-
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Value-Label: 1 Accordion-Card-->
-  <div class="accordion tone-accordion tone-accordion--solid tone-variable mb-3" id="vallabAccordion-{{ variable.pk }}">
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingVallab-{{ variable.pk }}">
-        <button class="accordion-button" type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#collapseVallab-{{ variable.pk }}"
-                aria-expanded="true"
-                aria-controls="collapseVallab-{{ variable.pk }}">
-          Value-Label
-        </button>
-      </h2>
-      <div id="collapseVallab-{{ variable.pk }}"
-           class="accordion-collapse collapse show"
-           aria-labelledby="headingVallab-{{ variable.pk }}"
-           data-bs-parent="#vallabAccordion-{{ variable.pk }}">
-        <div class="accordion-body tone-border-start tone-variable">
-          {% if object.vallab %}
-            <p class="mb-2"><strong>Name:</strong> {{ object.vallab.vallabname }}</p>
-
-            {% if vallab_values %}
-              <div class="table-responsive small">
-                <table class="table table-sm align-middle">
-                  <thead>
-                    <tr><th style="width:8rem;">Value</th><th>Label</th></tr>
-                  </thead>
-                  <tbody>
-                    {% for it in vallab_values %}
-                      <tr>
-                        <td>{{ it.value }}</td>
-                        <td>{{ it.text }}</td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% else %}
-              <p class="text-muted mb-0">Dieses Value-Label hat offenbar noch keine Werte.</p>
-            {% endif %}
-          {% else %}
-            <p class="text-muted mb-0">Kein Value-Label zugeordnet.</p>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Eigenschaften: bis zu 4 Accordion-Cards, nur aktive Flags -->
-  <div class="accordion tone-accordion tone-accordion--solid tone-variable" id="eigenschaftenAccordion-{{ variable.pk }}">
-    {% if flags_active %}
         <div class="accordion-item">
-          <h2 class="accordion-header" id="headingEigenschaften-{{ variable.pk }}">
-            <button class="accordion-button" type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#collapseEigenschaften-{{ variable.pk }}"
-                    aria-expanded="true"
-                    aria-controls="collapseEigenschaften-{{ variable.pk }}">
+          <h2
+            class="accordion-header"
+            id="propertiesHeading-{{ variable.id }}">
+
+            <button
+              class="accordion-button"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#propertiesCollapse-{{ variable.id }}"
+              aria-expanded="true"
+              aria-controls="propertiesCollapse-{{ variable.id }}">
               Eigenschaften
             </button>
           </h2>
 
-          <div id="collapseEigenschaften-{{ variable.pk }}"
-              class="accordion-collapse collapse show"
-              aria-labelledby="headingEigenschaften-{{ variable.pk }}"
-              data-bs-parent="#eigenschaftenAccordion-{{ variable.pk }}">
-            <div class="accordion-body">
-              <div class="vstack gap-2">
-                {% for f in flags_active %}
-                  <div id="reason-{{ f.key }}-{{ variable.pk }}" class="card border-0 shadow-sm">
-                    <div class="card-body py-2 px-3 d-flex align-items-baseline">
-                      <span class="badge entity-badge tone-variable me-3 flex-shrink-0 text-center"
-                            style="width: 6rem;">{{ f.label }}</span>
-                      <div class="small text-body flex-grow-1">
-                        {{ f.reason|default:"Kein Grund hinterlegt."|linebreaksbr }}
+          <div
+            id="propertiesCollapse-{{ variable.id }}"
+            class="accordion-collapse collapse show"
+            aria-labelledby="propertiesHeading-{{ variable.id }}">
+
+            <div class="accordion-body tone-border-start tone-variable">
+
+              {% if flags_active %}
+                <div class="vstack gap-2">
+                  {% for flag in flags_active %}
+                    <div class="card border-0 shadow-sm">
+                      <div class="card-body py-2 px-3 d-flex flex-column flex-sm-row align-items-sm-baseline gap-1 gap-sm-3">
+
+                        <span
+                          class="badge entity-badge tone-variable flex-shrink-0 text-center"
+                          style="min-width: 8.5rem;">
+                          {{ flag.label }}
+                        </span>
+
+                        <div class="small text-body flex-grow-1">
+                          {{ flag.reason|default:"Kein Grund hinterlegt."|linebreaksbr }}
+                        </div>
+
                       </div>
                     </div>
-                  </div>
-                {% endfor %}
-              </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
 
-              {% if object.comment %}
-                <hr class="my-3">
+
+              {% if variable.is_technical %}
+                <div class="card border-0 shadow-sm {% if flags_active %}mt-2{% endif %}">
+                  <div class="card-body py-2 px-3 d-flex flex-column flex-sm-row align-items-sm-baseline gap-1 gap-sm-3">
+
+                    <span
+                      class="badge entity-badge tone-variable flex-shrink-0 text-center"
+                      style="min-width: 8.5rem;">
+                      Technisch
+                    </span>
+
+                    <div class="small text-body flex-grow-1">
+                      Technische Variable
+                    </div>
+
+                  </div>
+                </div>
+              {% endif %}
+
+
+              {% if variable.comment %}
+                {% if flags_active or variable.is_technical %}
+                  <hr class="my-3">
+                {% endif %}
+
                 <div>
-                  <strong>Kommentar:</strong><br>
-                  <div class="text-body">{{ object.comment|linebreaksbr }}</div>
+                  <strong>Kommentar:</strong>
+
+                  <div class="text-body mt-1">
+                    {{ variable.comment|linebreaksbr }}
+                  </div>
                 </div>
               {% endif %}
 
             </div>
           </div>
         </div>
-    {% else %}
-      <p class="text-muted mt-3"></p>
+      </div>
     {% endif %}
 
-  
+
+    {# Werte-Label #}
+
+    <div
+      class="accordion tone-accordion tone-accordion--solid tone-variable mb-3"
+      id="vallabAccordion-{{ variable.id }}">
+
+      <div class="accordion-item">
+        <h2
+          class="accordion-header"
+          id="vallabHeading-{{ variable.id }}">
+
+          <button
+            class="accordion-button"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#vallabCollapse-{{ variable.id }}"
+            aria-expanded="true"
+            aria-controls="vallabCollapse-{{ variable.id }}">
+            Werte-Label
+          </button>
+        </h2>
+
+        <div
+          id="vallabCollapse-{{ variable.id }}"
+          class="accordion-collapse collapse show"
+          aria-labelledby="vallabHeading-{{ variable.id }}">
+
+          <div class="accordion-body tone-border-start tone-variable">
+            {% if variable.vallab %}
+              <p class="small text-muted mb-3">
+                Werte-Container: {{ variable.vallab.vallabname }}
+              </p>
+
+              {% if vallab_values %}
+                <div class="table-responsive small">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th style="width: 4rem;">Wert</th>
+                        <th>Label</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {% for item in vallab_values %}
+                        <tr>
+                          <td>{{ item.value }}</td>
+                          <td>{{ item.text }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="text-muted mb-0">
+                  Dieses Werte-Label hat noch keine Werte.
+                </p>
+              {% endif %}
+            {% else %}
+              <p class="text-muted mb-0">
+                Kein Werte-Label zugeordnet.
+              </p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    {# Verwendungskontext aus Frage und konkreten Einsatzwellen #}
+
+    <div
+      class="accordion tone-accordion tone-accordion--solid tone-question mb-3"
+      id="usageAccordion-{{ variable.id }}">
+
+      <div class="accordion-item">
+        <h2
+          class="accordion-header"
+          id="usageHeading-{{ variable.id }}">
+
+          <button
+            class="accordion-button"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#usageCollapse-{{ variable.id }}"
+            aria-expanded="true"
+            aria-controls="usageCollapse-{{ variable.id }}">
+            Verwendungskontext
+          </button>
+        </h2>
+
+        <div
+          id="usageCollapse-{{ variable.id }}"
+          class="accordion-collapse collapse show"
+          aria-labelledby="usageHeading-{{ variable.id }}">
+
+          <div class="accordion-body p-0 tone-border-start tone-question">
+
+            {% if question_contexts %}
+              <div class="list-group list-group-flush">
+                {% for context in question_contexts %}
+                  <div class="list-group-item d-flex justify-content-between align-items-start gap-3">
+
+                    <div class="flex-grow-1 min-w-0">
+
+                      <div class="small text-muted mb-1">
+                        Frage Nr. {{ context.question.id }}:
+                      </div>
+
+                      <div class="d-flex align-items-start gap-2">
+
+                        <span class="text-break d-block">
+                          {{ context.question.questiontext|pv_plain|truncatechars:450 }}
+                        </span>
+
+                        {% if perms.accounts.can_edit_slc and context.question.is_incomplete %}
+                          <span class="flex-shrink-0">
+                            <i
+                              class="fa-solid fa-circle-exclamation text-danger"
+                              data-bs-toggle="tooltip"
+                              data-bs-title="Fragenangaben unvollständig">
+                            </i>
+                          </span>
+                        {% endif %}
+
+                      </div>
+
+                      {% if context.waves %}
+                        <div class="d-flex flex-wrap gap-1 mt-2">
+                          {% for wave in context.waves %}
+                            <span class="context-pill context-pill--solid tone-survey">
+                              {{ wave }}
+                            </span>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+
+                    </div>
+
+
+                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                      <a
+                        class="btn btn-link px-1 icon-action--tone tone-question"
+                        title="Frage anzeigen"
+                        href="{% url 'questions:question_detail' context.question.id %}?back={{ request.get_full_path|urlencode }}">
+                        <i class="fa-regular fa-eye"></i>
+                      </a>
+
+                      {% if perms.accounts.can_edit_slc %}
+                        {% if context.is_locked %}
+                          <span
+                            class="d-inline-block"
+                            tabindex="0"
+                            data-bs-toggle="tooltip"
+                            data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden.">
+
+                            <button
+                              type="button"
+                              class="btn btn-link px-1 icon-action--tone tone-question"
+                              disabled>
+                              <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                          </span>
+                        {% else %}
+                          <a
+                            class="btn btn-link px-1 icon-action--tone tone-question"
+                            title="Frage bearbeiten"
+                            href="{% url 'questions:question_edit' context.question.id %}">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </a>
+                        {% endif %}
+                      {% endif %}
+                    </div>
+
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+
+            {% if unassigned_waves %}
+              <div class="p-3 {% if question_contexts %}border-top{% endif %}">
+                <div class="small text-muted mb-2">
+                  Ohne konkrete Fragenzuordnung
+                </div>
+
+                <div class="d-flex flex-wrap gap-1">
+                  {% for wave in unassigned_waves %}
+                    <span class="context-pill context-pill--solid tone-survey">
+                      {{ wave }}
+                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+
+            {% if not question_contexts and not unassigned_waves %}
+              <p class="text-muted px-3 py-3 mb-0">
+                Diese Variable ist noch keiner Frage oder Befragung zugeordnet.
+              </p>
+            {% endif %}
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 {% endblock %}
