@@ -1,0 +1,326 @@
+{% extends "main.html" %}
+{% load querystring %}
+{% load static %}
+
+{% block extra_js %}
+  <script src="{% static 'js/search/searchfilter.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+
+  <h1 class="mb-1">Fragen</h1>
+
+  <p class="text-muted mb-4">
+    Übersicht aller Fragen des SLC. 
+  </p>
+
+
+  {# Suchleiste #}
+  <form
+    method="get"
+    action="{% url 'questions:question_list' %}"
+    class="mb-3">
+
+    <div class="row">
+      <div class="col-md-6 col-lg-4">
+
+        <div class="input-group">
+          <input
+            type="search"
+            class="form-control rounded-start-pill"
+            name="q"
+            value="{{ q }}"
+            placeholder="Suchbegriff eingeben …"
+            aria-label="Fragen durchsuchen">
+
+          <button
+            class="btn btn-dark rounded-end-pill px-4 ms-1"
+            type="submit">
+            Suchen
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    {# Die erste Suche soll standardmäßig nach Relevanz sortieren. #}
+    <input
+      type="hidden"
+      name="sort"
+      value="{% if q %}{{ sort }}{% else %}relevance{% endif %}">
+
+    {# Aktive Filter bei einer neuen Suche beibehalten. #}
+    {% for wave_id in selected_wave_ids %}
+      <input
+        type="hidden"
+        name="waves"
+        value="{{ wave_id }}">
+    {% endfor %}
+
+  </form>
+
+
+  {# Sortierung und Filter #}
+  <form
+    method="get"
+    id="filter-form"
+    class="mb-3">
+
+    <input type="hidden" name="q" value="{{ q }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+
+
+    <div class="d-flex align-items-center gap-2 mb-2">
+
+      <div class="dropdown">
+
+        <button
+          class="btn btn-outline-secondary dropdown-toggle"
+          type="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false">
+
+          Sortierung:
+          {% if sort == "alpha" %}
+            Alphabetisch
+          {% else %}
+            Relevanz
+          {% endif %}
+
+        </button>
+
+        <ul class="dropdown-menu dropdown-menu-end">
+
+          {% if q %}
+            <li>
+              <a
+                class="dropdown-item {% if sort == 'relevance' %}active{% endif %}"
+                href="{% url 'questions:question_list' %}{% url_with sort='relevance' page=None %}">
+                Relevanz
+              </a>
+            </li>
+          {% endif %}
+
+          <li>
+            <a
+              class="dropdown-item {% if sort == 'alpha' %}active{% endif %}"
+              href="{% url 'questions:question_list' %}{% url_with sort='alpha' page=None %}">
+              Alphabetisch (A–Z)
+            </a>
+          </li>
+
+        </ul>
+      </div>
+
+
+      <button
+        type="button"
+        id="btn-open-wave-panel"
+        class="btn btn-outline-secondary">
+        Filter
+      </button>
+
+    </div>
+
+
+    {# Aktive Filter als Pills #}
+    {% if selected_waves %}
+      <div class="d-flex flex-wrap gap-2 mb-2">
+
+        {% for wave in selected_waves %}
+          <span class="context-pill context-pill--solid tone-survey filter-chip">
+
+            {{ wave }}
+
+            <button
+              type="button"
+              class="filter-chip__remove remove-chip"
+              data-wave-id="{{ wave.id }}"
+              aria-label="Filter {{ wave }} entfernen">
+              ×
+            </button>
+
+          </span>
+        {% endfor %}
+
+      </div>
+    {% endif %}
+
+
+    {# Diese Checkboxen werden tatsächlich mit dem Formular abgeschickt. #}
+    <div class="visually-hidden">
+
+      {% for wave in all_waves %}
+        <input
+          type="checkbox"
+          name="waves"
+          value="{{ wave.id }}"
+          id="wave-{{ wave.id }}"
+          {% if wave.id in selected_wave_ids %}checked{% endif %}>
+      {% endfor %}
+
+    </div>
+
+
+    {# Filterpanel #}
+    <div
+      id="wave-panel"
+      class="card mt-2"
+      style="display:none; max-width:680px;">
+
+      <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+
+          <strong>Befragungsgruppen</strong>
+
+          <button
+            type="button"
+            class="btn-close"
+            id="btn-close-wave-panel"
+            aria-label="Schließen">
+          </button>
+
+        </div>
+
+
+        <div
+          id="wave-list"
+          style="max-height:320px; overflow:auto;">
+
+          <ul
+            id="facet-list"
+            class="list-unstyled mb-0">
+
+            {% for wave in all_waves %}
+              <li class="wave-item">
+
+                <div class="form-check">
+
+                  <input
+                    class="form-check-input wave-check"
+                    type="checkbox"
+                    id="wave-panel-{{ wave.id }}"
+                    value="{{ wave.id }}"
+                    {% if wave.id in selected_wave_ids %}checked{% endif %}>
+
+                  <label
+                    class="form-check-label"
+                    for="wave-panel-{{ wave.id }}">
+                    {{ wave }}
+                  </label>
+
+                </div>
+
+              </li>
+
+            {% empty %}
+              <li class="text-muted">
+                Keine Befragungsgruppen vorhanden.
+              </li>
+            {% endfor %}
+
+          </ul>
+
+        </div>
+
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+
+          <button
+            type="button"
+            id="btn-clear-waves"
+            class="btn btn-outline-secondary">
+            Zurücksetzen
+          </button>
+
+          <button
+            type="submit"
+            class="btn btn-dark">
+            Übernehmen
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+
+  </form>
+
+
+  {# Trefferzahl#}
+  <h2 class="entity-section-title tone-question">
+    {{ questions_count }} Treffer
+  </h2>
+
+
+  {% if questions %}
+
+    {% for item in questions %}
+      {% include "search/_card_question.html" with item=item %}
+    {% endfor %}
+
+  {% else %}
+
+    <p class="text-muted">
+      Keine Fragen gefunden.
+    </p>
+
+  {% endif %}
+
+
+  {% if questions_page.paginator.num_pages > 1 %}
+
+    <nav
+      aria-label="Seitennavigation"
+      class="mt-4">
+
+      <ul class="pagination justify-content-center">
+
+        <li class="page-item {% if not questions_page.has_previous %}disabled{% endif %}">
+
+          {% if questions_page.has_previous %}
+            <a
+              class="page-link"
+              href="{% url 'questions:question_list' %}{% url_with page=questions_page.previous_page_number %}"
+              rel="prev"
+              aria-label="Vorherige Seite">
+              &laquo;
+            </a>
+          {% else %}
+            <span class="page-link">&laquo;</span>
+          {% endif %}
+
+        </li>
+
+
+        <li class="page-item disabled">
+          <span class="page-link">
+            Seite {{ questions_page.number }}
+            von {{ questions_page.paginator.num_pages }}
+          </span>
+        </li>
+
+
+        <li class="page-item {% if not questions_page.has_next %}disabled{% endif %}">
+
+          {% if questions_page.has_next %}
+            <a
+              class="page-link"
+              href="{% url 'questions:question_list' %}{% url_with page=questions_page.next_page_number %}"
+              rel="next"
+              aria-label="Nächste Seite">
+              &raquo;
+            </a>
+          {% else %}
+            <span class="page-link">&raquo;</span>
+          {% endif %}
+
+        </li>
+
+      </ul>
+    </nav>
+
+  {% endif %}
+
+{% endblock %}
