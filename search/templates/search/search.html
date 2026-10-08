@@ -30,7 +30,7 @@
       <li class="nav-item" role="presentation">
         <a
           class="nav-link tone-tab
-                 {% if t == 'questions' %}tone-question{% elif t == 'variables' %}tone-variable{% else %}tone-neutral{% endif %}
+                 {% if t == 'pages' %}tone-survey{% elif t == 'questions' %}tone-question{% elif t == 'variables' %}tone-variable{% else %}tone-neutral{% endif %}
                  {% if type == t %}active{% endif %}"
           href="{% url 'search:search' %}{% url_with type=t page=None %}"
           aria-current="{% if type == t %}page{% else %}false{% endif %}">
@@ -164,7 +164,26 @@
 
 
   {% if type == "all" %}
-    {% if questions or variables %}
+    {% if pages or questions or variables %}
+      {% if pages %}
+        <section>
+          <h2>
+            Seiten ({{ pages_count }} Treffer)
+          </h2>
+
+          {% for page in pages %}
+            {% include "search/_card_page.html" with page=page %}
+          {% endfor %}
+
+          <p>
+            <a href="{% url 'search:search' %}{% url_with type='pages' page=None %}">
+              Mehr anzeigen
+            </a>
+          </p>
+        </section>
+      {% endif %}
+
+
       {% if questions %}
         <section>
           <h2>
@@ -183,6 +202,7 @@
           {% endif %}
         </section>
       {% endif %}
+
 
       {% if variables %}
         <section>
@@ -205,6 +225,26 @@
 
     {% else %}
       <p class="muted">Keine Treffer gefunden.</p>
+    {% endif %}
+  {% endif %}
+
+
+  {% if type == "pages" %}
+    <h2 class="entity-section-title tone-survey">
+      Seiten ({{ pages_count }} Treffer)
+    </h2>
+
+    {% if pages %}
+      {% for page in pages %}
+        {% include "search/_card_page.html" with page=page %}
+      {% endfor %}
+
+      {% if pages_page and pages_page.paginator.num_pages > 1 %}
+        {% include "search/_pagination.html" with page_obj=pages_page type="pages" %}
+      {% endif %}
+
+    {% else %}
+      <p class="muted">Keine Seiten gefunden.</p>
     {% endif %}
   {% endif %}
 

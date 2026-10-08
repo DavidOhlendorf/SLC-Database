@@ -13,6 +13,12 @@ from questions.models import Question
 from variables.models import Variable
 from waves.models import Wave
 
+
+from .services.pages import (
+    search_pages,
+    sort_pages,
+)
+
 from .services.questions import (
     build_question_groups,
     search_questions,
@@ -24,7 +30,7 @@ from .services.variables import (
     sort_variable_groups,
 )
 
-ALLOWED_TYPES = {"all", "questions", "variables",}
+ALLOWED_TYPES = {"all", "pages", "questions", "variables",}
 ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
 
@@ -91,6 +97,7 @@ def search(request):
         "TOP_N": 5,
         "tabs": [
             ("all", "Alle"),
+            ("pages", "Seiten"),
             ("questions", "Fragen"),
             ("variables", "Variablen"),
         ],
@@ -104,6 +111,10 @@ def search(request):
     facet_counter = defaultdict(int)
     facet_waves_set = set()
 
+    # Kann von der Seitensuche wiederverwendet werden, damit die
+    # Fragensuche im Modus "Alle" nicht doppelt ausgeführt wird.
+    question_search_result = None
+
 
 
     # =========================
@@ -111,9 +122,14 @@ def search(request):
     # =========================
     if search_type in {"all", "questions"}:
         questions_found, final_score_map = search_questions(
-        q=q,
-        wave_ids=wave_ids,
-        include_keywords=True,
+            q=q,
+            wave_ids=wave_ids,
+            include_keywords=True,
+        )
+
+        question_search_result = (
+            questions_found,
+            final_score_map,
         )
 
         question_groups = build_question_groups(
@@ -121,6 +137,7 @@ def search(request):
             score_map=final_score_map,
             wave_ids=wave_ids,
         )
+
         questions_sorted = sort_question_groups(question_groups, sort)
  
         # Nur konkrete Suchtreffer dürfen die Facettenzahlen bestimmen.
@@ -158,6 +175,43 @@ def search(request):
         ctx["questions_count"] = len(questions_sorted)
         ctx.setdefault("questions_count", 0)
 
+
+    # =========================
+    # PAGES
+    # =========================
+
+    if search_type in {"all", "pages"}:
+        pages_found, final_page_score_map = search_pages(
+            q=q,
+            wave_ids=wave_ids,
+            question_search_result=question_search_result,
+        )
+
+        pages_sorted = sort_pages(
+            pages=pages_found,
+            score_map=final_page_score_map,
+            sort=sort,
+        )
+
+        # Eine Seite zählt pro tatsächlich passender Welle nur einmal.
+        for page in pages_found:
+            matching_wave_ids = page.search_match_wave_ids
+
+            for link in page.search_all_wave_links:
+                if link.wave_id not in matching_wave_ids:
+                    continue
+
+                facet_counter[link.wave_id] += 1
+                facet_waves_set.add(link.wave)
+
+        if search_type == "all":
+            ctx["pages"] = pages_sorted[:ctx["TOP_N"]]
+        else:
+            page_obj = paginate_list(pages_sorted, request)
+            ctx["pages_page"] = page_obj
+            ctx["pages"] = page_obj.object_list
+
+        ctx["pages_count"] = len(pages_sorted)
 
     # =========================
     # VARIABLES

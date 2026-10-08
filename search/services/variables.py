@@ -140,14 +140,22 @@ def search_variables(q: str, wave_ids=None):
     }
 
     if kw_id_to_score_v:
-        var_kw_links = (
-            QuestionVariableWave.objects
-            .filter(
-                variable__in=base_qs_v,
-                question__keywords__in=list(
-                    kw_id_to_score_v.keys()
-                ),
+        var_kw_link_queryset = QuestionVariableWave.objects.filter(
+            variable__in=base_qs_v,
+            question__keywords__in=list(
+                kw_id_to_score_v.keys()
+            ),
+        )
+
+        # Bei aktivem Wellenfilter muss auch die konkrete
+        # Frage-Variable-Welle-Verknüpfung zur ausgewählten Welle gehören.
+        if wave_ids:
+            var_kw_link_queryset = var_kw_link_queryset.filter(
+                wave_id__in=wave_ids
             )
+
+        var_kw_links = (
+            var_kw_link_queryset
             .values(
                 "variable_id",
                 "question__keywords__id",
@@ -156,6 +164,7 @@ def search_variables(q: str, wave_ids=None):
         )
     else:
         var_kw_links = []
+
 
     kw_map_v = {}
 

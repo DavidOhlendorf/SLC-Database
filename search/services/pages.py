@@ -14,7 +14,7 @@ from .questions import search_questions
 
 
 # Suche nach Seiten basierend auf Seitennamen und zugeordneten Fragen einschließlich deren Schlagwörtern.
-def search_pages(q: str, wave_ids=None):
+def search_pages(q: str, wave_ids=None, question_search_result=None,):
 
     q = (q or "").strip()
 
@@ -59,11 +59,18 @@ def search_pages(q: str, wave_ids=None):
 
     # Inhaltliche Treffer werden vom vorhandenen Fragenservice ermittelt.
     # Damit gelten dieselben Regeln für Fragetext und Keywords.
-    matched_questions, question_score_map = search_questions(
-        q=q,
-        wave_ids=wave_ids,
-        include_keywords=True,
-    )
+    # In der globalen Suche können bereits berechnete Fragentreffer
+    # übergeben werden. Bei alleiniger Seitensuche ermittelt der
+    # Service die Fragentreffer selbst.
+    if question_search_result is None:
+        matched_questions, question_score_map = search_questions(
+            q=q,
+            wave_ids=wave_ids,
+            include_keywords=True,
+        )
+    else:
+        matched_questions, question_score_map = question_search_result
+
 
     matched_question_ids = {
         question.id

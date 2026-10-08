@@ -1,0 +1,118 @@
+{% load pv_formatting %}
+
+<div class="card mb-2 entity-card tone-survey">
+  <div class="card-body">
+
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+      <h5 class="card-title mb-0">
+        Seite {{ page.pagename }}
+      </h5>
+
+      {% if show_relevance %}
+        <span class="text-muted small flex-shrink-0">
+          Relevanz: {{ page.relevance }}
+        </span>
+      {% endif %}
+    </div>
+
+
+    {# Überschrift und Einleitung dienen nur als Kontextanzeige. #}
+
+    {% if page.page_heading %}
+      <p class="fw-semibold mb-1">
+        {{ page.page_heading|pv_plain }}
+      </p>
+    {% endif %}
+
+    {% if page.introduction %}
+      <p class="small text-muted mb-3">
+        {{ page.introduction|pv_plain|truncatechars:400 }}
+      </p>
+    {% endif %}
+
+
+    {# Fragen, durch die die Seite inhaltlich gefunden wurde. #}
+
+    {% if page.search_matching_question_links %}
+      <div class="border-top pt-2 mt-2 mb-3">
+
+        <div class="vstack gap-2">
+          {% for link in page.search_matching_question_links|slice:":3" %}
+            {% with question=link.question %}
+              <div>
+                <p class="small mb-1">
+                  {{ question.questiontext|pv_plain|truncatechars:300 }}
+                </p>
+
+                {% with keywords=question.keywords.all %}
+                  {% if keywords %}
+                    <div class="keyword-list">
+                      {% for keyword in keywords|slice:":5" %}
+                        <span class="keyword-tag">
+                          #{{ keyword.name }}
+                        </span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
+              </div>
+            {% endwith %}
+          {% endfor %}
+        </div>
+
+        {% if page.search_matching_question_links|length > 3 %}
+          <p class="small text-muted mb-0 mt-2">
+            {{ page.search_matching_question_links|length|add:"-3" }}
+            weitere passende
+            {% if page.search_matching_question_links|length == 4 %}
+              Frage
+            {% else %}
+              Fragen
+            {% endif %}
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+
+    {# Befragungsgruppen und zugehörige Module. #}
+
+    {% with wave_links=page.search_display_wave_links %}
+      {% if wave_links %}
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          {% for link in wave_links|slice:":5" %}
+            <span class="d-inline-flex align-items-center gap-1">
+              <span class="context-pill context-pill--solid tone-survey">
+                {{ link.wave }}
+              </span>
+
+              {% if link.module %}
+                <span class="small text-muted">
+                  {{ link.module.name }}
+                </span>
+              {% endif %}
+            </span>
+          {% endfor %}
+        </div>
+
+        {% if wave_links|length > 5 %}
+          <p class="small text-muted mb-2">
+            {{ wave_links|length|add:"-5" }} weitere Zuordnungen
+          </p>
+        {% endif %}
+      {% endif %}
+    {% endwith %}
+
+
+    <div class="d-flex justify-content-end mt-2">
+      <a
+        class="small action-link"
+        href="{% url 'pages:page-detail' page.id %}?back={{ request.get_full_path|urlencode }}"
+        target="_blank"
+        rel="noopener noreferrer">
+        Details →
+      </a>
+    </div>
+
+  </div>
+</div>
