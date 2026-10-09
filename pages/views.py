@@ -13,11 +13,11 @@ from django.contrib import messages
 from accounts.mixins import EditorRequiredMixin
 
 from django.db import IntegrityError, transaction
-from django.db.models import F, Prefetch, OuterRef, Exists, Max
+from django.db.models import F, Prefetch, OuterRef, Exists, Max, prefetch_related_objects
 
 from waves.models import Survey, WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion, WavePageWave, WavePageQml
-from questions.models import Question, QuestionVariableWave
+from questions.models import Question, QuestionVariableWave, Keyword
 from variables.models import Variable
 
 from .forms import WavePageBaseForm, WavePageContentForm, PageQuestionLinkFormSet
@@ -212,6 +212,8 @@ class WavePageListView(View):
                     waves__id__in=wave_ids
                 )
 
+
+
             # Alle Wave-, Befragungs- und Modulinformationen für die Karten.
             all_wave_links = (
                 WavePageWave.objects
@@ -269,7 +271,6 @@ class WavePageListView(View):
             # durch die eine Seite gefunden wurde.
             for page in matched_pages:
                 page.relevance = 0.0
-                page.search_matching_question_links = []
                 page.search_match_wave_ids = {
                     link.wave_id
                     for link in page.search_display_wave_links
@@ -301,6 +302,35 @@ class WavePageListView(View):
         page_obj = paginator.get_page(
             request.GET.get("page")
         )
+
+        if not q:
+            catalog_question_links = (
+                WavePageQuestion.objects
+                .select_related("question")
+                .prefetch_related(
+                    Prefetch(
+                        "question__keywords",
+                        queryset=Keyword.objects.order_by("name"),
+                    )
+                )
+                .order_by("sort_order", "id")
+            )
+
+            if wave_ids:
+                catalog_question_links = (
+                    catalog_question_links
+                    .filter(waves__id__in=wave_ids)
+                    .distinct()
+                )
+
+            prefetch_related_objects(
+                page_obj.object_list,
+                Prefetch(
+                    "page_questions",
+                    queryset=catalog_question_links,
+                    to_attr="search_matching_question_links",
+                ),
+            )
 
         context = {
             "q": q,

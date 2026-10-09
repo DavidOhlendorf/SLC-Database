@@ -30,6 +30,16 @@
       </p>
     {% endif %}
 
+    {# Thematische Vorschau in der ungefilterten Seitenübersicht. #}
+
+    {% if page.preview_questiontext %}
+      <div class="border-top pt-2 mt-2 mb-3">
+        <p class="small mb-0">
+          {{ page.preview_questiontext|pv_plain|truncatechars:300 }}
+        </p>
+      </div>
+    {% endif %}
+
 
     {# Fragen, durch die die Seite inhaltlich gefunden wurde. #}
 
@@ -63,12 +73,14 @@
         {% if page.search_matching_question_links|length > 3 %}
           <p class="small text-muted mb-0 mt-2">
             {{ page.search_matching_question_links|length|add:"-3" }}
-            weitere passende
+            weitere
+            {% if q %}passende{% endif %}
             {% if page.search_matching_question_links|length == 4 %}
               Frage
             {% else %}
               Fragen
             {% endif %}
+            {% if not q %}auf dieser Seite{% endif %}
           </p>
         {% endif %}
       </div>
@@ -81,13 +93,15 @@
       {% if wave_links %}
         <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
           {% for link in wave_links|slice:":5" %}
-            <span class="d-inline-flex align-items-center gap-1">
+            <span class="d-inline-flex align-items-center gap-2">
               <span class="context-pill context-pill--solid tone-survey">
                 {{ link.wave }}
               </span>
 
               {% if link.module %}
                 <span class="small text-muted">
+                  <span aria-hidden="true">|</span>
+                  <span class="fw-semibold">Modul:</span>
                   {{ link.module.name }}
                 </span>
               {% endif %}

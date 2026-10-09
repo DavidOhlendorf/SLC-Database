@@ -1,45 +1,80 @@
 <div class="card mb-2 entity-card tone-question">
-  <div class="card-body">
 
-    {% if item.name or item.is_version_group %}
-      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+  {% if item.name or item.is_version_group %}
+    <div class="card-header tone-surface--subtle tone-question py-3 border-bottom-0">
+
+      <div class="d-flex justify-content-between align-items-center gap-3">
+
         {% if item.name %}
-          <h5 class="card-title mb-0">{{ item.name }}</h5>
+          <h5 class="card-title mb-0 tone-text">
+            <span
+              class="d-inline-flex me-2 opacity-75"
+              tabindex="0"
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="Versionsgruppe. Frage liegt in mehreren Versionen vor.">
+
+              <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+
+            </span>
+            {{ item.name }}
+          </h5>
         {% endif %}
 
         {% if item.is_version_group %}
           <span class="badge entity-badge tone-question flex-shrink-0">
             {{ item.questions|length }}
-            {% if item.questions|length == 1 %}Version{% else %}Versionen{% endif %}
+            {% if item.questions|length == 1 %}
+              Version
+            {% else %}
+              Versionen
+            {% endif %}
           </span>
         {% endif %}
-      </div>
-    {% endif %}
 
-    {% include "search/_question_result.html" with question=item.primary_question %}
+      </div>
+
+    </div>
+  {% endif %}
+
+  <div class="card-body">
+
+    {% include "search/_question_result.html" with question=item.primary_question hide_details_link=item.other_questions %}
 
     {% if item.is_version_group and item.other_questions %}
-      <button
-        class="btn btn-link btn-sm p-0 mt-2 text-decoration-none disclosure-toggle"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#search-versions-{{ item.primary_question.id }}"
-        aria-expanded="false"
-        aria-controls="search-versions-{{ item.primary_question.id }}">
+      <div class="d-flex justify-content-between align-items-center gap-3 mt-2">
 
-        <span class="disclosure-toggle__collapsed">
-          ▾
-          {% if item.other_questions|length == 1 %}
-            1 weitere Version anzeigen
-          {% else %}
-            {{ item.other_questions|length }} weitere Versionen anzeigen
-          {% endif %}
-        </span>
+        <button
+          class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#search-versions-{{ item.primary_question.id }}"
+          aria-expanded="false"
+          aria-controls="search-versions-{{ item.primary_question.id }}">
 
-        <span class="disclosure-toggle__expanded">
-          ▴ Weitere Versionen ausblenden
-        </span>
-      </button>
+          <span class="disclosure-toggle__collapsed">
+            ▾
+            {% if item.other_questions|length == 1 %}
+              1 weitere Version anzeigen
+            {% else %}
+              {{ item.other_questions|length }} weitere Versionen anzeigen
+            {% endif %}
+          </span>
+
+          <span class="disclosure-toggle__expanded">
+            ▴ Weitere Versionen ausblenden
+          </span>
+        </button>
+
+        <a
+          class="small action-link flex-shrink-0"
+          href="{% url 'questions:question_detail' item.primary_question.id %}?back={{ request.get_full_path|urlencode }}"
+          target="_blank"
+          rel="noopener noreferrer">
+          Details →
+        </a>
+
+      </div>
 
       <div
         class="collapse"
@@ -53,5 +88,6 @@
 
       </div>
     {% endif %}
+
   </div>
 </div>

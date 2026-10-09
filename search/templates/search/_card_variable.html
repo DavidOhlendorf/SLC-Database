@@ -1,12 +1,22 @@
 <div class="card mb-2 entity-card tone-variable">
-  <div class="card-body">
 
-    {# Kopf der Variablenfamilie #}
+  {# Kopf der Variablenfamilie #}
+  {% if item.is_family %}
+    <div class="card-header tone-surface--subtle tone-variable py-3 border-bottom-0">
 
-    {% if item.is_family %}
-      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center gap-3">
 
-        <h5 class="card-title mb-0">
+        <h5 class="card-title mb-0 tone-text">
+          <span
+              class="d-inline-flex me-2 opacity-75"
+              tabindex="0"
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="Variablenstamm. Variable liegt in mehreren Varianten vor">
+
+              <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+
+          </span>
           {{ item.name }}
         </h5>
 
@@ -20,38 +30,52 @@
         </span>
 
       </div>
-    {% endif %}
 
+    </div>
+  {% endif %}
+
+
+  <div class="card-body">
 
     {# Bestbewerteter konkreter Suchtreffer #}
-
-    {% include "search/_variable_result.html" with variable=item.primary_variable %}
+    {% include "search/_variable_result.html" with variable=item.primary_variable hide_details_link=item.other_variables %}
 
 
     {# Weitere Varianten der Familie #}
-
     {% if item.other_variables %}
-      <button
-        class="btn btn-link btn-sm p-0 mt-2 text-decoration-none disclosure-toggle"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#search-variable-variants-{{ item.primary_variable.id }}"
-        aria-expanded="false"
-        aria-controls="search-variable-variants-{{ item.primary_variable.id }}">
+      <div class="d-flex justify-content-between align-items-center gap-3 mt-2">
 
-        <span class="disclosure-toggle__collapsed">
-          ▾
-          {% if item.other_variables|length == 1 %}
-            1 weitere Variante anzeigen
-          {% else %}
-            {{ item.other_variables|length }} weitere Varianten anzeigen
-          {% endif %}
-        </span>
+        <button
+          class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#search-variable-variants-{{ item.primary_variable.id }}"
+          aria-expanded="false"
+          aria-controls="search-variable-variants-{{ item.primary_variable.id }}">
 
-        <span class="disclosure-toggle__expanded">
-          ▴ Weitere Varianten ausblenden
-        </span>
-      </button>
+          <span class="disclosure-toggle__collapsed">
+            ▾
+            {% if item.other_variables|length == 1 %}
+              1 weitere Variante anzeigen
+            {% else %}
+              {{ item.other_variables|length }} weitere Varianten anzeigen
+            {% endif %}
+          </span>
+
+          <span class="disclosure-toggle__expanded">
+            ▴ Weitere Varianten ausblenden
+          </span>
+        </button>
+
+        <a
+          class="small action-link flex-shrink-0"
+          href="{% url 'variables:variable_detail' item.primary_variable.id %}?back={{ request.get_full_path|urlencode }}"
+          target="_blank"
+          rel="noopener noreferrer">
+          Details →
+        </a>
+
+      </div>
 
 
       <div

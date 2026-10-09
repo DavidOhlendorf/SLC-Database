@@ -148,11 +148,14 @@
         {% endif %}
     {% endwith %}
 
+    {% if not hide_details_link %}
     <div class="d-flex justify-content-end mt-2">
-    <a class="small action-link"
+        <a
+        class="small action-link"
         href="{% url 'questions:question_detail' question.id %}?back={{ request.get_full_path|urlencode }}"
         target="_blank"
         rel="noopener noreferrer">
         Details →
-    </a>
+        </a>
     </div>
+    {% endif %}
