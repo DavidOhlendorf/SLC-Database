@@ -1,5 +1,7 @@
 # pages/views.py
 import re
+from django.conf import settings
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, UpdateView, TemplateView
@@ -11,7 +13,7 @@ from django.contrib import messages
 from accounts.mixins import EditorRequiredMixin
 
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch, OuterRef, Exists, Max
+from django.db.models import F, Prefetch, OuterRef, Exists, Max
 
 from waves.models import Survey, WaveQuestion, Wave
 from .models import WavePage, WavePageQuestion, WavePageWave, WavePageQml
@@ -24,8 +26,15 @@ from .services.pv_builder import PVContext, build_pv
 from .services.page_sync import sync_wavequestions_for_page
 from .services.page_cleanup import apply_question_removals_from_page
 
+from search.services.pages import search_pages, sort_pages
+
 # Session-Key für verwaiste Fragen-Review
 ORPHAN_REVIEW_SESSION_KEY = "orphan_review"
+
+
+# --------------------------------------------------------------------------
+# ---- HILFSFUNKTIONEN------------------------------------------------------
+# --------------------------------------------------------------------------
 
 # Helper: Aktive Wave aus QuerySet bestimmen
 def _get_active_wave_from_qs(request, waves_qs, *, default_first=True):
@@ -157,7 +166,164 @@ def _sort_bound_question_formset_for_render(formset):
     formset.forms.sort(key=sort_key)
     return formset
 
+# --------------------------------------------------------------------------
+# ---- VIEWS ---------------------------------------------------------------
+# --------------------------------------------------------------------------
 
+# ---- VIEW FÜR SEITENÜBERSICHT --------------------------------------------
+class WavePageListView(View):
+    template_name = "pages/list.html"
+    results_per_page = 20
+
+    def get(self, request, *args, **kwargs):
+        q = (request.GET.get("q") or "").strip()
+
+        wave_ids = [
+            int(value)
+            for value in request.GET.getlist("waves")
+            if value.strip().isdigit()
+        ]
+
+        all_waves = Wave.objects.select_related("survey").order_by(
+            F("survey__year").desc(nulls_last=True),
+            "survey__name",
+            "cycle",
+            "instrument",
+            "id",
+        )
+        selected_waves = list(
+            all_waves.filter(id__in=wave_ids)
+        )
+
+        if q:
+            # Mit Suchbegriff verwenden wir den bestehenden Seitensuchservice.
+            matched_pages, score_map = search_pages(
+                q=q,
+                wave_ids=wave_ids,
+            )
+            default_sort = "relevance"
+
+        else:
+            # Ohne Suchbegriff dient die View als Seitenkatalog.
+            pages_queryset = WavePage.objects.all()
+
+            if wave_ids:
+                pages_queryset = pages_queryset.filter(
+                    waves__id__in=wave_ids
+                )
+
+            # Alle Wave-, Befragungs- und Modulinformationen für die Karten.
+            all_wave_links = (
+                WavePageWave.objects
+                .select_related(
+                    "wave__survey",
+                    "module",
+                )
+                .order_by(
+                    F("wave__survey__year").desc(nulls_last=True),
+                    F("wave__start_date").desc(nulls_last=True),
+                    "wave__cycle",
+                    "wave__instrument",
+                    "sort_order",
+                    "id",
+                )
+            )
+
+            displayed_wave_links = all_wave_links
+
+            if wave_ids:
+                displayed_wave_links = displayed_wave_links.filter(
+                    wave_id__in=wave_ids
+                )
+
+            matched_pages = list(
+                pages_queryset
+                .only(
+                    "id",
+                    "pagename",
+                    "page_heading",
+                    "introduction",
+                )
+                .prefetch_related(
+                    Prefetch(
+                        "wave_links",
+                        queryset=all_wave_links,
+                        to_attr="search_all_wave_links",
+                    ),
+                    Prefetch(
+                        "wave_links",
+                        queryset=displayed_wave_links,
+                        to_attr="search_display_wave_links",
+                    ),
+                )
+                .distinct()
+            )
+
+            score_map = {
+                page.id: 0.0
+                for page in matched_pages
+            }
+
+            # Das Karten-Partial verwendet diese Attribute auch im
+            # Suchmodus. Im Katalogmodus gibt es aber keine Fragen,
+            # durch die eine Seite gefunden wurde.
+            for page in matched_pages:
+                page.relevance = 0.0
+                page.search_matching_question_links = []
+                page.search_match_wave_ids = {
+                    link.wave_id
+                    for link in page.search_display_wave_links
+                }
+
+            default_sort = "alpha"
+
+        sort = (
+            request.GET.get("sort")
+            or default_sort
+        ).lower()
+
+        if sort not in {"relevance", "alpha"}:
+            sort = default_sort
+
+        if not q:
+            sort = "alpha"
+
+        pages_sorted = sort_pages(
+            pages=matched_pages,
+            score_map=score_map,
+            sort=sort,
+        )
+
+        paginator = Paginator(
+            pages_sorted,
+            self.results_per_page,
+        )
+        page_obj = paginator.get_page(
+            request.GET.get("page")
+        )
+
+        context = {
+            "q": q,
+            "sort": sort,
+            "pages": page_obj.object_list,
+            "pages_page": page_obj,
+            "pages_count": len(pages_sorted),
+            "all_waves": all_waves,
+            "selected_waves": selected_waves,
+            "selected_wave_ids": [
+                wave.id
+                for wave in selected_waves
+            ],
+            "show_relevance": settings.DEBUG and bool(q),
+        }
+
+        return render(
+            request,
+            self.template_name,
+            context,
+        )
+
+    
 # View zum Anzeigen einer Fragebogenseite
 class WavePageDetailView(DetailView):
     model = WavePage
