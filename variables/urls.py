@@ -4,6 +4,7 @@ from . import views
 app_name = "variables"
 
 urlpatterns = [
+    path("", views.VariableListView.as_view(), name="variable_list"),
     path('<int:pk>/', views.VariableDetail.as_view(), name='variable_detail'),
     path("<int:pk>/edit/", views.VariableUpdateView.as_view(), name="variable_edit"),
     path("<int:pk>/delete/", views.VariableDeleteView.as_view(), name="variable_delete"),

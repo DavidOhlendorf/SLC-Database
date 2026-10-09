@@ -1,7 +1,10 @@
 # variables/views.py
 
+from django.conf import settings
+from django.core.paginator import Paginator
+
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -25,9 +28,137 @@ from .forms import VariableForm
 
 from .versioning import parse_variable_name, variable_family_sort_key, VariableNameSchemaError
 
+from search.services.variables import (
+    build_variable_groups,
+    search_variables,
+    sort_variable_groups,
+)
+
+# ---- VIEWS -----------------------------------------
+
+# ---- VIEW FÜR VARIABLENLISTE -----------------------------------------
+class VariableListView(View):
+    template_name = "variables/list.html"
+    results_per_page = 20
+
+    def get(self, request, *args, **kwargs):
+        q = (request.GET.get("q") or "").strip()
+
+        wave_ids = [
+            int(value)
+            for value in request.GET.getlist("waves")
+            if value.strip().isdigit()
+        ]
+
+        all_waves = Wave.objects.select_related("survey").order_by(
+            F("survey__year").desc(nulls_last=True),
+            "survey__name",
+            "cycle",
+            "instrument",
+            "id",
+        )
+        selected_waves = list(
+            all_waves.filter(id__in=wave_ids)
+        )
+
+        if q:
+            # Mit Suchbegriff wird der
+            # Suchservice der globalen Variablensuche verwendet.
+            matched_variables, score_map = search_variables(
+                q=q,
+                wave_ids=wave_ids,
+            )
+            default_sort = "relevance"
+
+        else:
+            # Ohne Suchbegriff dient die Seite als Variablenkatalog.
+            variables_queryset = Variable.objects.all()
+
+            if wave_ids:
+                variables_queryset = variables_queryset.filter(
+                    waves__id__in=wave_ids
+                )
+
+            matched_variables = list(
+                variables_queryset
+                .only(
+                    "id",
+                    "varname",
+                    "varlab",
+                )
+                .distinct()
+            )
+
+            score_map = {
+                variable.id: 0.0
+                for variable in matched_variables
+            }
+
+            default_sort = "alpha"
+
+        sort = (
+            request.GET.get("sort")
+            or default_sort
+        ).lower()
+
+        if sort not in {"relevance", "alpha"}:
+            sort = default_sort
+
+        # Ohne Suchbegriff existiert keine Relevanzsortierung.
+        if not q:
+            sort = "alpha"
+
+        variable_groups = build_variable_groups(
+            matched_variables=matched_variables,
+            score_map=score_map,
+            wave_ids=wave_ids,
+        )
+
+        variable_groups = sort_variable_groups(
+            variable_groups,
+            sort,
+        )
+
+        # Anzahl aller konkreten Variablen in den angezeigten Familien.
+        variables_in_results_count = sum(
+            len(group["variables"])
+            for group in variable_groups
+        )
+
+        paginator = Paginator(
+            variable_groups,
+            self.results_per_page,
+        )
+        page_obj = paginator.get_page(
+            request.GET.get("page")
+        )
+
+        context = {
+            "q": q,
+            "sort": sort,
+            "variables": page_obj.object_list,
+            "variables_page": page_obj,
+            "variables_count": len(variable_groups),
+            "variables_in_results_count": variables_in_results_count,
+            "all_waves": all_waves,
+            "selected_waves": selected_waves,
+            "selected_wave_ids": [
+                wave.id
+                for wave in selected_waves
+            ],
+            "show_relevance": settings.DEBUG and bool(q),
+        }
+
+        return render(
+            request,
+            self.template_name,
+            context,
+        )
 
 
-# Detail-View für die Anzeige einer Variable
+
+
+# ----- Detail-View für die Anzeige einer Variable -----------------
 class VariableDetail(DetailView):
     model = Variable
     template_name = "variables/detail.html"

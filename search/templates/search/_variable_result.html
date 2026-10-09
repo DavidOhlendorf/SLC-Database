@@ -105,12 +105,14 @@
 {% endwith %}
 
 
-<div class="d-flex justify-content-end mt-2">
-  <a
-    class="small action-link"
-    href="{% url 'variables:variable_detail' variable.id %}?back={{ request.get_full_path|urlencode }}"
-    target="_blank"
-    rel="noopener noreferrer">
-    Details →
-  </a>
-</div>
+{% if not hide_details_link %}
+  <div class="d-flex justify-content-end mt-2">
+    <a
+      class="small action-link"
+      href="{% url 'variables:variable_detail' variable.id %}?back={{ request.get_full_path|urlencode }}"
+      target="_blank"
+      rel="noopener noreferrer">
+      Details →
+    </a>
+  </div>
+{% endif %}

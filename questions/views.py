@@ -1,6 +1,9 @@
 # questions/views.py
 
 import json
+from django.core.paginator import Paginator
+from django.conf import settings
+
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -13,7 +16,7 @@ from django.views.generic import DetailView, UpdateView
 
 from accounts.mixins import EditorRequiredMixin
 
-from django.db.models import Prefetch, Q, Max
+from django.db.models import Prefetch, Q, Max, F
 from django.db import transaction, IntegrityError
 
 from questions.formatting import strip_pv_formatting
@@ -42,6 +45,12 @@ from variables.versioning import (
     VariableNameSchemaError,
     parse_variable_name,
     suggest_next_variable_name,
+)
+
+from search.services.questions import (
+    build_question_groups,
+    search_questions,
+    sort_question_groups,
 )
 
 
@@ -95,6 +104,120 @@ def _build_question_variable_formset(*, question, question_waves, method, post_d
 
 # ---- VIEWS ------------------------------------------------------------
 
+# ---- VIEW FÜR DEN FRAGENKATALOG -----------------------------------------------
+class QuestionListView(View):
+    template_name = "questions/list.html"
+    results_per_page = 20
+
+    def get(self, request, *args, **kwargs):
+        q = (request.GET.get("q") or "").strip()
+
+        wave_ids = [
+            int(value)
+            for value in request.GET.getlist("waves")
+            if value.strip().isdigit()
+        ]
+
+        all_waves = Wave.objects.select_related("survey").order_by(
+            F("survey__year").desc(nulls_last=True),
+            "survey__name",
+            "cycle",
+            "instrument",
+            "id",
+        )
+        selected_waves = list(all_waves.filter(id__in=wave_ids))
+
+        if q:
+            # Bei einer Suchanfrage verwenden wir exakt den bestehenden
+            # Suchservice der globalen Suche.
+            matched_questions, score_map = search_questions(
+                q=q,
+                wave_ids=wave_ids,
+                include_keywords=True,
+            )
+            default_sort = "relevance"
+
+        else:
+            # Ohne Suchbegriff dient die Seite als vollständiger Fragenkatalog.
+            questions_queryset = Question.objects.all()
+
+            if wave_ids:
+                questions_queryset = questions_queryset.filter(
+                    waves__id__in=wave_ids
+                )
+
+            matched_questions = list(
+                questions_queryset
+                .only(
+                    "id",
+                    "questiontext",
+                    "version_group_id",
+                    "version_number",
+                )
+                .distinct()
+            )
+
+            score_map = {
+                question.id: 0.0
+                for question in matched_questions
+            }
+
+            default_sort = "alpha"
+
+        sort = (request.GET.get("sort") or default_sort).lower()
+
+        if sort not in {"relevance", "alpha"}:
+            sort = default_sort
+
+        # Ohne Suchbegriff existiert keine sinnvolle Relevanzsortierung.
+        if not q:
+            sort = "alpha"
+
+        question_groups = build_question_groups(
+            matched_questions=matched_questions,
+            score_map=score_map,
+            wave_ids=wave_ids,
+        )
+
+        question_groups = sort_question_groups(
+            question_groups,
+            sort,
+        )
+
+        questions_in_results_count = sum(
+            len(group["questions"])
+            for group in question_groups
+        )
+
+        paginator = Paginator(
+            question_groups,
+            self.results_per_page,
+        )
+        page_obj = paginator.get_page(
+            request.GET.get("page")
+        )
+
+        context = {
+            "q": q,
+            "sort": sort,
+            "questions": page_obj.object_list,
+            "questions_page": page_obj,
+            "questions_count": len(question_groups),
+            "questions_in_results_count": questions_in_results_count,
+            "all_waves": all_waves,
+            "selected_waves": selected_waves,
+            "selected_wave_ids": [
+                wave.id
+                for wave in selected_waves
+            ],
+            "show_relevance": settings.DEBUG and bool(q),
+        }
+
+        return render(
+            request,
+            self.template_name,
+            context,
+        )
 
 # View für Detailanzeige einer Frage
 class QuestionDetail(DetailView):
