@@ -184,6 +184,11 @@ class QuestionListView(View):
             sort,
         )
 
+        questions_in_results_count = sum(
+            len(group["questions"])
+            for group in question_groups
+        )
+
         paginator = Paginator(
             question_groups,
             self.results_per_page,
@@ -198,6 +203,7 @@ class QuestionListView(View):
             "questions": page_obj.object_list,
             "questions_page": page_obj,
             "questions_count": len(question_groups),
+            "questions_in_results_count": questions_in_results_count,
             "all_waves": all_waves,
             "selected_waves": selected_waves,
             "selected_wave_ids": [

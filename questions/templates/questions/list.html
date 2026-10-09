@@ -249,9 +249,15 @@
 
 
   {# Trefferzahl#}
-  <h2 class="entity-section-title tone-question">
+  <h4 class="entity-section-title tone-question">
     {{ questions_count }} Treffer
-  </h2>
+
+    <small
+      class="d-block text-muted fw-normal mt-1"
+      style="font-size: 0.9rem;">
+      ({{ questions_in_results_count }} Fragen inklusive Versionen)
+    </small>
+  </h4>
 
 
   {% if questions %}
