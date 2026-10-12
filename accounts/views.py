@@ -32,7 +32,7 @@ def loginpage(request):
     next_url = request.GET.get("next") or request.POST.get("next") or ""
 
     # Falls next auf die Logout-URL zeigt wird auf die Startseite umgeleitet
-    logout_url = reverse("logout")
+    logout_url = reverse("accounts:logout")
     if next_url.startswith(logout_url):
         next_url = ""
 
@@ -104,7 +104,7 @@ class AccountAppearanceView(LoginRequiredMixin, FormView):
     """
     template_name = "accounts/appearance.html"
     form_class = UserPreferencesForm
-    success_url = reverse_lazy("account_appearance")
+    success_url = reverse_lazy("accounts:account_appearance")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
