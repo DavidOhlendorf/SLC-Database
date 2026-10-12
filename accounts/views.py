@@ -1,11 +1,24 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView, FormView
+
+
 from django.conf import settings
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
+
+from .forms import UserPreferencesForm, UserEmailForm
+from .models import UserPreferences
 
 
+
+
+# ---------------------------------------------------------
+# Login
+# ---------------------------------------------------------
 def loginpage(request):
     #  eingeloggt? → direkt zur Suche
     if request.user.is_authenticated:
@@ -19,7 +32,7 @@ def loginpage(request):
     next_url = request.GET.get("next") or request.POST.get("next") or ""
 
     # Falls next auf die Logout-URL zeigt wird auf die Startseite umgeleitet
-    logout_url = reverse("logout")
+    logout_url = reverse("accounts:logout")
     if next_url.startswith(logout_url):
         next_url = ""
 
@@ -48,8 +61,106 @@ def loginpage(request):
 
     return render(request, "accounts/login.html", {"next": next_url})
     
-
+# ---------------------------------------------------------
+# Logout
+# ---------------------------------------------------------
 def logout_view(request):
     logout(request)
     messages.success(request, "Du wurdest erfolgreich abgemeldet.")
     return redirect("login")
+
+
+
+# ---------------------------------------------------------
+# Persönlicher Bereich
+# ---------------------------------------------------------
+
+class AccountOverviewView(LoginRequiredMixin, TemplateView):
+    """
+    Übersichtsseite des persönlichen Bereichs.
+    """
+    template_name = "accounts/overview.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        preferences = UserPreferences.objects.filter(
+            user=self.request.user
+        ).first()
+
+        context["current_theme"] = (
+            preferences.get_theme_display()
+            if preferences
+            else UserPreferences.Theme.DEEP_OCEAN.label
+        )
+
+        return context
+
+
+class AccountAppearanceView(LoginRequiredMixin, FormView):
+    """
+    Persönliche Darstellungseinstellungen.
+    Aktuell: Auswahl und Speicherung des Farbschemas.
+    """
+    template_name = "accounts/appearance.html"
+    form_class = UserPreferencesForm
+    success_url = reverse_lazy("accounts:account_appearance")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+
+        # Bestehende Einstellungen laden oder eine neue,
+        # noch nicht gespeicherte Instanz vorbereiten.
+        preferences = (
+            UserPreferences.objects.filter(
+                user=self.request.user
+            ).first()
+            or UserPreferences(user=self.request.user)
+        )
+
+        kwargs["instance"] = preferences
+
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+
+        messages.success(
+            self.request,
+            "Farbschema erfolgreich gespeichert."
+        )
+
+        return super().form_valid(form)
+
+
+class AccountSecurityView(LoginRequiredMixin, FormView):
+    """
+    Kontoinformationen und Sicherheit.
+
+    Ermöglicht dem angemeldeten Benutzer, seine E-Mail-Adresse
+    nach Bestätigung des aktuellen Passworts zu ändern.
+    """
+
+    template_name = "accounts/security.html"
+    form_class = UserEmailForm
+    success_url = reverse_lazy("accounts:account_security")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+
+        # Formular mit dem aktuell angemeldeten User verbinden.
+        kwargs["instance"] = self.request.user
+
+        return kwargs
+
+    def form_valid(self, form):
+        # Ausschließlich die E-Mail-Adresse aktualisieren.
+        user = form.save(commit=False)
+        user.save(update_fields=["email"])
+
+        messages.success(
+            self.request,
+            "E-Mail-Adresse wurde erfolgreich aktualisiert."
+        )
+
+        return super().form_valid(form)
