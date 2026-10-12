@@ -1,0 +1,134 @@
+{% extends "main.html" %}
+
+{% block content %}
+
+  <!-- Navigation -->
+  <div class="mb-3">
+    <a href="{% url 'accounts:account_overview' %}"
+       class="text-decoration-none text-secondary">
+      <i class="fa-solid fa-arrow-left me-1"></i>
+      Mein Bereich
+    </a>
+  </div>
+
+  <!-- Überschrift -->
+  <div class="mb-4">
+    <h1 class="mb-1">Konto &amp; Sicherheit</h1>
+    <p class="text-muted mb-0">
+      Verwalte deine Kontoinformationen und dein Passwort.
+    </p>
+  </div>
+
+  <div class="row">
+    <div class="col-12 col-lg-8 col-xl-7">
+
+      <!-- Kontoinformationen -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body p-4">
+
+          <h2 class="h5 mb-3">
+            <i class="fa-regular fa-user me-2 text-secondary"></i>
+            Kontoinformationen
+          </h2>
+
+          <!-- Benutzername (nicht editierbar) -->
+          <div class="mb-3">
+            <label class="form-label text-muted small">
+              Benutzername
+            </label>
+            <div class="form-control bg-body-tertiary">
+              {{ request.user.get_username }}
+            </div>
+          </div>
+
+          <p class="text-muted small mb-4">
+            Der Benutzername kann nur durch die Administration
+            geändert werden.
+          </p>
+
+          <hr class="my-4">
+
+          <!-- E-Mail-Adresse ändern -->
+          <form method="post">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+
+            <!-- E-Mail-Adresse -->
+            <div class="mb-3">
+              <label for="{{ form.email.id_for_label }}"
+                     class="form-label">
+                E-Mail-Adresse
+              </label>
+
+              {{ form.email }}
+
+              {% if form.email.errors %}
+                <div class="invalid-feedback d-block">
+                  {{ form.email.errors }}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Passwortbestätigung -->
+            <div class="mb-3">
+              <label for="{{ form.current_password.id_for_label }}"
+                     class="form-label">
+                Aktuelles Passwort
+              </label>
+
+              {{ form.current_password }}
+
+              {% if form.current_password.errors %}
+                <div class="invalid-feedback d-block">
+                  {{ form.current_password.errors }}
+                </div>
+              {% endif %}
+
+              <div class="form-text">
+                Zur Änderung der E-Mail-Adresse bitte dein aktuelles Passwort eingeben.
+              </div>
+            </div>
+
+            <!-- Speichern -->
+            <button type="submit" class="btn btn-outline-secondary">
+              <i class="fa-solid fa-check me-1"></i>
+              E-Mail-Adresse speichern
+            </button>
+
+          </form>
+
+        </div>
+      </div>
+
+      <!-- Passwort & Sicherheit -->
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+
+          <h2 class="h5 mb-3">
+            <i class="fa-solid fa-lock me-2 text-secondary"></i>
+            Passwort &amp; Sicherheit
+          </h2>
+
+          <p class="text-muted mb-3">
+            Du kannst dein Passwort jederzeit ändern.
+            Dafür benötigst du dein aktuelles Passwort.
+          </p>
+
+          <a href="{% url 'accounts:password_change' %}"
+             class="btn btn-outline-secondary">
+            <i class="fa-solid fa-key me-1"></i>
+            Passwort ändern
+          </a>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+{% endblock %}

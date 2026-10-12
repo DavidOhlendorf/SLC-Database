@@ -1,0 +1,122 @@
+{% extends "main.html" %}
+
+{% block content %}
+
+  <!-- Überschrift -->
+  <div class="mb-4">
+    <h1 class="mb-1">Mein Bereich</h1>
+    <p class="text-muted mb-0">
+      Persönliche Einstellungen und gespeicherte Inhalte
+    </p>
+  </div>
+
+  <!-- Benutzerinformation -->
+  <div class="d-flex align-items-center gap-2 mb-4">
+    <i class="fa-regular fa-circle-user fs-4 text-secondary"></i>
+    <span class="fw-semibold">
+      {{ request.user.get_username }}
+    </span>
+  </div>
+
+  <!-- Bereiche -->
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+
+    <!-- Darstellung -->
+    <div class="col">
+      <a href="{% url 'accounts:account_appearance' %}"
+         class="text-decoration-none text-reset d-block h-100">
+
+        <div class="card h-100 shadow-sm clickable-card">
+          <div class="card-body p-4 d-flex flex-column">
+
+            <div class="mb-3">
+              <i class="fa-solid fa-palette fs-3 text-secondary"></i>
+            </div>
+
+            <h2 class="h5 card-title">Darstellung</h2>
+
+            <p class="card-text text-muted">
+              Wähle dein persönliches Farbschema und
+              passe die Darstellung der Anwendung an.
+            </p>
+
+            <div class="mt-auto pt-3">
+              <div class="small text-muted mb-2">
+                Aktuelles Farbschema:
+                <span class="fw-semibold">{{ current_theme }}</span>
+              </div>
+
+              <span class="text-primary fw-semibold">
+                Einstellungen öffnen
+                <i class="fa-solid fa-arrow-right ms-1"></i>
+              </span>
+            </div>
+
+          </div>
+        </div>
+
+      </a>
+    </div>
+
+    <!-- Konto & Sicherheit -->
+    <div class="col">
+      <a href="{% url 'accounts:account_security' %}"
+         class="text-decoration-none text-reset d-block h-100">
+
+        <div class="card h-100 shadow-sm clickable-card">
+          <div class="card-body p-4 d-flex flex-column">
+
+            <div class="mb-3">
+              <i class="fa-solid fa-shield-halved fs-3 text-secondary"></i>
+            </div>
+
+            <h2 class="h5 card-title">Konto &amp; Sicherheit</h2>
+
+            <p class="card-text text-muted">
+              Sieh deine Kontoinformationen ein
+              und ändere bei Bedarf dein Passwort.
+            </p>
+
+            <div class="mt-auto pt-3">
+              <span class="text-primary fw-semibold">
+                Kontoeinstellungen öffnen
+                <i class="fa-solid fa-arrow-right ms-1"></i>
+              </span>
+            </div>
+
+          </div>
+        </div>
+
+      </a>
+    </div>
+
+    <!-- Merklisten: späteres Feature -->
+    <div class="col">
+      <div class="card h-100 bg-body-tertiary border-secondary-subtle">
+        <div class="card-body p-4 d-flex flex-column">
+
+          <div class="mb-3">
+            <i class="fa-regular fa-bookmark fs-3 text-secondary"></i>
+          </div>
+
+          <h2 class="h5 card-title">Merklisten</h2>
+
+          <p class="card-text text-muted">
+            Speichere Fragen und Variablen in persönlichen
+            Listen, um später schnell darauf zugreifen
+            zu können.
+          </p>
+
+          <div class="mt-auto pt-3">
+            <span class="badge rounded-pill text-bg-secondary">
+              Demnächst verfügbar
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+{% endblock %}

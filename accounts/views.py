@@ -10,7 +10,7 @@ from django.conf import settings
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse, reverse_lazy
 
-from .forms import UserPreferencesForm
+from .forms import UserPreferencesForm, UserEmailForm
 from .models import UserPreferences
 
 
@@ -133,9 +133,34 @@ class AccountAppearanceView(LoginRequiredMixin, FormView):
         return super().form_valid(form)
 
 
-class AccountSecurityView(LoginRequiredMixin, TemplateView):
+class AccountSecurityView(LoginRequiredMixin, FormView):
     """
-    Kontoinformationen und Zugang zur Passwortänderung.
-    Benutzername und E-Mail-Adresse sind nur lesbar.
+    Kontoinformationen und Sicherheit.
+
+    Ermöglicht dem angemeldeten Benutzer, seine E-Mail-Adresse
+    nach Bestätigung des aktuellen Passworts zu ändern.
     """
+
     template_name = "accounts/security.html"
+    form_class = UserEmailForm
+    success_url = reverse_lazy("accounts:account_security")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+
+        # Formular mit dem aktuell angemeldeten User verbinden.
+        kwargs["instance"] = self.request.user
+
+        return kwargs
+
+    def form_valid(self, form):
+        # Ausschließlich die E-Mail-Adresse aktualisieren.
+        user = form.save(commit=False)
+        user.save(update_fields=["email"])
+
+        messages.success(
+            self.request,
+            "E-Mail-Adresse wurde erfolgreich aktualisiert."
+        )
+
+        return super().form_valid(form)

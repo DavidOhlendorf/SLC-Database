@@ -12,9 +12,6 @@
  *   design-system/tokens.css
  *   design-system/themes/
  *
- * Der Abschnitt "Legacy / Migration" enthält temporäre Regeln,
- * die während der schrittweisen Umstellung der Templates benötigt
- * werden und anschließend entfernt werden sollen.
  */
 
 
@@ -181,3 +178,49 @@ select.qc-passive:focus {
   white-space: nowrap;
 }
 
+
+/* ==========================================
+   Account / Theme Selection
+   ========================================== */
+
+/* Auswahlkarten für Farbschemas */
+.theme-choice {
+  cursor: pointer;
+  border: 2px solid var(--bs-border-color);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.theme-choice:hover {
+  border-color: var(--bs-secondary-color);
+}
+
+.theme-choice:has(input[type="radio"]:checked) {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.15rem var(--bs-primary-bg-subtle);
+}
+
+.theme-choice:focus-within {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
+
+/* Farbflächen der Theme-Vorschau */
+.theme-swatch {
+  display: block;
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.theme-swatch-survey {
+  background-color: var(--color-survey-600);
+}
+
+.theme-swatch-question {
+  background-color: var(--color-question-600);
+}
+
+.theme-swatch-variable {
+  background-color: var(--color-variable-600);
+}

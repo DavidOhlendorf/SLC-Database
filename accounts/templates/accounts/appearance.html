@@ -1,0 +1,113 @@
+{% extends "main.html" %}
+
+{% block content %}
+
+  <!-- Navigation -->
+  <div class="mb-3">
+    <a href="{% url 'accounts:account_overview' %}"
+       class="text-decoration-none text-secondary">
+      <i class="fa-solid fa-arrow-left me-1"></i>
+      Mein Bereich
+    </a>
+  </div>
+
+  <!-- Überschrift -->
+  <div class="mb-4">
+    <h1 class="mb-1">Darstellung</h1>
+    <p class="text-muted mb-0">
+        Hier kannst du die Darstellung der Anwendung anpassen.
+    </p>
+  </div>
+
+  <!-- Formular -->
+  <form method="post">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <fieldset>
+      <legend class="h5 mb-3">Farbschema auswählen</legend>
+
+      {% if form.theme.errors %}
+        <div class="alert alert-danger">
+          {{ form.theme.errors }}
+        </div>
+      {% endif %}
+
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3">
+
+        {% for option in form.theme %}
+
+          <div class="col">
+
+            <label class="card theme-choice h-100 shadow-sm"
+                   data-theme="{{ option.data.value }}">
+
+              <div class="card-body p-2">
+
+                <!-- Radiobutton, Name und Standard-Kennzeichnung -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    {{ option.tag }}
+
+                    <span class="fw-semibold">
+                        {{ option.choice_label }}
+                    </span>
+
+                    {% if option.data.value == "deep-ocean" %}
+                        <span class="badge rounded-pill text-bg-secondary ms-auto">
+                        Standard
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Farbvorschau -->
+                <div class="row g-2 text-center">
+
+                  <div class="col-4">
+                    <span class="theme-swatch theme-swatch-survey"></span>
+                    <span class="d-block small text-muted mt-1">
+                      Befragung
+                    </span>
+                  </div>
+
+                  <div class="col-4">
+                    <span class="theme-swatch theme-swatch-question"></span>
+                    <span class="d-block small text-muted mt-1">
+                      Frage
+                    </span>
+                  </div>
+
+                  <div class="col-4">
+                    <span class="theme-swatch theme-swatch-variable"></span>
+                    <span class="d-block small text-muted mt-1">
+                      Variable
+                    </span>
+                  </div>
+
+                </div>
+
+              </div>
+            </label>
+
+          </div>
+
+        {% endfor %}
+
+      </div>
+    </fieldset>
+
+    <!-- Aktionen -->
+    <div class="mt-4">
+    <button type="submit" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-check me-1"></i>
+        Farbschema speichern
+    </button>
+    </div>
+
+  </form>
+
+{% endblock %}
