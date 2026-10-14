@@ -224,3 +224,22 @@ select.qc-passive:focus {
 .theme-swatch-variable {
   background-color: var(--color-variable-600);
 }
+
+
+/* ==========================================
+   Survey Detail – Page Cards
+   ========================================== */
+
+/* Textbereich nutzt den verfügbaren Platz
+   und respektiert die Aktionsicons rechts */
+.page-card__main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Auch der innere Textcontainer muss
+   innerhalb des Flex-Layouts schrumpfen können */
+.page-card__main > .min-w-0 {
+  flex: 1 1 0;
+  min-width: 0;
+}

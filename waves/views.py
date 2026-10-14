@@ -1,4 +1,5 @@
 from collections import defaultdict
+from textwrap import shorten
 import json
 
 from django.views import View
@@ -361,8 +362,7 @@ class SurveyDetailView(TemplateView):
 
             for pid, questiontext, _sort_order, _link_id in snippets_qs:
                 snip = strip_pv_formatting(questiontext)
-                snip = snip.replace("\r", " ").replace("\n", " ").strip()
-                snip = snip[:100]
+                snip = shorten(snip, width=500, placeholder=" …")
 
                 if snip:
                     page_question_snippets[pid].append(snip)
@@ -558,8 +558,7 @@ class SurveyDetailView(TemplateView):
 
         for pid, questiontext in snippets_qs:
             snip = strip_pv_formatting(questiontext)
-            snip = snip.replace("\r", " ").replace("\n", " ").strip()
-            snip = snip[:100]
+            snip = shorten(snip, width=500, placeholder=" …")
             if snip:
                 page_question_snippets[pid].append(snip)
 
