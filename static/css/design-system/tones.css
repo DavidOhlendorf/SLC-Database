@@ -1,0 +1,74 @@
+/* ==========================================
+   Semantic Tones
+   ========================================== */
+
+/*
+ * Komponenten verwenden --tone-* statt konkrete
+ * Survey-, Question- oder Variable-Farben.
+ */
+
+
+.tone-survey {
+  --tone-50:  var(--color-survey-50);
+  --tone-100: var(--color-survey-100);
+  --tone-300: var(--color-survey-300);
+  --tone-500: var(--color-survey-500);
+  --tone-600: var(--color-survey-600);
+  --tone-700: var(--color-survey-700);
+  --tone-800: var(--color-survey-800);
+}
+
+
+.tone-question {
+  --tone-50:  var(--color-question-50);
+  --tone-100: var(--color-question-100);
+  --tone-300: var(--color-question-300);
+  --tone-500: var(--color-question-500);
+  --tone-600: var(--color-question-600);
+  --tone-700: var(--color-question-700);
+  --tone-800: var(--color-question-800);
+}
+
+
+.tone-variable {
+  --tone-50:  var(--color-variable-50);
+  --tone-100: var(--color-variable-100);
+  --tone-300: var(--color-variable-300);
+  --tone-500: var(--color-variable-500);
+  --tone-600: var(--color-variable-600);
+  --tone-700: var(--color-variable-700);
+  --tone-800: var(--color-variable-800);
+}
+
+
+.tone-action {
+  --tone-50:  var(--color-action-50);
+  --tone-100: var(--color-action-100);
+  --tone-300: var(--color-action-300);
+  --tone-500: var(--color-action-500);
+  --tone-600: var(--color-action-600);
+  --tone-700: var(--color-action-700);
+  --tone-800: var(--color-action-800);
+}
+
+
+.tone-highlight {
+  --tone-50:  var(--color-highlight-50);
+  --tone-100: var(--color-highlight-100);
+  --tone-300: var(--color-highlight-300);
+  --tone-500: var(--color-highlight-500);
+  --tone-600: var(--color-highlight-600);
+  --tone-700: var(--color-highlight-700);
+  --tone-800: var(--color-highlight-800);
+}
+
+
+.tone-neutral {
+  --tone-50:  var(--color-neutral-50);
+  --tone-100: var(--color-neutral-100);
+  --tone-300: var(--color-neutral-300);
+  --tone-500: var(--color-neutral-500);
+  --tone-600: var(--color-neutral-600);
+  --tone-700: var(--color-neutral-700);
+  --tone-800: var(--color-neutral-800);
+}

@@ -1,0 +1,334 @@
+{% load pv_formatting %}
+
+<form class="d-none" id="question-reuse-csrf">
+  {% csrf_token %}
+</form>
+
+<div class="modal fade tone-question"
+     id="questionReuseModal"
+     data-options-url="{% url 'questions:question_reuse' question.id %}"
+     data-create-url="{% url 'questions:question_reuse' question.id %}"
+     data-source-wave-id="{% if active_wave %}{{ active_wave.id }}{% endif %}"
+     tabindex="-1"
+     aria-hidden="true">
+
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+
+      <div class="modal-header tone-surface--strong">
+        <div>
+          <h5 class="modal-title">Frage unverändert übernehmen</h5>
+          <div class="small opacity-75" id="questionReuseStepLabel">
+            Schritt 1 von 2
+          </div>
+        </div>
+
+        <button type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Schließen">
+        </button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="alert alert-danger d-none"
+             id="questionReuseError">
+        </div>
+
+        <!-- =======================================================
+             SCHRITT 1: ZIEL AUSWÄHLEN
+             ======================================================= -->
+
+        <div id="questionReuseTargetStep">
+
+          <div class="mb-3">
+            <div class="small text-muted mb-1">
+              Ausgangsfrage
+            </div>
+
+            <div class="border rounded tone-surface--subtle tone-question px-3 py-2">
+              {{ question.questiontext|default:"(ohne Fragetext)"|pv_plain|truncatechars:350 }}
+            </div>
+          </div>
+
+          <div class="row g-3">
+
+            <!-- Zielbefragung -->
+            <div class="col-md-6">
+
+              <label class="form-label"
+                     for="questionReuseTargetSurvey">
+                Zielbefragung
+              </label>
+
+              <button type="button"
+                      class="btn btn-sm p-0 ms-1 text-muted"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Abgeschlossene Befragungen werden nicht angezeigt.">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+
+              <select class="form-select"
+                      id="questionReuseTargetSurvey">
+                <option value="">
+                  Wird geladen …
+                </option>
+              </select>
+
+            </div>
+
+            <!-- Zielseite -->
+            <div class="col-md-6">
+
+              <label class="form-label"
+                     for="questionReuseTargetPage">
+                Zielseite
+              </label>
+
+              <button type="button"
+                      class="btn btn-sm p-0 ms-1 text-muted"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Die bestehende Frage wird unverändert am Ende der ausgewählten Seite eingefügt.">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+
+              <select class="form-select"
+                      id="questionReuseTargetPage"
+                      disabled>
+
+                <option value="">
+                  Bitte zuerst eine Zielbefragung auswählen …
+                </option>
+
+              </select>
+
+              <div class="form-check form-switch mt-2">
+
+                <input class="form-check-input"
+                      type="checkbox"
+                      id="questionReuseCreatePage">
+
+                <label class="form-check-label"
+                      for="questionReuseCreatePage">
+                  Neue Seite erstellen
+                </label>
+
+              </div>
+
+              <div class="mt-2 d-none"
+                  id="questionReuseNewPageBox">
+
+                <label class="form-label"
+                      for="questionReuseNewPageName">
+                  Seitenname
+                </label>
+
+                <input type="text"
+                      class="form-control"
+                      id="questionReuseNewPageName"
+                      maxlength="200"
+                      placeholder="z. B. dem015">
+
+                <div class="form-text">
+                  Nur der Seitenname wird gesetzt. Weitere Seitenangaben bleiben leer.
+                </div>
+
+                <div class="small mt-1 d-none"
+                    id="questionReusePageNameFeedback">
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- Befragtengruppen -->
+            <div class="col-12">
+
+              <label class="form-label">
+                Befragtengruppe(n)
+              </label>
+
+              <button type="button"
+                      class="btn btn-sm p-0 ms-1 text-muted"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Auswählbar sind nur Gruppen der Zielbefragung, die die ausgewählte Zielseite enthalten.">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+
+              <div class="border rounded p-2 tone-checks tone-survey"
+                   id="questionReuseWavesBox"
+                   style="max-height: 220px; overflow: auto;">
+
+                <div class="text-muted small">
+                  Bitte zuerst eine Zielseite auswählen.
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- Warnung: Frage bereits auf anderer Seite -->
+            <div class="col-12">
+
+              <div class="alert alert-warning d-none mb-0"
+                   id="questionReuseExistingWarning">
+
+                <div class="d-flex gap-2">
+
+                  <div>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </div>
+
+                  <div>
+                    <strong>Hinweis:</strong>
+
+                    <div id="questionReuseExistingWarningText"></div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- Variablen übernehmen -->
+            <div class="col-12">
+
+              <div class="border rounded p-3 tone-checks tone-variable">
+
+                <div class="form-check">
+
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="questionReuseIncludeVariables"
+                         checked>
+
+                  <label class="form-check-label"
+                         for="questionReuseIncludeVariables">
+
+                    Zugehörige Variablen ebenfalls übernehmen
+                    <span class="text-muted"
+                          id="questionReuseVariableCount"></span>
+
+                  </label>
+
+                </div>
+
+                <div class="small text-muted mt-1 ms-4">
+                  Im nächsten Schritt kannst du auswählen, welche Variablen
+                  übernommen werden sollen.
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+
+        <!-- =======================================================
+             SCHRITT 2: VARIABLEN AUSWÄHLEN
+             ======================================================= -->
+
+        <div class="d-none"
+             id="questionReuseVariablesStep">
+
+          <div class="d-flex flex-wrap align-items-start
+                      justify-content-between gap-2 mb-3">
+
+            <div>
+
+              <h6 class="mb-1">
+                Variablen übernehmen
+              </h6>
+
+              <div class="small text-muted">
+                Wähle die Variablen aus, die gemeinsam mit der Frage in den
+                ausgewählten Befragtengruppen verwendet werden sollen.
+              </div>
+
+            </div>
+
+
+            <div class="d-flex gap-2">
+
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      id="questionReuseSelectAllVariables">
+                Alle auswählen
+              </button>
+
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      id="questionReuseDeselectAllVariables">
+                Alle abwählen
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <!-- Variablenliste -->
+          <div class="border rounded tone-checks tone-variable"
+               id="questionReuseVariablesBox"
+               style="max-height: 430px; overflow: auto;">
+
+            <div class="p-3 text-muted small">
+              Variablen werden geladen …
+            </div>
+
+          </div>
+
+
+          <!-- Falls keine Variablen vorhanden sind -->
+          <div class="border rounded p-3 text-muted d-none"
+               id="questionReuseNoVariables">
+
+            Mit der Ausgangsfrage sind in der ausgewählten
+            Befragtengruppe keine Variablen verknüpft.
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =========================================================
+           FOOTER
+           ========================================================= -->
+
+      <div class="modal-footer">
+
+        <button type="button"
+                class="btn btn-outline-secondary d-none"
+                id="questionReuseBack">
+          Zurück
+        </button>
+
+        <button type="button"
+                class="btn btn-outline-secondary"
+                data-bs-dismiss="modal">
+          Abbrechen
+        </button>
+
+        <button type="button"
+                class="btn btn-tone-solid tone-question"
+                id="questionReuseSubmit">
+          Weiter zu den Variablen
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</div>

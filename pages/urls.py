@@ -5,6 +5,7 @@ app_name = "pages"
 
 
 urlpatterns = [
+    path("", views.WavePageListView.as_view(), name="page_list"),
     path("<int:pk>/", views.WavePageDetailView.as_view(), name="page-detail"),
     path("<int:pk>/edit/", views.WavePageUpdateView.as_view(), name="page-edit"),
 

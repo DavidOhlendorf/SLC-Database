@@ -1,7 +1,8 @@
 {% extends "main.html" %}
 
-{% load static %}
+{% load static pv_formatting %}
 {% block extra_js %}
+      <script src="{% static 'js/builder/pv_text_formatting.js' %}"></script>
       <script src="{% static 'js/ui/tooltips.js' %}"></script>
       <script src="{% static 'js/builder/page_duplicator.js' %}"></script>
 {% endblock %}
@@ -31,7 +32,7 @@
 
               {# QML #}
               {% if has_qml %}
-                <a class="btn btn-lg pv-btn text-muted"
+                <a class="btn btn-lg pv-btn tone-text tone-survey"
                   target="_blank"
                   rel="noopener"
                   title="QML anzeigen"
@@ -43,14 +44,14 @@
                       tabindex="0"
                       data-bs-toggle="tooltip"
                       data-bs-title="Für diese Seite ist keine QML-Datei hinterlegt.">
-                  <span class="btn btn-lg pv-btn text-body-tertiary pe-none" aria-disabled="true">
+                  <span class="btn btn-lg pv-btn tone-text--soft tone-survey pe-none" aria-disabled="true">
                     QML
                   </span>
                 </span>
               {% endif %}
 
               {# PV #}
-              <a class="btn btn-lg pv-btn text-muted"
+              <a class="btn btn-lg pv-btn tone-text tone-survey"
                 target="_blank"
                 rel="noopener"
                 title="Programmiervorlage anzeigen"
@@ -60,7 +61,7 @@
 
               {# Copy #}
               <button type="button"
-                      class="btn btn-link btn-lg icon-action p-0 js-page-copy-open"
+                      class="btn btn-link btn-lg icon-action--tone tone-survey p-0 js-page-copy-open"
                       title="Seite in andere Befragung kopieren"
                       data-page-id="{{ page.id }}"
                       data-default-name="{{ page.pagename|escape }}"
@@ -70,7 +71,7 @@
               </button>
 
               {# Edit #}
-              <a class="btn btn-link btn-lg icon-action p-0"
+              <a class="btn btn-link btn-lg icon-action--tone tone-survey p-0"
                 title="Fragebogenseite bearbeiten"
                 href="{% url 'pages:page-edit' page.id %}{% if request.GET.wave %}?wave={{ request.GET.wave }}{% endif %}">
                 <i class="fa-solid fa-pen-to-square"></i>
@@ -87,15 +88,10 @@
 
     <!-- Wellen-Pills -->
     {% if waves %}
-      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto small" style="white-space: nowrap;">
+      <ul class="nav nav-pills gap-1 flex-nowrap overflow-auto" style="white-space: nowrap;">
         {% for w in waves %}
           <li class="nav-item">
-            <a class="nav-link rounded-pill py-1 px-2 border
-                      {% if active_wave and w.id == active_wave.id %}
-                        active
-                      {% else %}
-                        bg-secondary-subtle text-secondary-emphasis
-                      {% endif %}"
+            <a class="nav-link context-pill context-pill--outline context-pill--interactive tone-survey {% if active_wave and w.id == active_wave.id %}active{% endif %}"
               href="?wave={{ w.id }}">
               {{ w.cycle }}{% if w.instrument %} – {{ w.instrument }}{% endif %}
             </a>
@@ -109,7 +105,7 @@
       <div>
         {% if survey and active_wave %}
           <a href="{% url 'waves:survey_detail' survey.name %}?wave={{ active_wave.id }}"
-            class="text-muted small text-decoration-none opacity-75">
+            class="small action-link">
             ← Alle Seiten dieses Fragebogens anzeigen
           </a>
         {% endif %}
@@ -119,7 +115,7 @@
 
     <!-- Seitenkopf Accordion -->
     {% if has_page_header %} 
-      <div class="accordion mb-3" id="pageHeadAccordion-{{ page.id }}">
+      <div class="accordion tone-accordion tone-accordion--solid tone-survey mb-3" id="pageHeadAccordion-{{ page.id }}">
         <div class="accordion-item">
           <h2 class="accordion-header">
             <button class="accordion-button"
@@ -132,18 +128,18 @@
             </button>
           </h2>
           <div id="questiontextCollapse" class="accordion-collapse collapse show">
-            <div class="accordion-body">
+            <div class="accordion-body tone-border-start tone-survey">
               {% if page.page_heading %}
                 <p class="mb-1"><strong>Überschrift: {{ page.page_heading }}</strong></p>
               {% endif %}
 
               {% if page.introduction %}
-                <div class="mt-3">
-                  <strong class="d-block mb-2">Einleitungstext:</strong>
-                  <div class="text-body">
-                    {{ page.introduction|linebreaks }}
+                  <div class="mt-3">
+                      <strong class="d-block mb-2">Einleitungstext:</strong>
+                      <div class="text-body pv-richtext">
+                          {{ page.introduction|pv_format|linebreaks }}
+                      </div>
                   </div>
-                </div>
               {% endif %}
             </div>
           </div>
@@ -154,7 +150,7 @@
 
 
     <!-- Fragen auf der Seite -->
-    <div class="accordion mb-1" id="questionsAccordion-{{ page.id }}">
+    <div class="accordion tone-accordion tone-accordion--solid tone-question mb-1" id="questionsAccordion-{{ page.id }}">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingQuestions-{{ page.id }}">
           <button class="accordion-button" type="button"
@@ -176,7 +172,7 @@
              class="accordion-collapse collapse show"
              aria-labelledby="headingQuestions-{{ page.id }}"
              data-bs-parent="#questionsAccordion-{{ page.id }}">
-          <div class="accordion-body p-0">
+          <div class="accordion-body p-0 tone-border-start tone-question">
 
             {% with page_questions_filtered as page_questions %}
               {% if page_questions %}
@@ -186,7 +182,7 @@
                       <div class="flex-grow-1" style="min-width:0; overflow:hidden;">
                         <div class="fw-semibold d-flex align-items-center gap-2" style="min-width:0; overflow:hidden;">
                           <span class="text-truncate d-block" style="min-width: 0;">
-                            {{ pq.question }}
+                            Q{{ pq.question.id }}: {{ pq.question.questiontext|pv_plain|truncatechars:350 }}
                           </span>
                           {% if perms.accounts.can_edit_slc %}
                             {% if pq.question_is_incomplete %}
@@ -200,12 +196,12 @@
                         </div>
                         {% if pq.question.questiontext %}
                         <div class="text-muted small text-truncate d-block">
-                          {{ pq.question.questiontext }}
+                          {{ pq.question.questiontext|pv_plain }}
                         </div>
                         {% endif %}
                       </div>
                       <div class="btn-group btn-group-sm flex-shrink-0" role="group" aria-label="Aktionen">
-                        <a class="btn btn-link px-2 icon-action"
+                        <a class="btn btn-link px-2 icon-action--tone tone-question"
                           title="Details anzeigen"
                           href="{% url 'questions:question_detail' pq.question.id %}?wave={{ active_wave.id }}">
                           <i class="fa-regular fa-eye"></i>
@@ -217,13 +213,13 @@
                                   data-bs-toggle="tooltip"
                                   data-bs-title="Diese Frage ist Teil einer abgeschlossenen Befragung und kann hier nicht bearbeitet werden">
                               <button type="button"
-                                      class="btn btn-link btn-sm icon-action p-0 text-muted"
+                                      class="btn btn-link btn-sm icon-action--tone tone-question p-0"
                                       disabled>
                                 <i class="fa-solid fa-pen-to-square"></i>
                               </button>
                             </span>
                           {% else %}
-                            <a class="btn btn-link btn-sm icon-action p-0"
+                            <a class="btn btn-link btn-sm icon-action--tone tone-question p-0"
                               title="Frage bearbeiten"
                               href="{% url 'questions:question_edit' pq.question.id %}?page={{ page.id }}&wave={{ active_wave.id }}">
                               <i class="fa-solid fa-pen-to-square"></i>
@@ -254,17 +250,19 @@
                 data-bs-toggle="tooltip"
                 data-bs-title="Keine neuen Fragen möglich, weil die Seite mit einer abgeschlossenen Befragung verknüpft ist">
             <button type="button"
-                    class="btn text-success link-success border-0"
+                    class="btn btn-sm btn-tone-outline tone-question"
                     disabled>
-                    <i class="fa-solid fa-plus me-1"></i> Neue Frage anlegen
+              <i class="fa-solid fa-plus me-1"></i>
+              Neue Frage anlegen
             </button>
           </span>
         {% else %}
           <button type="button"
-                  class="btn text-success link-success"
+                  class="btn btn-sm btn-tone-outline tone-question"
                   data-bs-toggle="modal"
                   data-bs-target="#qcModal">
-            <i class="fa-solid fa-plus me-1"></i> Neue Frage anlegen
+            <i class="fa-solid fa-plus me-1"></i>
+            Neue Frage anlegen
           </button>
         {% endif %}
       </div>
@@ -273,7 +271,7 @@
     {% endif %}
 
     {% if page.transition_control %} 
-      <div class="accordion mb-3" id="pageTransitionControlAccordion-{{ page.id }}">
+      <div class="accordion tone-accordion tone-accordion--solid tone-survey mb-3" id="pageTransitionControlAccordion-{{ page.id }}">
         <div class="accordion-item">
           <h2 class="accordion-header">
             <button class="accordion-button"
@@ -286,7 +284,7 @@
             </button>
           </h2>
           <div id="transitionControlCollapse-{{ page.id }}" class="accordion-collapse collapse">
-            <div class="accordion-body">
+            <div class="accordion-body tone-border-start tone-survey">
                 {{ page.transition_control|linebreaks }}
             </div>
           </div>
@@ -295,7 +293,7 @@
     {% endif %}
 
     {% if page.transitions %} 
-      <div class="accordion mb-3" id="pageTransitionsAccordion-{{ page.id }}">
+      <div class="accordion tone-accordion tone-accordion--solid tone-survey mb-3" id="pageTransitionsAccordion-{{ page.id }}">
         <div class="accordion-item">
           <h2 class="accordion-header">
             <button class="accordion-button"
@@ -308,7 +306,7 @@
             </button>
           </h2>
           <div id="transitionsCollapse-{{ page.id }}" class="accordion-collapse collapse">
-            <div class="accordion-body text-break-long">
+            <div class="accordion-body tone-border-start tone-survey text-break-long">
                 {{ page.transitions|linebreaks}}
             </div>
           </div>
@@ -318,7 +316,7 @@
 
     <!-- Weitere Seitenfelder Accordion -->
     {% if has_page_other_fields %}
-      <div class="accordion mb-3" id="pageOtherFieldsAccordion-{{ page.id }}">
+      <div class="accordion tone-accordion tone-accordion--solid tone-survey mb-3" id="pageOtherFieldsAccordion-{{ page.id }}">
         <div class="accordion-item">
           <h2 class="accordion-header">
             <button class="accordion-button"
@@ -331,7 +329,7 @@
             </button>
           </h2>
           <div id="otherFieldsCollapse-{{ page.id }}" class="accordion-collapse collapse">
-            <div class="accordion-body p-0 text-break-long">
+            <div class="accordion-body p-0 tone-border-start tone-survey text-break-long">
               <div class="list-group list-group-flush">
 
                 <!-- visibility conditions (vc)-->

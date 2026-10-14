@@ -1,0 +1,39 @@
+/* ==========================================
+   Theme: Nordic Pop
+   ========================================== */
+
+/*
+ * Kühl, klar und modern.
+ * Survey = Indigo
+ * Question = Cyan
+ * Variable = Rose
+ */
+[data-theme="nordic-pop"] {
+
+  /* Survey / Wave */
+  --color-survey-50:  #eef2ff;
+  --color-survey-100: #e0e7ff;
+  --color-survey-300: #a5b4fc;
+  --color-survey-500: #6366f1;
+  --color-survey-600: #4f46e5;
+  --color-survey-700: #4338ca;
+  --color-survey-800: #3730a3;
+
+  /* Question */
+  --color-question-50:  #ecfeff;
+  --color-question-100: #cffafe;
+  --color-question-300: #67e8f9;
+  --color-question-500: #06b6d4;
+  --color-question-600: #0891b2;
+  --color-question-700: #0e7490;
+  --color-question-800: #155e75;
+
+  /* Variable */
+  --color-variable-50:  #fff1f2;
+  --color-variable-100: #ffe4e6;
+  --color-variable-300: #fda4af;
+  --color-variable-500: #f43f5e;
+  --color-variable-600: #e11d48;
+  --color-variable-700: #be123c;
+  --color-variable-800: #9f1239;
+}

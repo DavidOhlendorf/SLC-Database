@@ -28,28 +28,80 @@
 
       <div class="row g-3 justify-content-center">
         <div class="col-6 col-sm-3">
-          <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5 stat-number" data-target="{{ wave_count }}">0</div>
-            <div class="small text-muted">Befragungen</div>
-          </div>
+          <a
+            href="{% url 'waves:survey_list' %}"
+            class="text-decoration-none text-reset d-block h-100">
+
+            <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm clickable-card h-100">
+              <div
+                class="fw-semibold fs-5 stat-number"
+                data-target="{{ wave_count }}">
+                0
+              </div>
+
+              <div class="small text-muted">
+                Befragungen
+              </div>
+            </div>
+
+          </a>
         </div>
         <div class="col-6 col-sm-3">
-          <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5 stat-number" data-target="{{ page_count }}">0</div>
-            <div class="small text-muted">Fragebogenseiten</div>
-          </div>
+          <a
+            href="{% url 'pages:page_list' %}"
+            class="text-decoration-none text-reset d-block h-100">
+
+            <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm clickable-card h-100">
+              <div
+                class="fw-semibold fs-5 stat-number"
+                data-target="{{ page_count }}">
+                0
+              </div>
+
+              <div class="small text-muted">
+                Fragebogenseiten
+              </div>
+            </div>
+
+          </a>
         </div>
         <div class="col-6 col-sm-3">
-          <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5 stat-number" data-target="{{ question_count }}">0</div>
-            <div class="small text-muted">Fragen</div>
-          </div>
+          <a
+            href="{% url 'questions:question_list' %}"
+            class="text-decoration-none text-reset d-block h-100">
+
+            <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm clickable-card h-100">
+              <div
+                class="fw-semibold fs-5 stat-number"
+                data-target="{{ question_count }}">
+                0
+              </div>
+
+              <div class="small text-muted">
+                Fragen
+              </div>
+            </div>
+
+          </a>
         </div>
         <div class="col-6 col-sm-3">
-          <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm">
-            <div class="fw-semibold fs-5 stat-number" data-target="{{ variable_count }}">0</div>
-            <div class="small text-muted">Variablen</div>
-          </div>
+          <a
+            href="{% url 'variables:variable_list' %}"
+            class="text-decoration-none text-reset d-block h-100">
+
+            <div class="border rounded-4 py-3 px-2 bg-body-tertiary text-center shadow-sm clickable-card h-100">
+              <div
+                class="fw-semibold fs-5 stat-number"
+                data-target="{{ variable_count }}">
+                0
+              </div>
+
+              <div class="small text-muted">
+                Variablen
+              </div>
+            </div>
+
+          </a>
         </div>
       </div>
     </div>

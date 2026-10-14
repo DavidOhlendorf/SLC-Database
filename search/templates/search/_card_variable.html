@@ -1,50 +1,95 @@
+<div class="card mb-2 entity-card tone-variable">
 
-<div class="card mb-2 shadow-sm">
+  {# Kopf der Variablenfamilie #}
+  {% if item.is_family %}
+    <div class="card-header tone-surface--subtle tone-variable py-3 border-bottom-0">
+
+      <div class="d-flex justify-content-between align-items-center gap-3">
+
+        <h5 class="card-title mb-0 tone-text">
+          <span
+              class="d-inline-flex me-2 opacity-75"
+              tabindex="0"
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="Variablenstamm. Variable liegt in mehreren Varianten vor">
+
+              <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+
+          </span>
+          {{ item.name }}
+        </h5>
+
+        <span class="badge entity-badge tone-variable flex-shrink-0">
+          {{ item.variables|length }}
+          {% if item.variables|length == 1 %}
+            Variante
+          {% else %}
+            Varianten
+          {% endif %}
+        </span>
+
+      </div>
+
+    </div>
+  {% endif %}
+
+
   <div class="card-body">
 
-    <h6 class="card-title mb-2">{{ item.varname }} - {{ item.varlab }} </h6>
-    {% if show_relevance %}
-      <p class="text-muted mb-0 small">
-          Relevanz: {{ item.relevance }}
-      </p>
-    {% endif %}
-    
+    {# Bestbewerteter konkreter Suchtreffer #}
+    {% include "search/_variable_result.html" with variable=item.primary_variable hide_details_link=item.other_variables %}
 
-    {# Wellen-Badges #}
-    {% if item.waves.all %}
-      <div class="mb-2">
-        {% for wave in item.waves.all %}
-          <span class="badge bg-light text-dark border">
-            {{ wave }}
+
+    {# Weitere Varianten der Familie #}
+    {% if item.other_variables %}
+      <div class="d-flex justify-content-between align-items-center gap-3 mt-2">
+
+        <button
+          class="btn btn-link btn-sm p-0 text-decoration-none disclosure-toggle"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#search-variable-variants-{{ item.primary_variable.id }}"
+          aria-expanded="false"
+          aria-controls="search-variable-variants-{{ item.primary_variable.id }}">
+
+          <span class="disclosure-toggle__collapsed">
+            ▾
+            {% if item.other_variables|length == 1 %}
+              1 weitere Variante anzeigen
+            {% else %}
+              {{ item.other_variables|length }} weitere Varianten anzeigen
+            {% endif %}
           </span>
-        {% endfor %}
-      </div>
-    {% endif %}
 
-    <div class="d-flex align-items-center gap-2 mt-2"> 
-      <div class="btn-group btn-group-sm flex-shrink-0"
-          role="group"
-          aria-label="Aktionen">
-        <a class="btn btn-link px-2 icon-action"
-          title="Details anzeigen"
-          href="{% url 'variables:variable_detail' item.id %}?back={{ request.get_full_path|urlencode }}"
+          <span class="disclosure-toggle__expanded">
+            ▴ Weitere Varianten ausblenden
+          </span>
+        </button>
+
+        <a
+          class="small action-link flex-shrink-0"
+          href="{% url 'variables:variable_detail' item.primary_variable.id %}?back={{ request.get_full_path|urlencode }}"
           target="_blank"
           rel="noopener noreferrer">
-          <i class="fa-regular fa-eye"></i>
+          Details →
         </a>
 
-        {% if perms.accounts.can_edit_slc %}
-          <a class="btn btn-link px-2 icon-action"
-            title="Bearbeiten"
-            href="{% url 'variables:variable_edit' item.id %}?back={{ request.get_full_path|urlencode }}"
-            target="_blank"
-            rel="noopener noreferrer">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </a>
-        {% endif %}
       </div>
-    </div>
+
+
+      <div
+        class="collapse"
+        id="search-variable-variants-{{ item.primary_variable.id }}">
+
+        {% for variable in item.other_variables %}
+          <div class="border-top pt-3 mt-3">
+            {% include "search/_variable_result.html" with variable=variable %}
+          </div>
+        {% endfor %}
+
+      </div>
+    {% endif %}
+
   </div>
 </div>
-
-

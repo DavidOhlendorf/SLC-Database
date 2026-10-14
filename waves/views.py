@@ -1,4 +1,5 @@
 from collections import defaultdict
+from textwrap import shorten
 import json
 
 from django.views import View
@@ -7,12 +8,12 @@ from django.urls import reverse, reverse_lazy
 from django.http import Http404, JsonResponse, FileResponse
 from django.db import transaction
 from django.db.models import Count, Min, Max, Prefetch
-from django.db.models.functions import Substr
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
 from .models import Survey, Wave, WaveModule, WaveDocument
 from pages.models import WavePageQuestion, WavePage, WavePageWave
+from questions.formatting import strip_pv_formatting
 
 from .forms import SurveyCreateForm, WaveFormSet
 from pages.forms import WavePageCreateForm
@@ -345,19 +346,24 @@ class SurveyDetailView(TemplateView):
                     wave_page_id__in=page_ids,
                     waves__id__in=instrument_wave_ids,
                 )
-                .annotate(snippet=Substr("question__questiontext", 1, 100))
                 .values_list(
                     "wave_page_id",
-                    "snippet",
+                    "question__questiontext",
                     "sort_order",
                     "id",
                 )
                 .distinct()
-                .order_by("wave_page_id", "sort_order", "id")
+                .order_by(
+                    "wave_page_id",
+                    "sort_order",
+                    "id",
+                )
             )
 
-            for pid, snip, _sort_order, _link_id in snippets_qs:
-                snip = (snip or "").replace("\n", " ").strip()
+            for pid, questiontext, _sort_order, _link_id in snippets_qs:
+                snip = strip_pv_formatting(questiontext)
+                snip = shorten(snip, width=500, placeholder=" …")
+
                 if snip:
                     page_question_snippets[pid].append(snip)
 
@@ -514,7 +520,7 @@ class SurveyDetailView(TemplateView):
             .order_by("sort_order", "page__pagename")
         )
 
-        # Frage-Counts pro Seite 
+        # Frage-Counts pro Seite
         page_ids = list(
             page_links_qs.values_list("page_id", flat=True)
         )
@@ -539,13 +545,20 @@ class SurveyDetailView(TemplateView):
                 wave_page_id__in=page_ids,
                 waves=active_wave,
             )
-            .annotate(snippet=Substr("question__questiontext", 1, 100))
-            .values_list("wave_page_id", "snippet")
-            .order_by("wave_page_id", "sort_order", "id")
+            .values_list(
+                "wave_page_id",
+                "question__questiontext",
+            )
+            .order_by(
+                "wave_page_id",
+                "sort_order",
+                "id",
+            )
         )
 
-        for pid, snip in snippets_qs:
-            snip = (snip or "").replace("\n", " ").strip()
+        for pid, questiontext in snippets_qs:
+            snip = strip_pv_formatting(questiontext)
+            snip = shorten(snip, width=500, placeholder=" …")
             if snip:
                 page_question_snippets[pid].append(snip)
 

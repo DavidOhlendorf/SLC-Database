@@ -1,22 +1,36 @@
-import re
+from collections import defaultdict
+
 from django.conf import settings
-from django.shortcuts import render, redirect
+from django.core.paginator import Paginator
+from django.db.models import F
 from django.http import JsonResponse
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET
 
-from django.db.models import Q, F, Prefetch
-from django.db.models.functions import Lower
-
-from django.core.paginator import Paginator
-from django.contrib.postgres.search import TrigramSimilarity, SearchQuery, SearchRank, SearchVector, TrigramWordSimilarity
-
-from collections import defaultdict
 from pages.models import WavePage
-from questions.models import Question, Keyword
-from variables.models import Variable, QuestionVariableWave
-from waves.models import Wave, Survey
+from questions.formatting import strip_pv_formatting
+from questions.models import Question
+from variables.models import Variable
+from waves.models import Wave
 
-ALLOWED_TYPES = {"all", "questions", "variables", "constructs"}
+
+from .services.pages import (
+    search_pages,
+    sort_pages,
+)
+
+from .services.questions import (
+    build_question_groups,
+    search_questions,
+    sort_question_groups,
+)
+from .services.variables import (
+    build_variable_groups,
+    search_variables,
+    sort_variable_groups,
+)
+
+ALLOWED_TYPES = {"all", "pages", "questions", "variables",}
 ALLOWED_SORTS = {"relevance", "alpha"}
 RESULTS_PER_PAGE = 20
 
@@ -33,124 +47,6 @@ def search_landing(request):
     return render(request, "search/landing.html", ctx)
 
 
-# Hilfsfunktion: Suche nach Fragen (für Hauptsuche und für API-Endpunkt)
-# Später evtl. auslagern in search/utils.py und für Vars erweitern (aktuell nicht einheitlich)
-def search_questions(q: str, wave_ids=None, include_keywords=True):
-    q = (q or "").strip()
-    if len(q) < 2:
-        return []
-
-    q_lower = q.lower()
-    wave_ids = wave_ids or []
-
-    # Basis-QuerySet nur mit Wellen-Filter
-    base_qs_q = Question.objects.all()
-    if wave_ids:
-        base_qs_q = base_qs_q.filter(waves__id__in=wave_ids)
-
-    # ---- 1) Volltextsuche (tsvector) mit deutschem Analyzer
-    ts_query = SearchQuery(q, config="german", search_type="websearch")
-    ts_rows = (
-        base_qs_q
-        .annotate(sv=SearchVector("questiontext", weight="A", config="german"))
-        .filter(sv=ts_query)
-        .annotate(ts_rank=SearchRank(F("sv"), ts_query, normalization=32))
-        .values("id", "ts_rank")
-    )
-    ts_map = {r["id"]: float(r["ts_rank"] or 0.0) for r in ts_rows}
-
-    # ---- 2) Trigram-Suche im Fragetext (Fuzzy-Fallback) für Tippfehler/Teilstrings
-    tg_rows = (
-        base_qs_q
-        .annotate(sim=TrigramWordSimilarity(q_lower, "questiontext"))
-        .filter(sim__gt=0.6) # Mindestähnlichkeit
-        .values("id", "sim")
-    )
-    tg_map = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows}
-
-    # ---- 3) Wortgrenzen-Boost: wenn der Suchbegriff als eigenes Wort im Text steht
-    word_boundary = rf"\m{re.escape(q_lower)}\M"
-    wb_ids = set(
-        base_qs_q
-        .annotate(qt=Lower("questiontext"))
-        .filter(qt__iregex=word_boundary)
-        .values_list("id", flat=True)
-    )
-
-    # ---- 4) Keyword-Score: bestes passendes Keyword (entweder direkter Treffer per contains oder fuzzy per trgm)
-    kw_map = {}
-    if include_keywords:
-        kw_rows = (
-            Keyword.objects
-            .annotate(nl=Lower("name"))
-            .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__istartswith=q_lower) | Q(sim__gt=0.6))
-            .values("id", "sim")[:15]
-        )
-        kw_id_to_score = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows}
-
-        # Hole die zu den keywords aus kw_id_to_score gehörenden Fragen
-        kw_links = (
-            base_qs_q
-            .filter(keywords__in=list(kw_id_to_score.keys()))
-            .values("id", "keywords__id")
-            .distinct()
-        )
-
-        # SearchMap: FrageID -> bestes Keyword-Score
-        kw_map = {}
-        for r in kw_links:
-            qid = r["id"]; kwid = r["keywords__id"]
-            kw_map[qid] = max(kw_map.get(qid, 0.0), kw_id_to_score.get(kwid, 0.0))
-
-
-    # ---- 5) Finaler Score pro Frage aus den Einzelkomponenten
-    #   Logik:
-    #     Textscore = max(TS, TG*0.6, WB*0.95)
-    #     Score aus dem Fragetext wird gebildet aus dem höchsten Wert der drei Komponenten:
-    #       - Volltext-Score per ts_vector (TS) 
-    #       - Trigram-Score (TG), aber nur 60% Gewicht, damit Textrelevanz höher gewichtet wird
-    #       - Wortgrenzen-Bonus (WB), fester Wert 0.95 --> bei direktem Worttreffer im Fragetext wird geboostet
-    #     Keyword-Score (KW) = bestes Keyword * 0.8
-    #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Fragetext-Relevanz höher gewichtet wird
-    #     Finaler Score = Textscore + Keyword-Score * 0.15 (wenn Textscore > 0) bzw. + Keyword-Score * 0.10 (wenn kein Textscore)
-    #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
-
-    candidate_ids = set(ts_map) | set(tg_map) | wb_ids | (set(kw_map) if include_keywords else set())
-    if not candidate_ids:
-        return [], {}
-
-    final_score_map = {}
-    for qid in candidate_ids:
-        ts = ts_map.get(qid, 0.0)
-        tg = tg_map.get(qid, 0.0) * 0.6
-        wb = 0.95 if qid in wb_ids else 0.0
-        text_score = max(ts, tg, wb)
-
-        if include_keywords:
-            kw_score = kw_map.get(qid, 0.0) * 0.8
-            both = (text_score > 0.0 and kw_score > 0.0)
-            if text_score > 0:
-                relevance = text_score + 0.15 * kw_score
-            else:
-                relevance = 0.10 * kw_score 
-            if both:
-                relevance = min(1.2, relevance + 0.15)
-        else:
-            relevance = text_score
-
-        final_score_map[qid] = relevance
-
-     # ---- 6) Materialisieren, Facetten zählen, sortieren, paginieren
-    found = list(
-        base_qs_q
-        .filter(id__in=final_score_map.keys())
-        .only("id", "questiontext")
-        .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
-        .distinct()
-    )
-
-    return found, final_score_map
 
 
 # Paginierungs-Hilfsfunktionen
@@ -159,15 +55,6 @@ def paginate_list(items, request, per_page=RESULTS_PER_PAGE):
     Paginierung für bereits materialisierte Python-Listen.
     """
     paginator = Paginator(items, per_page)
-    page_obj = paginator.get_page(request.GET.get("page"))
-    return page_obj
-
-# Paginierung für QuerySets
-def paginate_queryset(qs, request, per_page=RESULTS_PER_PAGE):
-    """
-    klassische Paginierung für QuerySets in den Constructs.
-    """
-    paginator = Paginator(qs, per_page)
     page_obj = paginator.get_page(request.GET.get("page"))
     return page_obj
 
@@ -210,6 +97,7 @@ def search(request):
         "TOP_N": 5,
         "tabs": [
             ("all", "Alle"),
+            ("pages", "Seiten"),
             ("questions", "Fragen"),
             ("variables", "Variablen"),
         ],
@@ -223,6 +111,10 @@ def search(request):
     facet_counter = defaultdict(int)
     facet_waves_set = set()
 
+    # Kann von der Seitensuche wiederverwendet werden, damit die
+    # Fragensuche im Modus "Alle" nicht doppelt ausgeführt wird.
+    question_search_result = None
+
 
 
     # =========================
@@ -230,32 +122,47 @@ def search(request):
     # =========================
     if search_type in {"all", "questions"}:
         questions_found, final_score_map = search_questions(
-        q=q,
-        wave_ids=wave_ids,
-        include_keywords=True,
+            q=q,
+            wave_ids=wave_ids,
+            include_keywords=True,
         )
 
-        if sort == "alpha":
-            questions_sorted = sorted(
-                questions_found,
-                key=lambda obj: (obj.questiontext or "").lower()
-            )
-        else:
-            questions_sorted = sorted(
-                questions_found,
-                key=lambda obj: final_score_map.get(obj.id, 0.0),
-                reverse=True
-            )
+        question_search_result = (
+            questions_found,
+            final_score_map,
+        )
 
-        # Facetten-Zähler
-        for obj in questions_found:
-            for w in obj.waves.all():
-                facet_counter[w.id] += 1
-                facet_waves_set.add(w)
+        question_groups = build_question_groups(
+            matched_questions=questions_found,
+            score_map=final_score_map,
+            wave_ids=wave_ids,
+        )
 
-        # Debug/Anzeige
-        for obj in questions_sorted:
-            obj.relevance = final_score_map.get(obj.id, 0.0)
+        questions_sorted = sort_question_groups(question_groups, sort)
+ 
+        # Nur konkrete Suchtreffer dürfen die Facettenzahlen bestimmen.
+        # Zusätzlich angezeigte Versionen derselben Gruppe werden nicht gezählt.
+        matched_question_ids = {
+            question.id
+            for question in questions_found
+        }
+
+        # Eine Versionsgruppe zählt pro Welle höchstens einmal.
+        for group in question_groups:
+            group_waves = {}
+
+            for question in group["questions"]:
+                if question.id not in matched_question_ids:
+                    continue
+
+                for wave in question.waves.all():
+                    group_waves[wave.id] = wave
+
+            for wave in group_waves.values():
+                facet_counter[wave.id] += 1
+                facet_waves_set.add(wave)
+
+
 
         if search_type == "all":
             ctx["questions"] = questions_sorted[:ctx["TOP_N"]]
@@ -264,165 +171,91 @@ def search(request):
             ctx["questions_page"] = page_obj
             ctx["questions"] = page_obj.object_list
 
+        # Anzahl der Ergebniskarten, nicht Anzahl einzelner Fragenversionen.
         ctx["questions_count"] = len(questions_sorted)
         ctx.setdefault("questions_count", 0)
 
+
+    # =========================
+    # PAGES
+    # =========================
+
+    if search_type in {"all", "pages"}:
+        pages_found, final_page_score_map = search_pages(
+            q=q,
+            wave_ids=wave_ids,
+            question_search_result=question_search_result,
+        )
+
+        pages_sorted = sort_pages(
+            pages=pages_found,
+            score_map=final_page_score_map,
+            sort=sort,
+        )
+
+        # Eine Seite zählt pro tatsächlich passender Welle nur einmal.
+        for page in pages_found:
+            matching_wave_ids = page.search_match_wave_ids
+
+            for link in page.search_all_wave_links:
+                if link.wave_id not in matching_wave_ids:
+                    continue
+
+                facet_counter[link.wave_id] += 1
+                facet_waves_set.add(link.wave)
+
+        if search_type == "all":
+            ctx["pages"] = pages_sorted[:ctx["TOP_N"]]
+        else:
+            page_obj = paginate_list(pages_sorted, request)
+            ctx["pages_page"] = page_obj
+            ctx["pages"] = page_obj.object_list
+
+        ctx["pages_count"] = len(pages_sorted)
 
     # =========================
     # VARIABLES
     # =========================
 
     if search_type in {"all", "variables"}:
-        q_lower = q.lower()
 
-        # Basis-QuerySet der Variablen inkl. optionalem Wellenfilter
-        base_qs_v = Variable.objects.all()
-        if wave_ids:
-            base_qs_v = base_qs_v.filter(waves__id__in=wave_ids)
-
-        # ---- 1) Volltext (tsvector) auf varlab
-        ts_query_v = SearchQuery(q, config="german", search_type="websearch")
-        ts_rows_v = (
-            base_qs_v
-            .annotate(sv=SearchVector("varlab", weight="A", config="german"))
-            .filter(sv=ts_query_v)
-            .annotate(ts_rank=SearchRank(F("sv"), ts_query_v, normalization=32))
-            .values("id", "ts_rank")
-        )
-        ts_map_v = {r["id"]: float(r["ts_rank"] or 0.0) for r in ts_rows_v}
-
-        # ---- 2) Trigram (Fuzzy) auf varlab (Tippfehler/Teilstrings)
-        tg_rows_v = (
-            base_qs_v
-            .annotate(sim=TrigramWordSimilarity(q_lower, "varlab"))
-            .filter(sim__gt=0.6)
-            .values("id", "sim")
-        )
-        tg_map_v = {r["id"]: float(r["sim"] or 0.0) for r in tg_rows_v}
-
-
-        # ---- 3) Wortgrenzen-Boost auf varlab
-        word_boundary = rf"\m{re.escape(q_lower)}\M"
-        wb_ids_v = set(
-            base_qs_v
-            .annotate(vl=Lower("varlab"))
-            .filter(vl__iregex=word_boundary)
-            .values_list("id", flat=True)
+        variables_found, final_var_score_map = search_variables(
+            q=q,
+            wave_ids=wave_ids,
         )
 
-        # ---- 4) Varname: nur Prefix-Match (keine Fuzzy/Volltext)
-        vn_rows = (
-            base_qs_v
-            .annotate(vn=Lower("varname"))
-            .filter(vn__startswith=q_lower)
-            .values_list("id", "vn")
+        variable_groups = build_variable_groups(
+            matched_variables=variables_found,
+            score_map=final_var_score_map,
+            wave_ids=wave_ids,
         )
 
-        # fester Bonus für Prefix
-        vn_map = {}
-        for vid, vn in vn_rows:
-            score = 1.0
-            if vn == q_lower:
-                score = 1.05
-            vn_map[vid] = max(vn_map.get(vid, 0.0), score)
-
-
-        # ---- 5) Keywords
-        kw_rows_v = (
-            Keyword.objects
-            .annotate(nl=Lower("name"))
-            .annotate(sim=TrigramSimilarity(F("nl"), q_lower))
-            .filter(Q(nl__istartswith=q_lower) | Q(sim__gt=0.6))
-            .values("id", "sim")[:15]
-        )
-        kw_id_to_score_v = {r["id"]: float(r["sim"] or 0.0) for r in kw_rows_v}
-
-        if kw_id_to_score_v:
-            var_kw_links = (
-                QuestionVariableWave.objects
-                .filter(
-                    variable__in=base_qs_v,
-                    question__keywords__in=list(kw_id_to_score_v.keys()),
-                )
-                .values("variable_id", "question__keywords__id")
-                .distinct()
-            )
-        else:
-            var_kw_links = []
-
-
-        kw_map_v = {}
-        for r in var_kw_links:
-            vid = r["variable_id"]
-            kwid = r["question__keywords__id"]
-            kw_score = kw_id_to_score_v.get(kwid, 0.0)
-            kw_map_v[vid] = max(kw_map_v.get(vid, 0.0), kw_score)
-
-        # ---- 6) Finaler Score pro Frage aus den Einzelkomponenten
-        #   Logik:
-        #     Textscore = max(TS, TG*0.6, WB*0.95)
-        #     Score aus dem Variablenlabel wird gebildet aus dem höchsten Wert der vier Komponenten:
-        #       - Volltext-Score per ts_vector (TS) 
-        #       - Trigram-Score (TG), aber nur 60% Gewicht, damit Textrelevanz höher gewichtet wird
-        #       - Wortgrenzen-Bonus (WB), fester Wert 0.95 --> bei direktem Worttreffer im Fragetext wird geboostet
-        #       - Varname-Prefix-Bonus (VN), fester Wert 1.0 bzw. 1.05 bei exaktem Treffer
-        #     Keyword-Score (KW) = bestes Keyword * 0.8
-        #     Bestes Keyword (entweder direkter Treffer oder fuzzy) bekommt 80% Gewicht, damit Varlabel-Relevanz höher gewichtet wird
-        #     Finaler Score = Textscore + Keyword-Score * 0.15 (wenn Textscore > 0) bzw. + Keyword-Score * 0.10 (wenn kein Textscore)
-        #     Falls beide Scores > 0 sind, wird ein Bonus von +0.15 vergeben (max. 1.2 insgesamt), damit Fragen mit sowohl Text- als auch Keyword-Treffern bevorzugt werden.
-
-        candidate_ids_v = set(ts_map_v) | set(tg_map_v) | wb_ids_v | set(vn_map) | set(kw_map_v)
-        final_var_score_map = {}
-        for vid in candidate_ids_v:
-            ts = ts_map_v.get(vid, 0.0)
-            tg = tg_map_v.get(vid, 0.0) * 0.6
-            wb = 0.95 if vid in wb_ids_v else 0.0
-            vn = vn_map.get(vid, 0.0)    
-            text_score = max(ts, tg, wb, vn)
-
-            kw_score = kw_map_v.get(vid, 0.0) * 0.8
-            both = (text_score > 0.0 and kw_score > 0.0)
-
-            if text_score > 0:
-                relevance = text_score + 0.15 * kw_score
-            else:
-                relevance = 0.10 * kw_score 
-
-            if both:
-                relevance = min(1.2, relevance + 0.15)
-
-            final_var_score_map[vid] = relevance
-
-        # ---- 7) Materialisieren, Facetten zählen, sortieren, paginieren
-        variables_found = list(
-            base_qs_v
-            .filter(id__in=final_var_score_map.keys())
-            .only("id", "varname", "varlab")
-            .prefetch_related(Prefetch("waves", queryset=Wave.objects.select_related("survey")))
-            .distinct()
+        variables_sorted = sort_variable_groups(
+            variable_groups,
+            sort,
         )
 
-        if sort == "alpha":
-            variables_sorted = sorted(
-                variables_found,
-                key=lambda obj: ((obj.varname or obj.varlab or "")).lower()
-            )
-        else:
-            variables_sorted = sorted(
-                variables_found,
-                key=lambda obj: final_var_score_map.get(obj.id, 0.0),
-                reverse=True
-            )
+        # Nur konkrete Suchtreffer dürfen die Facettenzahlen bestimmen.
+        # Zusätzlich angezeigte Varianten derselben Familie werden nicht gezählt.
+        matched_variable_ids = {
+            variable.id
+            for variable in variables_found
+        }
 
-        # Facetten (Wellen)
-        for obj in variables_found:
-            for w in obj.waves.all():
-                facet_counter[w.id] += 1
-                facet_waves_set.add(w)
+        # Eine Variablenfamilie zählt pro Welle höchstens einmal.
+        for group in variable_groups:
+            group_waves = {}
 
-        # Debug/Anzeige
-        for obj in variables_sorted:
-            obj.relevance = final_var_score_map.get(obj.id, 0.0)
+            for variable in group["variables"]:
+                if variable.id not in matched_variable_ids:
+                    continue
+
+                for wave in variable.search_all_waves:
+                    group_waves[wave.id] = wave
+
+            for wave in group_waves.values():
+                facet_counter[wave.id] += 1
+                facet_waves_set.add(wave)
 
         if search_type == "all":
             ctx["variables"] = variables_sorted[:ctx["TOP_N"]]
@@ -431,49 +264,11 @@ def search(request):
             ctx["variables_page"] = page_obj
             ctx["variables"] = page_obj.object_list
 
+        # Anzahl der Ergebniskarten, nicht Anzahl einzelner Varianten.
         ctx["variables_count"] = len(variables_sorted)
         ctx.setdefault("variables_count", 0)
 
-  
-    # =========================
-    # CONSTRUCTS
-    # =========================
-    #f search_type in {"all", "constructs"}:
-    #   q_lower = q.lower()
 
-    #   qs_constructs = (
-    #       Construct.objects
-    #       .annotate(l1=Lower("level_1"), l2=Lower("level_2"))
-    #       .filter(Q(l1__contains=q_lower) | Q(l2__contains=q_lower))
-    #       .distinct()
-    #   )
-
-    #   # Sortierung
-
-    #   if sort == "alpha":
-    #       qs_constructs = qs_constructs.order_by(Lower("level_1").asc(), Lower("level_2").asc(), "id")
-
-    #   else:  # relevance
-    #       qs_constructs = (
-    #           qs_constructs
-    #           .annotate(
-    #               sim_l1=TrigramSimilarity("level_1", q),
-    #               sim_l2=TrigramSimilarity("level_2", q),
-    #               sim=F("sim_l1") * 0.6 + F("sim_l2") * 0.4,
-    #           )
-    #           .order_by(F("sim").desc(nulls_last=True), "id")
-    #       )
-
-    #   if search_type == "all":
-    #       ctx["constructs"] = qs_constructs[:ctx["TOP_N"]]
-    #   else:
-    #       page_obj = paginate_queryset(qs_constructs, request)
-    #       ctx["constructs_page"] = page_obj
-    #       ctx["constructs"] = page_obj.object_list
-
-    #   # Count für Anzeige
-    #   ctx["constructs_count"] = qs_constructs.count()
-    #   ctx.setdefault("constructs_count", 0)
 
 
     # Facetten-Wellen sortieren nach Anzahl Treffer + Jahr
@@ -544,7 +339,10 @@ def search_questions_api(request):
     )[:20]
 
     results = [
-        {"id": obj.id, "label": (obj.questiontext or "")[:200]}
+        {
+            "id": obj.id,
+            "label": strip_pv_formatting(obj.questiontext)[:200],
+        }
         for obj in found_sorted
     ]
     return JsonResponse({"ok": True, "results": results})

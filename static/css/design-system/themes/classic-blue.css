@@ -1,0 +1,37 @@
+/* ==========================================
+   Theme: Classic Blue
+   ========================================== */
+
+/*
+ * Monochromes Theme für eine klassische, ruhige Darstellung.
+ * Survey, Question und Variable verwenden dieselbe blaue Farbskala.
+ */
+[data-theme="classic-blue"] {
+
+  /* Survey / Wave */
+  --color-survey-50:  #f2f8fc;
+  --color-survey-100: #e2f0f8;
+  --color-survey-300: #9bc8e5;
+  --color-survey-500: #3f8fc5;
+  --color-survey-600: #0069b4;
+  --color-survey-700: #005895;
+  --color-survey-800: #004675;
+
+  /* Question */
+  --color-question-50:  #f2f8fc;
+  --color-question-100: #e2f0f8;
+  --color-question-300: #9bc8e5;
+  --color-question-500: #3f8fc5;
+  --color-question-600: #0069b4;
+  --color-question-700: #005895;
+  --color-question-800: #004675;
+
+  /* Variable */
+  --color-variable-50:  #f2f8fc;
+  --color-variable-100: #e2f0f8;
+  --color-variable-300: #9bc8e5;
+  --color-variable-500: #3f8fc5;
+  --color-variable-600: #0069b4;
+  --color-variable-700: #005895;
+  --color-variable-800: #004675;
+}

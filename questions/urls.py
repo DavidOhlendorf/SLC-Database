@@ -4,11 +4,14 @@ from . import views
 app_name = "questions"
 
 urlpatterns = [
+    path("", views.QuestionListView.as_view(), name="question_list"),
     path('<int:pk>/', views.QuestionDetail.as_view(), name='question_detail'),
     path('from_page/<int:page_id>/create/', views.QuestionCreateFromPageView.as_view(), name='question_create_from_page'),
     path("<int:pk>/edit/", views.QuestionUpdateView.as_view(), name="question_edit"),
     path("<int:pk>/delete/", views.QuestionDeleteView.as_view(), name="question_delete"),
     path("<int:pk>/attach-page/", views.QuestionAttachPageView.as_view(), name="question_attach_page"),
+    path("<int:pk>/version/", views.QuestionVersionCreateView.as_view(), name="question_version_create"),
+    path("<int:pk>/reuse/", views.QuestionReuseView.as_view(), name="question_reuse",),
 
     # Keywords
     path("keywords/search/", views.KeywordSearchView.as_view(), name="keyword_search"),

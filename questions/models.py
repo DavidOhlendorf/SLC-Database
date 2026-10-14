@@ -4,7 +4,9 @@ from django.db import models
 from django.urls import reverse
 from django.db.models.functions import Lower 
 from django.db.models import BooleanField, Case, When, Value, Q, OuterRef, Exists
-from variables.models import QuestionVariableWave  
+from variables.models import QuestionVariableWave 
+
+from .formatting import strip_pv_formatting
 
 
 # Completeness check for Question model
@@ -271,6 +273,29 @@ class Question(models.Model):
             ),
         ]
 
+
+    @property
+    def question_type_icon(self):
+        icons = {
+            self.QuestionType.OPEN: "fa-pen",
+            self.QuestionType.SINGLE_VERTICAL: "custom-single-vertical",
+            self.QuestionType.SINGLE_HORIZONTAL: "custom-single-horizontal",
+            self.QuestionType.SINGLE_DROPDOWN: "fa-caret-down",
+            self.QuestionType.MULTI_VERTICAL: "custom-multi-vertical",
+            self.QuestionType.MULTI_HORIZONTAL: "custom-multi-horizontal",
+            self.QuestionType.MATRIX_SINGLE_VERTICAL: "fa-table-list",
+            self.QuestionType.MATRIX_SINGLE_HORIZONTAL: "fa-table-columns",
+            self.QuestionType.MATRIX_MULTI: "fa-table-cells-large",
+            self.QuestionType.SEMANTIC_DIFF: "fa-arrows-left-right",
+            self.QuestionType.MATRIX_DOUBLE: "fa-table-cells",
+            self.QuestionType.DATEPICKER: "fa-calendar-days",
+            self.QuestionType.SLIDER: "fa-sliders",
+            self.QuestionType.OTHER: "fa-shapes",
+        }
+
+        return icons.get(self.question_type, "fa-circle-question")
+
+
     def clean(self):
         super().clean()
 
@@ -282,15 +307,14 @@ class Question(models.Model):
 
 
     def __str__(self):
-        text = (self.questiontext or "").strip()
+        text = strip_pv_formatting(self.questiontext).strip()
 
-        if len(text) <= 100:
+        if len(text) <= 200:
             return f"Q{self.id}: {text}"
 
-        truncated = text[:100]
-
-        # letztes ganzes Wort nehmen
+        truncated = text[:200]
         last_space = truncated.rfind(" ")
+
         if last_space > 0:
             truncated = truncated[:last_space]
 

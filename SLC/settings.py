@@ -81,7 +81,6 @@ MIDDLEWARE = [
     'accounts.middleware.LoginRequiredMiddleware',
 
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
@@ -100,6 +99,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+
+                # Persönliche Darstellungseinstellungen
+                'accounts.context_processors.user_theme',
             ],
         },
     },
@@ -151,6 +153,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# --- Passwort-Links (Einladung und Reset) ---
+# Gültigkeitsdauer: 24 Stunden (in Sekunden)
+PASSWORD_RESET_TIMEOUT = 24 * 60 * 60
+
 
 # --- Email ---
 EMAIL_BACKEND_MODE = env("EMAIL_BACKEND_MODE", default="console").lower()
@@ -197,6 +203,23 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Automatische Versionierung statischer Dateien in Produktion
+# Verhindert die Verwendung veralteter CSS- und JavaScript-Dateien
+# aus dem Browser-Cache.
+
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": (
+                "django.contrib.staticfiles.storage."
+                "ManifestStaticFilesStorage"
+            ),
+        },
+    }
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
