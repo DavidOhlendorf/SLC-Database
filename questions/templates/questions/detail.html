@@ -99,18 +99,57 @@
       </div>
     </header>
 
-    <!-- ID & Konstrukt -->
-    <div class="small text-muted ">
-      <i class="fa-solid fa-key me-1"></i>
-      Fragen-ID:{{ question.id }}
+
+    <!-- ID, Fragetyp & Konstrukt -->
+    <div class="small text-muted d-flex flex-wrap align-items-center gap-3 mt-1">
+
+      <!-- Fragen-ID -->
+      <span class="d-inline-flex align-items-center gap-1">
+        <i class="fa-solid fa-key" aria-hidden="true"></i>
+        Fragen-ID: {{ question.id }}
+      </span>
+
+      <!-- Fragetyp -->
+      {% if question.question_type %}
+        <span class="d-inline-flex align-items-center gap-1">
+
+          {% if question.question_type == "single_vertical" or question.question_type == "single_horizontal" or question.question_type == "multi_vertical" or question.question_type == "multi_horizontal" %}
+
+            <!-- Eigene SVG-Icons für Auswahlfragen -->
+            {% include "questions/_question_type_icon.html" with icon_type=question.question_type %}
+
+          {% else %}
+
+            <!-- Font Awesome für alle anderen Fragetypen -->
+            <i class="fa-solid {{ question.question_type_icon }}"
+              aria-hidden="true"></i>
+
+          {% endif %}
+
+          <!-- Bezeichnung -->
+          {% if question.question_type == "other" and question.question_type_other %}
+            {{ question.question_type_other }}
+          {% else %}
+            {{ question.get_question_type_display }}
+          {% endif %}
+
+        </span>
+      {% endif %}
+
+      <!-- Konstrukt -->
       {% if question.construct %}
-        <i class="fa-solid fa-diagram-project me-1 px-3"></i>
-        {{ question.construct.level_1 }}
-        {% if question.construct.level_2 %}
-          → {{ question.construct.level_2 }}
-        {% endif %}
-      {% endif %}  
+        <span class="d-inline-flex align-items-center gap-1">
+          <i class="fa-solid fa-diagram-project"
+            aria-hidden="true"></i>
+          {{ question.construct.level_1 }}
+          {% if question.construct.level_2 %}
+            → {{ question.construct.level_2 }}
+          {% endif %}
+        </span>
+      {% endif %}
+
     </div>
+
 
     <hr class="my-2 mb-4">
 

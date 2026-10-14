@@ -273,6 +273,29 @@ class Question(models.Model):
             ),
         ]
 
+
+    @property
+    def question_type_icon(self):
+        icons = {
+            self.QuestionType.OPEN: "fa-pen",
+            self.QuestionType.SINGLE_VERTICAL: "custom-single-vertical",
+            self.QuestionType.SINGLE_HORIZONTAL: "custom-single-horizontal",
+            self.QuestionType.SINGLE_DROPDOWN: "fa-caret-down",
+            self.QuestionType.MULTI_VERTICAL: "custom-multi-vertical",
+            self.QuestionType.MULTI_HORIZONTAL: "custom-multi-horizontal",
+            self.QuestionType.MATRIX_SINGLE_VERTICAL: "fa-table-list",
+            self.QuestionType.MATRIX_SINGLE_HORIZONTAL: "fa-table-columns",
+            self.QuestionType.MATRIX_MULTI: "fa-table-cells-large",
+            self.QuestionType.SEMANTIC_DIFF: "fa-arrows-left-right",
+            self.QuestionType.MATRIX_DOUBLE: "fa-table-cells",
+            self.QuestionType.DATEPICKER: "fa-calendar-days",
+            self.QuestionType.SLIDER: "fa-sliders",
+            self.QuestionType.OTHER: "fa-shapes",
+        }
+
+        return icons.get(self.question_type, "fa-circle-question")
+
+
     def clean(self):
         super().clean()
 
