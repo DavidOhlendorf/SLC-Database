@@ -8,15 +8,21 @@ app_name = "accounts"
 
 urlpatterns = [
 
+    # --------------------------------------------------
     # Persönlicher Bereich
+    # --------------------------------------------------
+
     path("", AccountOverviewView.as_view(), name="account_overview"),
     path("appearance/", AccountAppearanceView.as_view(), name="account_appearance"),
     path("security/", AccountSecurityView.as_view(), name="account_security"),
+
     # Logout
     path("logout/", logout_view, name="logout"),
 
+    # --------------------------------------------------
+    # Passwort ändern (angemeldeter Benutzer)
+    # --------------------------------------------------
 
-    # Passwort ändern (eingeloggter Benutzer)
     path(
         "security/password/",
         auth_views.PasswordChangeView.as_view(
@@ -34,28 +40,10 @@ urlpatterns = [
         name="password_change_done",
     ),
 
-
-
-
-    # Passwort zurücksetzen
-    path(
-        "password-reset/",
-        auth_views.PasswordResetView.as_view(
-            template_name="accounts/password_reset_form.html",
-            email_template_name="accounts/password_reset_email.txt",
-            subject_template_name="accounts/password_reset_subject.txt",
-            success_url=reverse_lazy("accounts:password_reset_done"),
-        ),
-        name="password_reset",
-    ),
-
-    path(
-        "password-reset/done/",
-        auth_views.PasswordResetDoneView.as_view(
-            template_name="accounts/password_reset_done.html",
-        ),
-        name="password_reset_done",
-    ),
+    # --------------------------------------------------
+    # Passwort festlegen / zurücksetzen
+    # Über administrativ erzeugte Links
+    # --------------------------------------------------
 
     path(
         "reset/<uidb64>/<token>/",
