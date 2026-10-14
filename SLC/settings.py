@@ -153,6 +153,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# --- Passwort-Links (Einladung und Reset) ---
+# Gültigkeitsdauer: 24 Stunden (in Sekunden)
+PASSWORD_RESET_TIMEOUT = 24 * 60 * 60
+
 
 # --- Email ---
 EMAIL_BACKEND_MODE = env("EMAIL_BACKEND_MODE", default="console").lower()

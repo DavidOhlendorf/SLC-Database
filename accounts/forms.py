@@ -1,37 +1,31 @@
+
 from django import forms
 from django.contrib.auth.models import User
-from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import PasswordResetForm as DjangoPasswordResetForm
 
 from .models import UserPreferences
 
 
 class CustomUserCreationForm(forms.ModelForm):
+    """
+    Benutzeranlage im Django-Admin.
+
+    Neue Benutzer erhalten zunächst ein unbenutzbares Passwort.
+    Der Einladungslink wird anschließend im Admin angezeigt.
+    """
+
     email = forms.EmailField(
         required=True,
         label="E-Mail-Adresse",
-        help_text="Beim Speichern wird automatisch eine Einladungs-Mail zum Festlegen des Passworts verschickt."
+        help_text=(
+            "Nach dem Speichern wird ein Einladungslink erzeugt, "
+            "der kopiert und manuell weitergegeben werden kann."
+        ),
     )
 
     class Meta:
         model = User
         fields = ("username", "email")
 
-class InvitationPasswordResetForm(DjangoPasswordResetForm):
-    """
-    Passwort-Reset-Form für Einladungen:
-    - Anders als die Standardform filtert sie NICHT nach has_usable_password().
-    - Damit können auch an frisch angelegte User mit set_unusable_password()
-      Einladungslinks verschickt werden.
-    """
-
-    def get_users(self, email):
-        UserModel = get_user_model()
-        # nur aktive Nutzer, aber NICHT nach has_usable_password() filtern
-        return UserModel._default_manager.filter(
-            email__iexact=email,
-            is_active=True,
-        )
 
 class UserPreferencesForm(forms.ModelForm):
     """

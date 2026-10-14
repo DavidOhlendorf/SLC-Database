@@ -1,0 +1,17 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+
+  {% if change and original and can_generate_password_link %}
+    <li>
+      <form method="post"
+            action="{% url 'admin:auth_user_password_link' original.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="button">
+          Passwort-Link erzeugen
+        </button>
+      </form>
+    </li>
+  {% endif %}
+{% endblock %}
