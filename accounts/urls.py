@@ -1,7 +1,7 @@
 from django.urls import path, reverse_lazy
 from django.contrib.auth import views as auth_views
 
-from .views import  logout_view, AccountOverviewView, AccountAppearanceView, AccountSecurityView
+from .views import  logout_view, AccountOverviewView, AccountAppearanceView, AccountSecurityView, dismiss_release
 
 app_name = "accounts"
 
@@ -18,6 +18,9 @@ urlpatterns = [
 
     # Logout
     path("logout/", logout_view, name="logout"),
+
+    # Release-Ankündigung bestätigen
+    path("dismiss_release/", dismiss_release, name="dismiss_release"),
 
     # --------------------------------------------------
     # Passwort ändern (angemeldeter Benutzer)

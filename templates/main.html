@@ -69,6 +69,11 @@
             {% endblock %}
         </div>
 
+        <!-- Einmalige Release-Ankündigung -->
+        {% if release_announcement %}
+            {% include 'accounts/_release_popup.html' %}
+        {% endif %}
+
 
         <!-- Bootstrap JS -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
@@ -77,6 +82,29 @@
                 referrerpolicy="no-referrer">
         </script>
 
+
+        <!-- Release-Popup automatisch öffnen -->
+        {% if release_announcement %}
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+
+                const modalElement = document.getElementById(
+                    "releaseNotesModal"
+                );
+
+                if (modalElement) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(
+                        modalElement
+                    );
+
+                    modal.show();
+                }
+
+            });
+        </script>
+        {% endif %}
+
+        
         <!-- GLightbox JS -->
         <script src="https://cdn.jsdelivr.net/npm/glightbox/dist/js/glightbox.min.js"></script>
 
