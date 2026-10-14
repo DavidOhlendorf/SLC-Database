@@ -8,7 +8,7 @@ CURRENT_RELEASE = {
     "date": "Oktober 2026",
 
     "release_url": (
-        "https://github.com/DavidOhlendorf/SLC-Database/releases"
+        "https://github.com/DavidOhlendorf/SLC-Database/releases/tag/v1.2.0"
     ),
 
     "highlights": [
