@@ -210,7 +210,7 @@ class CustomUserAdmin(BaseUserAdmin):
             context,
         )
         add_never_cache_headers(response)
-        response["Referrer-Policy"] = "no-referrer"
+        response["Referrer-Policy"] = "same-origin"
         return response
 
     def response_add(self, request, obj, post_url_continue=None):
