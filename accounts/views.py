@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView, FormView
+from django.views.decorators.http import require_POST
 
 
 from django.conf import settings
@@ -13,7 +15,7 @@ from django.urls import reverse, reverse_lazy
 from .forms import UserPreferencesForm, UserEmailForm
 from .models import UserPreferences
 
-
+from .release_notes import CURRENT_RELEASE
 
 
 # ---------------------------------------------------------
@@ -164,3 +166,39 @@ class AccountSecurityView(LoginRequiredMixin, FormView):
         )
 
         return super().form_valid(form)
+
+
+
+
+# ---------------------------------------------------------
+# Release-Ankündigung bestätigen
+# ---------------------------------------------------------
+
+@login_required
+@require_POST
+def dismiss_release(request):
+    """
+    Speichert, dass der Benutzer die aktuelle
+    Release-Ankündigung bestätigt hat.
+    """
+
+    preferences, _ = UserPreferences.objects.get_or_create(
+        user=request.user
+    )
+
+    # Aktuelle Version als gesehen markieren
+    if preferences.last_seen_release != CURRENT_RELEASE["version"]:
+        preferences.last_seen_release = CURRENT_RELEASE["version"]
+        preferences.save(update_fields=["last_seen_release"])
+
+    # Zur ursprünglichen Seite zurückkehren
+    next_url = request.POST.get("next", "")
+
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = reverse("search:search_landing")
+
+    return redirect(next_url)

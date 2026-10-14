@@ -1,0 +1,76 @@
+<div class="modal fade"
+     id="releaseNotesModal"
+     tabindex="-1"
+     aria-labelledby="releaseNotesModalTitle"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content rounded-3">
+
+      <!-- Kopfzeile -->
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" id="releaseNotesModalTitle">
+            {{ release_announcement.title }}
+          </h5>
+          <div class="text-body-secondary small mt-1">
+            Version {{ release_announcement.version }} ·
+            {{ release_announcement.date }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Inhalt -->
+      <div class="modal-body">
+
+        <p class="mb-4">
+          Die SLC-Datenbank wurde aktualisiert.
+          Die wichtigsten Neuerungen im Überblick:
+        </p>
+
+        {% for highlight in release_announcement.highlights %}
+          <div class="{% if not forloop.last %}mb-3{% endif %}">
+            <div class="fw-semibold mb-1">
+              {{ highlight.title }}
+            </div>
+            <div class="text-body-secondary small">
+              {{ highlight.description }}
+            </div>
+          </div>
+        {% endfor %}
+
+      </div>
+
+      <!-- Fußzeile -->
+      <div class="modal-footer border-0 pt-0">
+
+        <a href="{{ release_announcement.release_url }}"
+           class="btn btn-outline-secondary"
+           target="_blank"
+           rel="noopener noreferrer">
+          Vollständige Release Notes
+        </a>
+
+        <form method="post"
+              action="{% url 'accounts:dismiss_release' %}"
+              class="m-0">
+
+          {% csrf_token %}
+
+          <input type="hidden"
+                 name="next"
+                 value="{{ request.get_full_path }}">
+
+          <button type="submit" class="btn btn-primary">
+            Verstanden
+          </button>
+
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>

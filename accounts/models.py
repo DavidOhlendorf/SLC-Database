@@ -43,6 +43,13 @@ class UserPreferences(models.Model):
         verbose_name="Farbschema",
     )
 
+    last_seen_release = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        verbose_name="Zuletzt angezeigtes Release",
+    )
+
     class Meta:
         verbose_name = "Benutzereinstellung"
         verbose_name_plural = "Benutzereinstellungen"
