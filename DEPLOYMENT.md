@@ -1,118 +1,172 @@
-# Production Deployment Documentation
-
-This document describes the current production deployment of the SLC Database hosted on Hetzner Cloud.  
-
----
+# SLC Database – Production Deployment Documentation
 
 ## 1. Server Overview
 
-- **Hosting:** Hetzner Cloud
-- **OS:** Ubuntu 24.04 LTS
+The SLC Database is hosted on a Hetzner Cloud server.
+
+- **Server:** `slcdb-prod`
+- **Operating system:** Ubuntu 24.04 LTS
 - **Project directory:** `/var/www/SLC`
-- **Python version:** 3.13
-- **PostgreSQL version:** (Hetzner default, 15.x)
-- **Web stack:**
-  - Gunicorn (WSGI application server)
-  - Nginx (reverse proxy, static/media serving)
-  - HTTPS via Let’s Encrypt (Certbot)
+- **Python:** 3.13
+- **Django:** 5.2.x
+- **Database:** PostgreSQL 16
+- **Web server:** Nginx
+- **Application server:** Gunicorn
+- **Domain:** https://slcdb.de
+- **HTTPS:** Let's Encrypt / Certbot
 
----
+Server administration is performed via SSH using individual Linux accounts. SSH access is restricted by the Hetzner Cloud Firewall and public-key authentication.
 
-## 2. Application Code
+## 2. Application Code and Versioning
 
-- Production branch: **`main`**
-- Repository: `https://github.com/DavidOhlendorf/SLC-Database`
-- The deployed code is a shallow clone in `/var/www/SLC`
-- Updates are applied via `git pull origin main`
+Repository:
 
----
+https://github.com/DavidOhlendorf/SLC-Database
+
+The application code is located on the production server at:
+
+`/var/www/SLC`
+
+Production deployments are based on explicitly selected GitHub releases (Git tags), rather than automatically tracking the newest commit on `main`.
+
+The production repository may therefore be in a *detached HEAD* state. This is intentional.
+
+Changes are developed and tested locally, committed to GitHub and subsequently deployed as a release.
 
 ## 3. Python Environment
 
-- Virtual environment located at:
-  `/var/www/SLC/.venv`
-- Dependencies installed from:
-  `/var/www/SLC/requirements.txt`
-- The production environment uses exactly the versions in `requirements.txt` at deployment time.
+The Python virtual environment is located at:
 
----
+`/var/www/SLC/venv`
+
+It can be activated using:
+
+`source /var/www/SLC/venv/bin/activate`
+
+Python dependencies are defined in:
+
+`/var/www/SLC/requirements.txt`
+
+The virtual environment is not part of the Git repository.
 
 ## 4. Environment Variables
 
-The production `.env` file is located at:
+The production environment configuration is stored in:
+
 `/var/www/SLC/.env`
 
----
+It contains environment-specific and sensitive settings, including database credentials and the Django secret key.
 
-## 5. Database Configuration
+The file is excluded from Git version control.
 
-- **Database:** `slcdb`
-- **Extensions enabled:**
-  - `pg_trgm` 
-- **Location:** Local PostgreSQL server on the same machine
+File permissions are restricted to the owning Linux user (`slcdbadmin`, mode `600`).
 
 
-## 6. Static & Media Files
+## 5. PostgreSQL Database
 
-### Static files
-Collected into:
+PostgreSQL runs locally on the production server.
+
+The database is accessed by Django using the connection settings defined in the production `.env` file.
+
+The database contents are not stored in the Git repository.
+
+Database maintenance, backups and recovery procedures are documented separately in the administration manual.
+
+## 6. Static and Media Files
+
+Static source files are located in:
+
 `/var/www/SLC/static/`
-via:
-`python manage.py collectstatic`
 
-### Media files (screenshots)
-Stored in:
+For production, Django collects static files into:
+
+`/var/www/SLC/staticfiles/`
+
+Command:
+
+`python manage.py collectstatic --noinput`
+
+Nginx serves the collected files directly under `/static/`.
+
+Uploaded media files are stored in:
+
 `/var/www/SLC/media/`
 
-This directory is persistent and not part of the Git repository.
+The additional directory `/var/www/SLC/private_uploads/` is used for private uploads.
+
+Generated static files and uploaded files are not maintained through Git.
 
 ## 7. Gunicorn Configuration
 
-Systemd service file:
+Gunicorn runs as a systemd service.
+
+Service configuration:
+
 `/etc/systemd/system/gunicorn.service`
-- Socket used: `/run/gunicorn.slcdb.sock`
-- Gunicorn is controlled via `systemctl` and restarts automatically on deployment.
-  
+
+- **User:** `slcdbadmin`
+- **Group:** `www-data`
+- **Working directory:** `/var/www/SLC`
+- **Executable:** `/var/www/SLC/venv/bin/gunicorn`
+- **Workers:** 3
+- **Bind address:** `127.0.0.1:8000`
+- **Application:** `SLC.wsgi:application`
+
+Gunicorn is accessible locally on the server; incoming web requests are forwarded by Nginx.
+
 ## 8. Nginx Configuration
 
-Nginx site file:
+Nginx configuration:
+
 `/etc/nginx/sites-available/slcdb`
 
+Nginx is responsible for:
 
-Key responsibilities:
+- Handling incoming HTTP and HTTPS connections
+- Forwarding application requests to Gunicorn at `127.0.0.1:8000`
+- Serving static files from `/var/www/SLC/staticfiles/`
+- Serving media files from `/var/www/SLC/media/`
+- Using TLS certificates provided by Let's Encrypt
 
-- Reverse proxy to Gunicorn via UNIX socket
-- Serve `/static/` and `/media/` from the filesystem
-- Automatic HTTPS management via Certbot
+## 9. Production Deployment
 
-Nginx reloads are triggered on each deployment.
+Production updates are performed manually and are based on a specific release tag.
+
+The general deployment procedure is:
+
+1. Connect to the production server using SSH.
+2. Change to `/var/www/SLC`.
+3. Fetch the latest Git tags.
+4. Check out the intended release tag.
+5. Activate the Python virtual environment.
+6. Install or update Python dependencies if necessary.
+7. Apply database migrations.
+8. Collect static files.
+9. Restart Gunicorn.
+10. Verify that the application is accessible and functioning correctly.
+
+Example commands (replace `vX.Y.Z` with the intended release):
+
+```bash
+cd /var/www/SLC
+git fetch --tags
+git switch --detach vX.Y.Z
+
+source venv/bin/activate
+pip install -r requirements.txt
+
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
+
+sudo systemctl restart gunicorn
+```
+
+Before deployment, verify the intended release, the repository state and database backup availability.
+
+Nginx normally does not need to be restarted when only the Django application is updated.
+
+Detailed deployment, verification and rollback procedures are documented in the administration manual.
 
 ---
 
-## 9. HTTPS / TLS
-
-- HTTPS certificates issued by **Let’s Encrypt**
-- Managed automatically via Certbot
-
-
-## 10. Deployment Process (Production)
-
-Updates to the production system are executed manually via:
-```
-git pull origin main
-source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py collectstatic --noinput
-sudo systemctl restart gunicorn
-sudo systemctl reload nginx
-```
-
-This sequence reflects the current operational workflow.
-A helper script exists under:
-
-/var/www/SLC/scripts/deploy.sh
-
-**This document reflects the state of the production deployment as of:**
-**November 2025**
-
+*Documentation updated: October 2026.*

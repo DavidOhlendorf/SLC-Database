@@ -12,6 +12,7 @@ db.sqlite3
 
 # Environments
 .venv/
+venv/
 env/
 
 # Secrets
