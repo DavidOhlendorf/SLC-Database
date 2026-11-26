@@ -6,6 +6,7 @@ from django.forms import formset_factory, BaseFormSet
 from django.core.exceptions import ValidationError
 
 from waves.models import Survey, Wave
+from waves.choices import QuestionnairePart
 from questions.models import Question
 from django.db import transaction
 from django.db.models import Max
@@ -18,6 +19,16 @@ class WavePageCreateForm(forms.Form):
         required=True,
         label="Seitenname",
         help_text="Interner Seitenname (Zofar: pn), z.B. 'dem_123'. Muss innerhalb der Befragung eindeutig sein.",
+    )
+
+    questionnaire_part = forms.ChoiceField(
+        choices=QuestionnairePart.choices,
+        required=True,
+        label="Core oder Episodes",
+        widget=forms.RadioSelect,
+        error_messages={
+            "required": "Bitte wähle aus, ob die Seite zu Core oder Episodes gehört.",
+        },
     )
 
     waves = forms.ModelMultipleChoiceField(

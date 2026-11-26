@@ -637,6 +637,29 @@
                 {% endif %}
               </div>
 
+              <div class="mb-3">
+                <div class="form-label">
+                  {{ page_create_form.questionnaire_part.label }}
+                </div>
+
+                {% if page_create_form.questionnaire_part.errors %}
+                  <div class="invalid-feedback d-block mb-2">
+                    {{ page_create_form.questionnaire_part.errors|striptags }}
+                  </div>
+                {% endif %}
+
+                <div class="vstack gap-1">
+                  {% for radio in page_create_form.questionnaire_part %}
+                    <label class="form-check">
+                      {{ radio.tag }}
+                      <span class="form-check-label">
+                        {{ radio.choice_label }}
+                      </span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </div>
+
               <div class="mb-2">
                 <div class="form-label">{{ page_create_form.waves.label }}</div>
 

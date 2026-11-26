@@ -35,6 +35,16 @@
                            value="{{ m.name|escape }}">
                   </div>
 
+                  <div style="width: 140px;">
+                    <div class="small text-muted mb-1">
+                      Fragebogenteil
+                    </div>
+                    <input type="text"
+                           class="form-control form-control-sm"
+                           value="{{ m.get_questionnaire_part_display }}"
+                           readonly>
+                  </div>
+
                   <div class="d-flex flex-column gap-1">
                     <button type="button" class="btn btn-sm btn-tone-outline tone-survey js-up" title="Nach oben">▲</button>
                     <button type="button" class="btn btn-sm btn-tone-outline tone-survey js-down" title="Nach unten">▼</button>
@@ -70,6 +80,21 @@
                          name="new_name___KEY__"
                          value=""
                          placeholder="Neues Modul">
+                </div>
+
+                <div style="width: 140px;">
+                  <div class="small text-muted mb-1">
+                    Fragebogenteil
+                  </div>
+                  <select class="form-select form-select-sm"
+                          name="new_part___KEY__"
+                          required>
+                    <option value="" selected disabled>
+                      Bitte wählen
+                    </option>
+                    <option value="core">Core</option>
+                    <option value="episodes">Episodes</option>
+                  </select>
                 </div>
 
                 <div class="d-flex flex-column gap-1">

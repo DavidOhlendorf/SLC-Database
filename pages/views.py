@@ -1114,6 +1114,7 @@ class WavePageCopyView(EditorRequiredMixin, View):
         # --- 1) Seite duplizieren (Inhalte kopieren)
         new_page = WavePage.objects.create(
             pagename=new_pagename,
+            questionnaire_part=source_page.questionnaire_part,
             page_heading=source_page.page_heading,
             introduction=source_page.introduction,
             transition_control=source_page.transition_control,

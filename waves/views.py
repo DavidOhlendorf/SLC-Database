@@ -16,10 +16,12 @@ from pages.models import WavePageQuestion, WavePage, WavePageWave
 from questions.formatting import strip_pv_formatting
 
 from .forms import SurveyCreateForm, WaveFormSet
+from .choices import QuestionnairePart
 from pages.forms import WavePageCreateForm
 
 from django.core.exceptions import PermissionDenied
 from accounts.mixins import EditorRequiredMixin
+
 
 
 
@@ -599,7 +601,8 @@ class SurveyDetailView(TemplateView):
 
         if form.is_valid():
             page = WavePage.objects.create(
-                pagename=form.cleaned_data["pagename"]
+                pagename=form.cleaned_data["pagename"],
+                questionnaire_part=form.cleaned_data["questionnaire_part"],
             )
             
             selected_waves = form.cleaned_data["waves"]
@@ -876,6 +879,28 @@ class WaveModulesManageView(View):
         order_raw = (request.POST.get("module_order") or "").strip()
         order_keys = [k for k in order_raw.split(",") if k]
 
+        # Fragebogenteil aller neuen Module vorab validieren
+        for key in order_keys:
+            if not key.startswith("new-"):
+                continue
+
+            name = (request.POST.get(f"new_name_{key}") or "").strip()
+
+            if not name:
+                continue
+
+            part = request.POST.get(f"new_part_{key}")
+
+            if part not in QuestionnairePart.values:
+                messages.error(
+                    request,
+                    f"Bitte wähle für das Modul „{name}“ "
+                    "einen gültigen Fragebogenteil aus."
+                )
+                return redirect(
+                    f"{reverse('waves:survey_detail', kwargs={'survey_name': wave.survey.name})}?wave={wave.id}"
+                )
+
         with transaction.atomic():
             # 1) aktuelle Module laden (vor deletes)
             modules_qs = WaveModule.objects.filter(wave=wave)
@@ -927,6 +952,7 @@ class WaveModulesManageView(View):
                 m = WaveModule.objects.create(
                     wave=wave,
                     name=name,
+                    questionnaire_part=request.POST.get(f"new_part_{key}"),
                     sort_order=temp_base + temp_i,  # temporär eindeutig
                 )
                 new_key_to_id[key] = m.id
