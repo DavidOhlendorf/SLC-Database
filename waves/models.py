@@ -5,6 +5,8 @@ from questions.models import Question
 from django.core.validators import FileExtensionValidator
 from .storage import wave_document_storage
 
+from .choices import QuestionnairePart
+
 # Das zentrale Modell für eine Befragung
 class Survey(models.Model):
     name = models.CharField(
@@ -174,6 +176,16 @@ class WaveModule(models.Model):
     name = models.CharField(
         max_length=200,
         help_text="Name des Moduls, z. B. 'Soziodemographie'.",
+    )
+
+    # Zugehörigkeit zum Fragebogenteil (Core oder Episodes)
+    questionnaire_part = models.CharField(
+        max_length=10,
+        choices=QuestionnairePart.choices,
+        null=True,
+        blank=True,
+        verbose_name="Fragebogenteil",
+        help_text="Zugehörigkeit zum Core- oder Episodes-Fragebogenteil.",
     )
 
     sort_order = models.PositiveIntegerField(

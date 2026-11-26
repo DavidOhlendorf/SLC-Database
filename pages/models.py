@@ -3,6 +3,8 @@ from waves.models import Wave
 from questions.models import Question
 from django.db.models import Q, Case, When, Value, BooleanField
 
+from waves.choices import QuestionnairePart
+
 
 # QuerySet mit Annotations zur Vollständigkeitsprüfung von Seiten
 class WavePageQuerySet(models.QuerySet):
@@ -36,6 +38,16 @@ class WavePage(models.Model):
     pagename = models.CharField(
         max_length=200,
         help_text="Interner Seitenname, z.B. 'dem_123' (pn).",
+    )
+
+    # Zugehörigkeit zum Fragebogenteil (Core oder Episodes)
+    questionnaire_part = models.CharField(
+        max_length=10,
+        choices=QuestionnairePart.choices,
+        null=True,
+        blank=True,
+        verbose_name="Fragebogenteil",
+        help_text="Zugehörigkeit zum Core- oder Episodes-Fragebogenteil.",
     )
 
     # Überschrift auf der Seite (hl)
