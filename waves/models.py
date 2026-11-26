@@ -182,10 +182,8 @@ class WaveModule(models.Model):
     questionnaire_part = models.CharField(
         max_length=10,
         choices=QuestionnairePart.choices,
-        null=True,
-        blank=True,
         verbose_name="Fragebogenteil",
-        help_text="Zugehörigkeit zum Core- oder Episodes-Fragebogenteil.",
+        help_text="Zugehörigkeit zu Core oder Episodes.",
     )
 
     sort_order = models.PositiveIntegerField(
@@ -203,6 +201,12 @@ class WaveModule(models.Model):
             models.UniqueConstraint(
                 fields=["wave", "name"],
                 name="uq_wavemodule_wave_name",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    questionnaire_part__in=QuestionnairePart.values
+                ),
+                name="ck_wavemodule_questionnaire_part",
             ),
         ]
         indexes = [

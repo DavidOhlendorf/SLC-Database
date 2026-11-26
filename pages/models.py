@@ -44,10 +44,8 @@ class WavePage(models.Model):
     questionnaire_part = models.CharField(
         max_length=10,
         choices=QuestionnairePart.choices,
-        null=True,
-        blank=True,
         verbose_name="Fragebogenteil",
-        help_text="Zugehörigkeit zum Core- oder Episodes-Fragebogenteil.",
+        help_text="Zugehörigkeit zu Core oder Episodes.",
     )
 
     # Überschrift auf der Seite (hl)
@@ -129,6 +127,15 @@ class WavePage(models.Model):
         ordering = ["pagename"]
         verbose_name = "page"
         verbose_name_plural = "pages"
+
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    questionnaire_part__in=QuestionnairePart.values
+                ),
+                name="ck_wavepage_questionnaire_part",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.pagename
