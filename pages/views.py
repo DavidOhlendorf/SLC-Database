@@ -243,6 +243,7 @@ class WavePageListView(View):
                 .only(
                     "id",
                     "pagename",
+                    "questionnaire_part",
                     "page_heading",
                     "introduction",
                 )

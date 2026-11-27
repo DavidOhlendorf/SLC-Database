@@ -151,7 +151,10 @@
                         data-bs-target="#allModeModuleCollapse-{{ forloop.counter }}"
                         aria-expanded="false"
                         aria-controls="allModeModuleCollapse-{{ forloop.counter }}">
-                  {{ block.name }}
+                        {% if not block.is_unassigned %}
+                          {% include "pages/_questionnaire_part.html" with part=block.questionnaire_part inherit_color=True only %}:
+                        {% endif %}
+                        {{ block.name }}
                   {% if block.module_sort_varies %}
                     <i class="fa-solid fa-triangle-exclamation text-warning ms-1"
                       data-bs-toggle="tooltip"
@@ -180,7 +183,9 @@
                               <div class="page-card__main">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
                                   <span class="text-break">{{ p.pagename }}</span>
-
+                                  {% if block.is_unassigned %}
+                                    {% include "pages/_questionnaire_part.html" with part=p.questionnaire_part only %}
+                                  {% endif %}
                                   {% if perms.accounts.can_edit_slc and p.is_incomplete %}
                                     <i class="fa-solid fa-circle-exclamation text-danger"
                                       data-bs-toggle="tooltip"
@@ -373,6 +378,7 @@
                               <div class="min-w-0">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
                                   <span class="text-break">{{ p.pagename }}</span>
+                                  {% include "pages/_questionnaire_part.html" with part=p.questionnaire_part only %}
 
                                   {% if perms.accounts.can_edit_slc and p.is_incomplete %}
                                     <i class="fa-solid fa-circle-exclamation text-danger"
@@ -470,7 +476,8 @@
                           data-bs-target="#moduleCollapse-{{ block.module.id }}"
                           aria-expanded="true"
                           aria-controls="moduleCollapse-{{ block.module.id }}">
-                    {{ block.module.name }}
+                          {% include "pages/_questionnaire_part.html" with part=block.module.questionnaire_part inherit_color=True only %}:
+                          {{ block.module.name }}
                     <i class="fa-solid fa-chevron-down ms-1 small opacity-75"></i>
                   </button>
                   <span class="badge tone-panel__badge js-page-count">{{ block.links|length }}</span>

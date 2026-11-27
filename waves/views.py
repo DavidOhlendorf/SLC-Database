@@ -290,7 +290,11 @@ class SurveyDetailView(TemplateView):
                 )
 
                 for module in modules_for_wave:
-                    sequence.append(("module", normalize_module_name(module.name)))
+                    sequence.append((
+                        "module",
+                        normalize_module_name(module.name),
+                        module.questionnaire_part,
+                    ))
 
                 module_sequences.append(sequence)
 
@@ -376,20 +380,30 @@ class SurveyDetailView(TemplateView):
             for link in page_links_qs:
                 if link.module_id:
                     module_name = link.module.name
-                    module_key = ("module", normalize_module_name(module_name))
+                    questionnaire_part = link.module.questionnaire_part
+
+                    module_key = (
+                        "module",
+                        normalize_module_name(module_name),
+                        questionnaire_part,
+                    )
+
                     module_sort = link.module.sort_order
                     module_label = module_name
                     is_unassigned = False
+
                 else:
-                    module_key = ("unassigned", "")
+                    module_key = ("unassigned", "", "")
                     module_sort = 0
                     module_label = "Ohne Modul"
+                    questionnaire_part = None
                     is_unassigned = True
 
                 if module_key not in blocks_by_key:
                     blocks_by_key[module_key] = {
                         "key": module_key,
                         "name": module_label,
+                        "questionnaire_part": questionnaire_part,
                         "is_unassigned": is_unassigned,
                         "module_positions": [],
                         "pages_by_id": {},
@@ -478,6 +492,7 @@ class SurveyDetailView(TemplateView):
                 all_mode_module_blocks.append({
                     "key": block["key"],
                     "name": block["name"],
+                    "questionnaire_part": block["questionnaire_part"],
                     "is_unassigned": block["is_unassigned"],
                     "pages": pages,
                     "min_module_sort_order": min(module_positions),
