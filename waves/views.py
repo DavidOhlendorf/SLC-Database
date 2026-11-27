@@ -16,10 +16,12 @@ from pages.models import WavePageQuestion, WavePage, WavePageWave
 from questions.formatting import strip_pv_formatting
 
 from .forms import SurveyCreateForm, WaveFormSet
+from .choices import QuestionnairePart
 from pages.forms import WavePageCreateForm
 
 from django.core.exceptions import PermissionDenied
 from accounts.mixins import EditorRequiredMixin
+
 
 
 
@@ -288,7 +290,11 @@ class SurveyDetailView(TemplateView):
                 )
 
                 for module in modules_for_wave:
-                    sequence.append(("module", normalize_module_name(module.name)))
+                    sequence.append((
+                        "module",
+                        normalize_module_name(module.name),
+                        module.questionnaire_part,
+                    ))
 
                 module_sequences.append(sequence)
 
@@ -374,20 +380,30 @@ class SurveyDetailView(TemplateView):
             for link in page_links_qs:
                 if link.module_id:
                     module_name = link.module.name
-                    module_key = ("module", normalize_module_name(module_name))
+                    questionnaire_part = link.module.questionnaire_part
+
+                    module_key = (
+                        "module",
+                        normalize_module_name(module_name),
+                        questionnaire_part,
+                    )
+
                     module_sort = link.module.sort_order
                     module_label = module_name
                     is_unassigned = False
+
                 else:
-                    module_key = ("unassigned", "")
+                    module_key = ("unassigned", "", "")
                     module_sort = 0
                     module_label = "Ohne Modul"
+                    questionnaire_part = None
                     is_unassigned = True
 
                 if module_key not in blocks_by_key:
                     blocks_by_key[module_key] = {
                         "key": module_key,
                         "name": module_label,
+                        "questionnaire_part": questionnaire_part,
                         "is_unassigned": is_unassigned,
                         "module_positions": [],
                         "pages_by_id": {},
@@ -476,6 +492,7 @@ class SurveyDetailView(TemplateView):
                 all_mode_module_blocks.append({
                     "key": block["key"],
                     "name": block["name"],
+                    "questionnaire_part": block["questionnaire_part"],
                     "is_unassigned": block["is_unassigned"],
                     "pages": pages,
                     "min_module_sort_order": min(module_positions),
@@ -599,7 +616,8 @@ class SurveyDetailView(TemplateView):
 
         if form.is_valid():
             page = WavePage.objects.create(
-                pagename=form.cleaned_data["pagename"]
+                pagename=form.cleaned_data["pagename"],
+                questionnaire_part=form.cleaned_data["questionnaire_part"],
             )
             
             selected_waves = form.cleaned_data["waves"]
@@ -706,30 +724,77 @@ class WavePagesReorderApiView(View):
         if len(existing_links) != len(all_page_ids):
             return JsonResponse({"ok": False, "error": "Mindestens eine Seite gehört nicht zu dieser Befragung."}, status=400)
 
-        # module_ids gehören zur wave?
-        if module_ids:
-            existing_modules = set(
-                WaveModule.objects.filter(wave=wave, id__in=module_ids).values_list("id", flat=True)
+        # Module laden und Zugehörigkeit zur Wave prüfen
+        modules_by_id = {
+            module.id: module
+            for module in WaveModule.objects.filter(
+                wave=wave,
+                id__in=module_ids,
             )
-            if existing_modules != module_ids:
-                return JsonResponse({"ok": False, "error": "Mindestens ein Modul gehört nicht zu dieser Befragung."}, status=400)
+        }
+
+        if set(modules_by_id) != module_ids:
+            return JsonResponse({
+                "ok": False,
+                "error": "Mindestens ein Modul gehört nicht zu dieser Befragung."
+            }, status=400)
+
 
         # Update: module + globale Sortierung speichern
         with transaction.atomic():
-            links = list(WavePageWave.objects.filter(wave=wave, page_id__in=all_page_ids))
-            link_by_page = {l.page_id: l for l in links}
+            links = list(
+                WavePageWave.objects
+                .filter(wave=wave, page_id__in=all_page_ids)
+                .select_related("page")
+            )
 
+            link_by_page = {
+                link.page_id: link
+                for link in links
+            }
+
+            # Core/Episodes-Kompatibilität prüfen
+            for c in containers:
+                mids = c.get("module_id", None)
+
+                # Seiten ohne Modul sind immer zulässig
+                if mids is None:
+                    continue
+
+                module = modules_by_id[mids]
+
+                for pid in c.get("page_ids", []):
+                    page = link_by_page[int(pid)].page
+
+                    if page.questionnaire_part != module.questionnaire_part:
+                        return JsonResponse({
+                            "ok": False,
+                            "error": (
+                                f"Die Seite „{page.pagename}“ "
+                                f"({page.get_questionnaire_part_display()}) "
+                                f"kann nicht dem Modul „{module.name}“ "
+                                f"({module.get_questionnaire_part_display()}) "
+                                "zugeordnet werden."
+                            )
+                        }, status=400)
+
+            # Erst nach erfolgreicher Prüfung alle Änderungen übernehmen
             idx = 0
+
             for c in containers:
                 mids = c.get("module_id", None)
                 pids = [int(x) for x in c.get("page_ids", [])]
+
                 for pid in pids:
                     idx += 1
-                    l = link_by_page[pid]
-                    l.sort_order = idx
-                    l.module_id = mids
+                    link = link_by_page[pid]
+                    link.sort_order = idx
+                    link.module_id = mids
 
-            WavePageWave.objects.bulk_update(links, ["sort_order", "module"])
+            WavePageWave.objects.bulk_update(
+                links,
+                ["sort_order", "module"],
+            )
 
         return JsonResponse({"ok": True})
 
@@ -876,6 +941,28 @@ class WaveModulesManageView(View):
         order_raw = (request.POST.get("module_order") or "").strip()
         order_keys = [k for k in order_raw.split(",") if k]
 
+        # Fragebogenteil aller neuen Module vorab validieren
+        for key in order_keys:
+            if not key.startswith("new-"):
+                continue
+
+            name = (request.POST.get(f"new_name_{key}") or "").strip()
+
+            if not name:
+                continue
+
+            part = request.POST.get(f"new_part_{key}")
+
+            if part not in QuestionnairePart.values:
+                messages.error(
+                    request,
+                    f"Bitte wähle für das Modul „{name}“ "
+                    "einen gültigen Fragebogenteil aus."
+                )
+                return redirect(
+                    f"{reverse('waves:survey_detail', kwargs={'survey_name': wave.survey.name})}?wave={wave.id}"
+                )
+
         with transaction.atomic():
             # 1) aktuelle Module laden (vor deletes)
             modules_qs = WaveModule.objects.filter(wave=wave)
@@ -927,6 +1014,7 @@ class WaveModulesManageView(View):
                 m = WaveModule.objects.create(
                     wave=wave,
                     name=name,
+                    questionnaire_part=request.POST.get(f"new_part_{key}"),
                     sort_order=temp_base + temp_i,  # temporär eindeutig
                 )
                 new_key_to_id[key] = m.id

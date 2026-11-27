@@ -185,6 +185,7 @@ def search_pages(q: str, wave_ids=None, question_search_result=None,):
         .only(
             "id",
             "pagename",
+            "questionnaire_part",
             "page_heading",
             "introduction",
         )

@@ -44,6 +44,62 @@ document.addEventListener("DOMContentLoaded", () => {
   const lists = Array.from(wrapper.querySelectorAll(".js-page-list"));
   if (!lists.length) return;
 
+
+  // Prüfen, ob eine Seite in den Zielcontainer verschoben werden darf
+  function canDropPage(pageEl, targetList) {
+    // Der Bereich "Ohne Modul" erlaubt beide Fragebogenteile
+    if (!targetList.dataset.moduleId) {
+      return true;
+    }
+
+    const pagePart = pageEl.dataset.questionnairePart;
+    const modulePart = targetList.dataset.questionnairePart;
+
+    return Boolean(pagePart && modulePart && pagePart === modulePart);
+  }
+
+  // Aktuell gezogene Seite
+  let draggedPage = null;
+
+  // Mauszeiger abhängig vom Zielmodul aktualisieren
+  function updateDropCursor(event) {
+    if (!draggedPage) return;
+
+    const target = document.elementFromPoint(
+      event.clientX,
+      event.clientY
+    );
+
+    const targetList = lists.find((list) => {
+      const moduleCard = list.closest(".card");
+      return moduleCard && moduleCard.contains(target);
+    });
+
+    const forbidden = Boolean(
+      targetList && !canDropPage(draggedPage, targetList)
+    );
+
+    document.body.classList.toggle(
+      "page-drop-forbidden",
+      forbidden
+    );
+  }
+
+  // Mauszeiger nach Ende des Ziehvorgangs zurücksetzen
+  function resetDropCursor() {
+    draggedPage = null;
+
+    document.removeEventListener(
+      "mousemove",
+      updateDropCursor
+    );
+
+    document.body.classList.remove(
+      "page-drop-forbidden"
+    );
+  }
+
+
   // UI refresh (Badges, Empty hints)
   function refreshModuleUI() {
     wrapper.querySelectorAll(".js-page-list").forEach((listEl) => {
@@ -106,9 +162,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) {
         console.error("Reorder failed:", data);
+
+        alert(
+          data.error ||
+          "Die neue Seitenzuordnung konnte nicht gespeichert werden."
+        );
+
+        window.location.reload();
       }
     } catch (e) {
       console.error("Reorder request error:", e);
+
+      alert("Die Seitenreihenfolge konnte nicht gespeichert werden.");
+
+      window.location.reload();
     }
   }
 
@@ -120,14 +187,45 @@ document.addEventListener("DOMContentLoaded", () => {
       animation: 150,
       handle: ".js-drag-handle",
       draggable: ".page-card",
-      group: "pages",
+
+      // SortableJS übernimmt die Darstellung beim Ziehen
+      forceFallback: true,
+      fallbackOnBody: true,
+
+      // Zulässige Modulzuordnungen
+      group: {
+        name: "pages",
+        pull: true,
+        put: (to, from, dragEl) => {
+          return canDropPage(dragEl, to.el);
+        },
+      },
+
+      // Ziehvorgang beginnt
+      onStart: (evt) => {
+        draggedPage = evt.item;
+
+        document.addEventListener(
+          "mousemove",
+          updateDropCursor
+        );
+      },
 
       onAdd: () => refreshModuleUI(),
       onRemove: () => refreshModuleUI(),
 
-      onEnd: () => {
+      // Ziehvorgang endet
+      onEnd: (evt) => {
+        resetDropCursor();
         refreshModuleUI();
-        save();
+
+        // Nur speichern, wenn sich die Position geändert hat
+        if (
+          evt.from !== evt.to ||
+          evt.oldIndex !== evt.newIndex
+        ) {
+          save();
+        }
       },
     });
   });

@@ -151,7 +151,10 @@
                         data-bs-target="#allModeModuleCollapse-{{ forloop.counter }}"
                         aria-expanded="false"
                         aria-controls="allModeModuleCollapse-{{ forloop.counter }}">
-                  {{ block.name }}
+                        {% if not block.is_unassigned %}
+                          {% include "pages/_questionnaire_part.html" with part=block.questionnaire_part inherit_color=True only %}:
+                        {% endif %}
+                        {{ block.name }}
                   {% if block.module_sort_varies %}
                     <i class="fa-solid fa-triangle-exclamation text-warning ms-1"
                       data-bs-toggle="tooltip"
@@ -180,7 +183,9 @@
                               <div class="page-card__main">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
                                   <span class="text-break">{{ p.pagename }}</span>
-
+                                  {% if block.is_unassigned %}
+                                    {% include "pages/_questionnaire_part.html" with part=p.questionnaire_part only %}
+                                  {% endif %}
                                   {% if perms.accounts.can_edit_slc and p.is_incomplete %}
                                     <i class="fa-solid fa-circle-exclamation text-danger"
                                       data-bs-toggle="tooltip"
@@ -281,7 +286,7 @@
                                       aria-expanded="false"
                                       aria-controls="pageFilter-{{ block.name|slugify }}-{{ p.id }}-{{ forloop.counter }}">
                                 Filter 
-                                {% if not p.transitions %}
+                                 {% if p.questionnaire_part == "core" and not p.transitions %}
                                   <i class="fa-solid fa-circle-exclamation text-danger ms-1"
                                     data-bs-toggle="tooltip"
                                     data-bs-title="Filter fehlt"></i>
@@ -293,9 +298,15 @@
                                 {% if p.transitions %}
                                   <div class="border rounded bg-light-subtle px-2 py-1 small font-monospace text-break"
                                       style="white-space: pre-wrap;">{{ p.transitions }}</div>
-                                {% else %}
+
+                                {% elif p.questionnaire_part == "core" %}
                                   <div class="border rounded border-danger bg-danger-subtle text-danger-emphasis px-2 py-1 small fw-semibold">
                                     Filter fehlt!
+                                  </div>
+
+                                {% else %}
+                                  <div class="small text-muted fst-italic">
+                                    Keine Seitenübergänge hinterlegt.
                                   </div>
                                 {% endif %}
                               </div>
@@ -337,7 +348,7 @@
             data-csrf-token="{{ csrf_token }}"
             data-can-dnd="{% if perms.accounts.can_edit_slc and not active_wave.is_locked %}1{% else %}0{% endif %}">
 
-          {% if unassigned_links %}  
+          {% if unassigned_links or perms.accounts.can_edit_slc and not active_wave.is_locked %}  
             <div class="card tone-panel tone-survey">
               <div class="card-header tone-panel__header">
                 <div class="d-flex align-items-center justify-content-between">
@@ -355,10 +366,10 @@
               </div>
               <div id="moduleCollapse-unassigned" class="collapse show">
                 <div class="card-body tone-panel__body">
-                  <div class="vstack gap-2 js-page-list" data-module-id="">
+                  <div class="vstack gap-2 js-page-list" data-module-id="" data-questionnaire-part="">
                     {% for link in unassigned_links %}
                       {% with p=link.page %}
-                        <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}">
+                        <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}" data-questionnaire-part="{{ p.questionnaire_part }}">
                           <div class="card-body d-flex align-items-start justify-content-between gap-3">
                             <div class="d-flex align-items-start gap-2 page-card__main">
                               {% if perms.accounts.can_edit_slc and not active_wave.is_locked %}
@@ -373,6 +384,7 @@
                               <div class="min-w-0">
                                 <div class="fw-semibold d-flex align-items-center gap-2">
                                   <span class="text-break">{{ p.pagename }}</span>
+                                  {% include "pages/_questionnaire_part.html" with part=p.questionnaire_part only %}
 
                                   {% if perms.accounts.can_edit_slc and p.is_incomplete %}
                                     <i class="fa-solid fa-circle-exclamation text-danger"
@@ -470,7 +482,8 @@
                           data-bs-target="#moduleCollapse-{{ block.module.id }}"
                           aria-expanded="true"
                           aria-controls="moduleCollapse-{{ block.module.id }}">
-                    {{ block.module.name }}
+                          {% include "pages/_questionnaire_part.html" with part=block.module.questionnaire_part inherit_color=True only %}:
+                          {{ block.module.name }}
                     <i class="fa-solid fa-chevron-down ms-1 small opacity-75"></i>
                   </button>
                   <span class="badge tone-panel__badge js-page-count">{{ block.links|length }}</span>
@@ -479,10 +492,11 @@
               <div id="moduleCollapse-{{ block.module.id }}" class="collapse show">
                 <div class="card-body tone-panel__body">
                   <div class="vstack gap-2 js-page-list"
-                      data-module-id="{{ block.module.id }}">
+                      data-module-id="{{ block.module.id }}"
+                      data-questionnaire-part="{{ block.module.questionnaire_part }}">
                     {% for link in block.links %}
                       {% with p=link.page %}
-                      <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}">
+                      <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}" data-questionnaire-part="{{ p.questionnaire_part }}">
                         <div class="card-body d-flex align-items-start justify-content-between gap-3">
 
                           <div class="d-flex align-items-start gap-2 page-card__main">
@@ -635,6 +649,29 @@
                 {% if page_create_form.pagename.help_text %}
                   <div class="form-text">{{ page_create_form.pagename.help_text }}</div>
                 {% endif %}
+              </div>
+
+              <div class="mb-3">
+                <div class="form-label">
+                  {{ page_create_form.questionnaire_part.label }}
+                </div>
+
+                {% if page_create_form.questionnaire_part.errors %}
+                  <div class="invalid-feedback d-block mb-2">
+                    {{ page_create_form.questionnaire_part.errors|striptags }}
+                  </div>
+                {% endif %}
+
+                <div class="vstack gap-1">
+                  {% for radio in page_create_form.questionnaire_part %}
+                    <label class="form-check">
+                      {{ radio.tag }}
+                      <span class="form-check-label">
+                        {{ radio.choice_label }}
+                      </span>
+                    </label>
+                  {% endfor %}
+                </div>
               </div>
 
               <div class="mb-2">

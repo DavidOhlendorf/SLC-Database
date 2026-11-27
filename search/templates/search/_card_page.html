@@ -4,9 +4,15 @@
   <div class="card-body">
 
     <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-      <h5 class="card-title mb-0">
-        Seite {{ page.pagename }}
-      </h5>
+      <div>
+        <h5 class="card-title mb-0">
+          Seite {{ page.pagename }}
+        </h5>
+
+        <div class="mt-1">
+          {% include "pages/_questionnaire_part.html" with part=page.questionnaire_part only %}
+        </div>
+      </div>
 
       {% if show_relevance %}
         <span class="text-muted small flex-shrink-0">

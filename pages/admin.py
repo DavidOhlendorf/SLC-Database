@@ -1,3 +1,5 @@
+from django import forms
+
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse, path
@@ -107,11 +109,41 @@ class WavePageQmlInline(admin.TabularInline):
     extra = 0
     max_num = 1
 
+class WavePageAdminForm(forms.ModelForm):
 
+    class Meta:
+        model = WavePage
+        fields = "__all__"
+
+    def clean_questionnaire_part(self):
+        part = self.cleaned_data["questionnaire_part"]
+
+        if self.instance.pk:
+            incompatible_links = (
+                self.instance.wave_links
+                .filter(module__isnull=False)
+                .exclude(module__questionnaire_part=part)
+            )
+
+            if incompatible_links.exists():
+                raise forms.ValidationError(
+                    "Eine Core-Seite kann nicht zu Episodes geändert werden, "
+                    "solange sie einem Core-Modul zugeordnet ist und umgekehrt. "
+                    "Bitte entferne zunächst die Seite aus dem übergeordneten Modul."
+                )
+
+        return part
 
 @admin.register(WavePage)
 class WavePageAdmin(admin.ModelAdmin):
-    list_display = ("pagename", "get_waves")
+    form = WavePageAdminForm
+
+    list_display = (
+        "pagename",
+        "questionnaire_part",
+        "get_waves",
+    )
+    list_filter = ("questionnaire_part",)
     search_fields = ("pagename",)
     ordering = ("pagename",)
 

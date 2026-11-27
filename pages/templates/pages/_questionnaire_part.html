@@ -1,0 +1,11 @@
+{% if part == "core" %}
+  <span class="d-inline-flex align-items-center gap-1 {% if inherit_color %}text-reset{% else %}text-muted small{% endif %}">
+    <i class="fa-solid fa-circle-dot" aria-hidden="true"></i>
+    Core
+  </span>
+{% elif part == "episodes" %}
+  <span class="d-inline-flex align-items-center gap-1 {% if inherit_color %}text-reset{% else %}text-muted small{% endif %}">
+    <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+    Episodes
+  </span>
+{% endif %}

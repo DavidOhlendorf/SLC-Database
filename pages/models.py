@@ -3,14 +3,24 @@ from waves.models import Wave
 from questions.models import Question
 from django.db.models import Q, Case, When, Value, BooleanField
 
+from waves.choices import QuestionnairePart
 
-# QuerySet mit Annotations zur Vollständigkeitsprüfung von Seiten
+
+# QuerySet für WavePage mit Annotations zur Vollständigkeitsprüfung
 class WavePageQuerySet(models.QuerySet):
     def with_completeness(self):
         missing = (
-            Q(pagename__isnull=True) | Q(pagename="") |
-            Q(transitions__isnull=True) | Q(transitions="")
+            Q(pagename__isnull=True)
+            | Q(pagename="")
+            | (
+                Q(questionnaire_part=QuestionnairePart.CORE)
+                & (
+                    Q(transitions__isnull=True)
+                    | Q(transitions="")
+                )
+            )
         )
+
         return self.annotate(
             is_incomplete=Case(
                 When(missing, then=Value(True)),
@@ -36,6 +46,14 @@ class WavePage(models.Model):
     pagename = models.CharField(
         max_length=200,
         help_text="Interner Seitenname, z.B. 'dem_123' (pn).",
+    )
+
+    # Zugehörigkeit zum Fragebogenteil (Core oder Episodes)
+    questionnaire_part = models.CharField(
+        max_length=10,
+        choices=QuestionnairePart.choices,
+        verbose_name="Fragebogenteil",
+        help_text="Zugehörigkeit zu Core oder Episodes.",
     )
 
     # Überschrift auf der Seite (hl)
@@ -117,6 +135,15 @@ class WavePage(models.Model):
         ordering = ["pagename"]
         verbose_name = "page"
         verbose_name_plural = "pages"
+
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    questionnaire_part__in=QuestionnairePart.values
+                ),
+                name="ck_wavepage_questionnaire_part",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.pagename
