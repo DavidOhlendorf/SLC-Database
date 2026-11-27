@@ -342,7 +342,7 @@
             data-csrf-token="{{ csrf_token }}"
             data-can-dnd="{% if perms.accounts.can_edit_slc and not active_wave.is_locked %}1{% else %}0{% endif %}">
 
-          {% if unassigned_links %}  
+          {% if unassigned_links or perms.accounts.can_edit_slc and not active_wave.is_locked %}  
             <div class="card tone-panel tone-survey">
               <div class="card-header tone-panel__header">
                 <div class="d-flex align-items-center justify-content-between">
@@ -360,10 +360,10 @@
               </div>
               <div id="moduleCollapse-unassigned" class="collapse show">
                 <div class="card-body tone-panel__body">
-                  <div class="vstack gap-2 js-page-list" data-module-id="">
+                  <div class="vstack gap-2 js-page-list" data-module-id="" data-questionnaire-part="">
                     {% for link in unassigned_links %}
                       {% with p=link.page %}
-                        <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}">
+                        <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}" data-questionnaire-part="{{ p.questionnaire_part }}">
                           <div class="card-body d-flex align-items-start justify-content-between gap-3">
                             <div class="d-flex align-items-start gap-2 page-card__main">
                               {% if perms.accounts.can_edit_slc and not active_wave.is_locked %}
@@ -486,10 +486,11 @@
               <div id="moduleCollapse-{{ block.module.id }}" class="collapse show">
                 <div class="card-body tone-panel__body">
                   <div class="vstack gap-2 js-page-list"
-                      data-module-id="{{ block.module.id }}">
+                      data-module-id="{{ block.module.id }}"
+                      data-questionnaire-part="{{ block.module.questionnaire_part }}">
                     {% for link in block.links %}
                       {% with p=link.page %}
-                      <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}">
+                      <div class="card entity-card tone-survey page-card" data-page-id="{{ p.id }}" data-questionnaire-part="{{ p.questionnaire_part }}">
                         <div class="card-body d-flex align-items-start justify-content-between gap-3">
 
                           <div class="d-flex align-items-start gap-2 page-card__main">

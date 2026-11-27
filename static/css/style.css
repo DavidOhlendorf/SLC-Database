@@ -243,3 +243,13 @@ select.qc-passive:focus {
   flex: 1 1 0;
   min-width: 0;
 }
+
+/* ==========================================
+   Drag & Drop
+   ========================================== */
+
+/* Drag & Drop: unzulässige Modulzuordnung */
+body.page-drop-forbidden,
+body.page-drop-forbidden * {
+    cursor: not-allowed !important;
+}

@@ -724,30 +724,77 @@ class WavePagesReorderApiView(View):
         if len(existing_links) != len(all_page_ids):
             return JsonResponse({"ok": False, "error": "Mindestens eine Seite gehört nicht zu dieser Befragung."}, status=400)
 
-        # module_ids gehören zur wave?
-        if module_ids:
-            existing_modules = set(
-                WaveModule.objects.filter(wave=wave, id__in=module_ids).values_list("id", flat=True)
+        # Module laden und Zugehörigkeit zur Wave prüfen
+        modules_by_id = {
+            module.id: module
+            for module in WaveModule.objects.filter(
+                wave=wave,
+                id__in=module_ids,
             )
-            if existing_modules != module_ids:
-                return JsonResponse({"ok": False, "error": "Mindestens ein Modul gehört nicht zu dieser Befragung."}, status=400)
+        }
+
+        if set(modules_by_id) != module_ids:
+            return JsonResponse({
+                "ok": False,
+                "error": "Mindestens ein Modul gehört nicht zu dieser Befragung."
+            }, status=400)
+
 
         # Update: module + globale Sortierung speichern
         with transaction.atomic():
-            links = list(WavePageWave.objects.filter(wave=wave, page_id__in=all_page_ids))
-            link_by_page = {l.page_id: l for l in links}
+            links = list(
+                WavePageWave.objects
+                .filter(wave=wave, page_id__in=all_page_ids)
+                .select_related("page")
+            )
 
+            link_by_page = {
+                link.page_id: link
+                for link in links
+            }
+
+            # Core/Episodes-Kompatibilität prüfen
+            for c in containers:
+                mids = c.get("module_id", None)
+
+                # Seiten ohne Modul sind immer zulässig
+                if mids is None:
+                    continue
+
+                module = modules_by_id[mids]
+
+                for pid in c.get("page_ids", []):
+                    page = link_by_page[int(pid)].page
+
+                    if page.questionnaire_part != module.questionnaire_part:
+                        return JsonResponse({
+                            "ok": False,
+                            "error": (
+                                f"Die Seite „{page.pagename}“ "
+                                f"({page.get_questionnaire_part_display()}) "
+                                f"kann nicht dem Modul „{module.name}“ "
+                                f"({module.get_questionnaire_part_display()}) "
+                                "zugeordnet werden."
+                            )
+                        }, status=400)
+
+            # Erst nach erfolgreicher Prüfung alle Änderungen übernehmen
             idx = 0
+
             for c in containers:
                 mids = c.get("module_id", None)
                 pids = [int(x) for x in c.get("page_ids", [])]
+
                 for pid in pids:
                     idx += 1
-                    l = link_by_page[pid]
-                    l.sort_order = idx
-                    l.module_id = mids
+                    link = link_by_page[pid]
+                    link.sort_order = idx
+                    link.module_id = mids
 
-            WavePageWave.objects.bulk_update(links, ["sort_order", "module"])
+            WavePageWave.objects.bulk_update(
+                links,
+                ["sort_order", "module"],
+            )
 
         return JsonResponse({"ok": True})
 
