@@ -286,7 +286,7 @@
                                       aria-expanded="false"
                                       aria-controls="pageFilter-{{ block.name|slugify }}-{{ p.id }}-{{ forloop.counter }}">
                                 Filter 
-                                {% if not p.transitions %}
+                                 {% if p.questionnaire_part == "core" and not p.transitions %}
                                   <i class="fa-solid fa-circle-exclamation text-danger ms-1"
                                     data-bs-toggle="tooltip"
                                     data-bs-title="Filter fehlt"></i>
@@ -298,9 +298,15 @@
                                 {% if p.transitions %}
                                   <div class="border rounded bg-light-subtle px-2 py-1 small font-monospace text-break"
                                       style="white-space: pre-wrap;">{{ p.transitions }}</div>
-                                {% else %}
+
+                                {% elif p.questionnaire_part == "core" %}
                                   <div class="border rounded border-danger bg-danger-subtle text-danger-emphasis px-2 py-1 small fw-semibold">
                                     Filter fehlt!
+                                  </div>
+
+                                {% else %}
+                                  <div class="small text-muted fst-italic">
+                                    Keine Seitenübergänge hinterlegt.
                                   </div>
                                 {% endif %}
                               </div>

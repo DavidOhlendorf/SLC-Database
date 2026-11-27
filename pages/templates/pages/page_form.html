@@ -402,14 +402,20 @@
                     <div class="accordion tone-accordion--active-accent tone-survey" id="accordionPageLogic">
 
                         <!-- Filter (tr) -->
-                        <div class="accordion-item" data-acc-open-when-filled="transitions" data-required-field="transitions">
+                        <div class="accordion-item"
+                            data-acc-open-when-filled="transitions"
+                            {% if page.questionnaire_part == "core" %}
+                                data-required-field="transitions"
+                            {% endif %}>
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed"
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#col-tr">
                                     Filter / Transitions (tr)
-                                    <span data-required-badge class="ms-2"></span>
+                                    {% if page.questionnaire_part == "core" %}
+                                        <span data-required-badge class="ms-2"></span>
+                                    {% endif %}
                                 </button>
                             </h2>
                             <div id="col-tr"

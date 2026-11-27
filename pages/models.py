@@ -6,13 +6,21 @@ from django.db.models import Q, Case, When, Value, BooleanField
 from waves.choices import QuestionnairePart
 
 
-# QuerySet mit Annotations zur Vollständigkeitsprüfung von Seiten
+# QuerySet für WavePage mit Annotations zur Vollständigkeitsprüfung
 class WavePageQuerySet(models.QuerySet):
     def with_completeness(self):
         missing = (
-            Q(pagename__isnull=True) | Q(pagename="") |
-            Q(transitions__isnull=True) | Q(transitions="")
+            Q(pagename__isnull=True)
+            | Q(pagename="")
+            | (
+                Q(questionnaire_part=QuestionnairePart.CORE)
+                & (
+                    Q(transitions__isnull=True)
+                    | Q(transitions="")
+                )
+            )
         )
+
         return self.annotate(
             is_incomplete=Case(
                 When(missing, then=Value(True)),
